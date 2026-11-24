@@ -4,7 +4,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="theme-color" content="#0d1215">
 <title>Grünwelle Live</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
 <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800&display=swap" rel="stylesheet">
 <style>
 :root{color-scheme:light dark;--bg:light-dark(#eef2f5,#0d1215);--ink:light-dark(#152027,#e8eef2);--mute:light-dark(#5b6a74,#94a3ad);--card:light-dark(#fff,#172026);--line:light-dark(#dbe2e7,#26323a);
@@ -13,10 +13,10 @@
 html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:16px/1.45 Rubik,system-ui,sans-serif;overflow:hidden}
 #app{position:fixed;inset:0;display:flex;flex-direction:column}
 #mapwrap{flex:1;min-height:120px;position:relative;overflow:hidden;background:var(--line)}
-#map{position:absolute;background:var(--line);transition:transform .6s ease-out;will-change:transform}
+#map{position:absolute;inset:0;background:var(--line)}
 .attr{position:absolute;right:4px;bottom:2px;z-index:400;font-size:11px;background:#ffffffcc;color:#333;padding:0 4px;border-radius:4px}
 .attr a{color:inherit}
-.car{width:34px;height:34px;transition:transform .4s}.car svg{width:34px;height:34px;display:block}
+.car{width:44px;height:44px}.car svg{width:44px;height:44px;display:block;filter:drop-shadow(0 2px 3px #0006)}
 .top{align-items:flex-start;position:absolute;top:calc(env(safe-area-inset-top) + 10px);left:10px;right:10px;display:flex;gap:8px;z-index:500;pointer-events:none}
 .pill{pointer-events:auto;background:var(--card);border-radius:20px;padding:6px 12px;font-size:13px;box-shadow:0 4px 14px -6px #0007;white-space:nowrap}
 .pill.warn{background:var(--amber);color:#152027}
@@ -77,7 +77,7 @@ input[type=search]{width:100%;font:inherit;font-size:17px;border:1px solid var(-
 textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--line);border-radius:12px;padding:8px;background:var(--bg);color:var(--ink)}
 </style></head><body>
 <div id="app">
- <div id="mapwrap"><div id="map"></div><div class="attr">© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a></div></div>
+ <div id="mapwrap"><div id="map"></div><div class="attr"><a href="https://openfreemap.org">OpenFreeMap</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a></div></div>
  <div id="nav"><svg viewBox="0 0 48 48" id="navIco"></svg><div class="tx"><b id="navD">–</b><span id="navT">–</span></div><button class="x" id="navX" aria-label="Navigation beenden">×</button></div>
  <div class="top"><span class="pill" id="gps">GPS aus</span><span class="pill" id="sigs">Ampeln: –</span><button class="ibtn" id="searchBtn" aria-label="Ziel suchen" style="margin-left:auto"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg></button><button class="ibtn" id="setBtn" aria-label="Einstellungen">⚙</button></div>
  <div class="alert" id="alert"><div class="dot" id="aDot">!</div><div class="tx"><b id="aT"></b><span id="aD"></span></div><button class="btn pri" id="aYes">Noch da</button><button class="btn" id="aNo">Weg</button></div>
@@ -113,7 +113,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <div class="sheet" id="setSheet"><h2>Einstellungen</h2>
  <h3>Ansagen</h3><div class="row"><button class="chip" data-audio="ton">Signaltöne</button><button class="chip" data-audio="sprache">Sprache</button><button class="chip" data-audio="aus">Aus</button></div>
  <p class="small" id="audioInfo"></p>
- <h3>Karte</h3><div class="row"><button class="chip" data-ori="fahrt">Fahrtrichtung oben</button><button class="chip" data-ori="nord">Norden oben</button></div>
+ <h3>Karte</h3><div class="row"><button class="chip" data-ori="3d">3D</button><button class="chip" data-ori="fahrt">2D Fahrtrichtung</button><button class="chip" data-ori="nord">2D Norden</button></div>
  <h3>Fahrzeug</h3><div class="row"><button class="chip" data-mode="auto">Auto</button><button class="chip" data-mode="rad">Rad</button></div>
  <h3>Tempolimit für Empfehlungen</h3><div class="row" id="limits"></div>
  <h3>Gelernte Daten</h3>
@@ -142,7 +142,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 </div></div>
 <div class="toast" id="toast"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
 <script>
 {
 const $=id=>document.getElementById(id);
@@ -155,43 +155,53 @@ const adiff=(a,b)=>((a-b+540)%360)-180;
 const mod=(a,b)=>((a%b)+b)%b;
 // ---------- Einstellungen & Speicher ----------
 const MODES={auto:{vmin:15,limits:[30,50,60,70],def:50},rad:{vmin:8,limits:[20,25,30],def:25}};
-const set=Object.assign({mode:'auto',limit:50,audio:'ton',ori:'fahrt'},LS.get('gw_set',{}));
+const set=Object.assign({mode:'auto',limit:50,audio:'ton',ori:'3d'},LS.get('gw_set',{}));if(!set.v3d){set.ori='3d';set.v3d=1}
 let OBS=LS.get('gw_obs',{});            // key -> {g:[], p:[], r:[[a,b]]}  Zeiten in Sekunden
 let REPS=LS.get('gw_reps',[]);
 const SIG=new Map((LS.get('gw_sig',[])).map(s=>[s.id,s]));
 let sigCenter=LS.get('gw_sigc',null);
 const saveObs=()=>LS.set('gw_obs',OBS),saveSet=()=>LS.set('gw_set',set),saveReps=()=>LS.set('gw_reps',REPS);
-// ---------- Karte ----------
-const map=L.map('map',{zoomControl:false,attributionControl:false}).setView([51.3397,12.3731],15);
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
-map.createPane('sigs').style.zIndex=450;
-const sigRenderer=L.canvas({pane:'sigs'});
-const sigLayer=L.layerGroup().addTo(map),repLayer=L.layerGroup().addTo(map);
-const me=L.marker([0,0],{interactive:false,zIndexOffset:1000,icon:L.divIcon({className:'',iconSize:[34,34],iconAnchor:[17,17],html:'<div class="car" id="car"><svg viewBox="0 0 34 34"><circle cx="17" cy="17" r="15" fill="#22a7e8" opacity=".25"/><path d="M17 5l9 22-9-5-9 5z" fill="#22a7e8" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg></div>'})}).addTo(map);
+// ---------- Karte (MapLibre, 3D) ----------
+const EMPTY={type:'FeatureCollection',features:[]};
+const map=new maplibregl.Map({container:'map',style:'https://tiles.openfreemap.org/styles/liberty',center:[12.3731,51.3397],zoom:14,attributionControl:false,maxPitch:70,fadeDuration:0});
+let mapReady=false,mapErr='';const mapQ=[];const whenMap=f=>{if(mapReady)f();else mapQ.push(f)};
+const src=(id,data)=>whenMap(()=>{const so=map.getSource(id);if(so)so.setData(data)});
+map.on('error',e=>{mapErr=(e&&e.error&&e.error.message)||'Kartenfehler'});
+map.on('load',()=>{
+ const before=map.getStyle().layers.find(l=>l.type==='symbol')?.id;
+ map.addSource('route',{type:'geojson',data:EMPTY});
+ map.addLayer({id:'route-case',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#ffffff','line-width':['interpolate',['linear'],['zoom'],12,6,18,22]}},before);
+ map.addLayer({id:'route-line',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#22a7e8','line-width':['interpolate',['linear'],['zoom'],12,4,18,15]}},before);
+ for(const id of['sigs','reps','dest'])map.addSource(id,{type:'geojson',data:EMPTY});
+ map.addLayer({id:'sigs',type:'circle',source:'sigs',minzoom:12,paint:{'circle-radius':['case',['==',['get','k'],'t'],9,5.5],'circle-color':['match',['get','k'],'l','#ffb020','t','#22a7e8','#8a949b'],'circle-stroke-color':'#ffffff','circle-stroke-width':2}});
+ map.addLayer({id:'reps',type:'circle',source:'reps',paint:{'circle-radius':10,'circle-color':['get','c'],'circle-stroke-color':'#ffffff','circle-stroke-width':3}});
+ map.addLayer({id:'dest',type:'circle',source:'dest',paint:{'circle-radius':10,'circle-color':'#152027','circle-stroke-color':'#ffffff','circle-stroke-width':3}});
+ mapReady=true;mapQ.splice(0).forEach(f=>{try{f()}catch(e){}});applyView(true)});
+const carEl=document.createElement('div');carEl.className='car';
+carEl.innerHTML='<svg viewBox="0 0 38 38"><circle cx="19" cy="19" r="17" fill="#22a7e8" opacity=".22"/><path d="M19 5l10 24-10-6-10 6z" fill="#22a7e8" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg>';
+const me=new maplibregl.Marker({element:carEl,rotationAlignment:'map',pitchAlignment:'viewport'}).setLngLat([12.3731,51.3397]);
+let meOn=false;
 let follow=true,freeT=null;
-const freeMap=()=>{follow=false;clearTimeout(freeT);freeT=setTimeout(()=>{follow=true;applyView(true)},15000);applyView(true)};
-map.on('dragstart',freeMap);
-// Drehbare Karte: innere Fläche so groß wie die Diagonale, wird per CSS gedreht
-let rot=0,rotShown=0;
-function sizeMap(){const w=$('mapwrap'),W=w.clientWidth,H=w.clientHeight,D=Math.ceil(Math.hypot(W,H));const m=$('map');m.style.width=m.style.height=D+'px';m.style.left=(W-D)/2+'px';m.style.top=(H-D)/2+'px';map.invalidateSize({pan:false})}
-window.addEventListener('resize',()=>{sizeMap();applyView(true)});
-$('mapwrap').addEventListener('pointerdown',()=>{if(rotShown)freeMap()},true);
+const freeMap=()=>{follow=false;clearTimeout(freeT);freeT=setTimeout(()=>{follow=true;applyView(true)},15000)};
+for(const ev of['dragstart','zoomstart','rotatestart','pitchstart'])map.on(ev,e=>{if(e&&e.originalEvent)freeMap()});
+let camBrg=0;
 function applyView(force){
- const want=(follow&&set.ori=='fahrt'&&heading!=null&&!PREVIEW_ACTIVE())?heading:0;
- if(force||Math.abs(adiff(want,rot))>4){let dlt=adiff(want,rotShown);rotShown+=dlt;rot=want}
- const turned=Math.abs(mod(rotShown,360))>0.5&&Math.abs(mod(rotShown,360)-360)>0.5;
- $('map').style.transform=`rotate(${-rotShown}deg)`;
- if(turned){map.dragging.disable()}else map.dragging.enable();
- const car=document.getElementById('car');if(car)car.style.transform=`rotate(${heading??0}deg)`;
- if(follow&&cur){const z=NAV?17:Math.max(map.getZoom(),16),H=$('mapwrap').clientHeight,dy=H*0.22,h=rotShown*RAD,cp=map.project([cur.lat,cur.lon],z);
-  const c=map.unproject(L.point(cp.x+dy*Math.sin(h),cp.y-dy*Math.cos(h)),z);map.setView(c,z,{animate:false})}}
+ if(cur){me.setLngLat([cur.lon,cur.lat]);if(!meOn){me.addTo(map);meOn=true}me.setRotation(heading??0)}
+ if(!follow||!cur||PREVIEW_ACTIVE())return;
+ const o=set.ori,want=(o!=='nord'&&heading!=null)?heading:0;
+ if(force||Math.abs(adiff(want,camBrg))>4)camBrg=want;
+ const H=$('map').clientHeight,three=o==='3d';
+ map.easeTo({center:[cur.lon,cur.lat],bearing:camBrg,pitch:three?60:0,zoom:three?17.2:(NAV?17:16.3),padding:{top:o==='nord'?0:H*(three?0.5:0.4),bottom:0,left:0,right:0},duration:force?600:950,easing:t=>t})}
 const PREVIEW_ACTIVE=()=>typeof PREVIEW!=='undefined'&&!!PREVIEW;
-const sigMarkers=new Map();
-const drawSignals=()=>{for(const s of SIG.values()){if(sigMarkers.has(s.id))continue;const m=L.circleMarker([s.lat,s.lon],{pane:'sigs',renderer:sigRenderer,radius:6,color:'#fff',weight:2,fillColor:'#8a949b',fillOpacity:1});m.addTo(sigLayer);sigMarkers.set(s.id,m)}
+// Ampeln als GeoJSON (grau = unbekannt, gelb = gelernt, blau = nächste)
+let LEARNED=new Set(),tgtId=null,sigQueued=false;
+function updateSigs(){if(sigQueued)return;sigQueued=true;requestAnimationFrame(()=>{sigQueued=false;
+ src('sigs',{type:'FeatureCollection',features:[...SIG.values()].map(x=>({type:'Feature',geometry:{type:'Point',coordinates:[x.lon,x.lat]},properties:{k:x.id===tgtId?'t':LEARNED.has(x.id)?'l':'u'}}))})})}
+const drawSignals=()=>{updateSigs();
  $('sigs').textContent='Ampeln: '+SIG.size;if(typeof onSignalsChanged=='function')onSignalsChanged()};
 const TYPES={pol:{n:'Polizei',c:'#2f6fe0',h:2},unf:{n:'Unfall',c:'#e5484d',h:3},stau:{n:'Stau',c:'#d9480f',h:1},gef:{n:'Gefahr',c:'#f08c00',h:3},bau:{n:'Baustelle',c:'#e8590c',h:24*14}};
-const drawReps=()=>{repLayer.clearLayers();const now=Date.now();REPS=REPS.filter(r=>now-r.t<TYPES[r.type].h*3600e3);
- for(const r of REPS)L.circleMarker([r.lat,r.lon],{pane:'sigs',radius:10,color:'#fff',weight:3,fillColor:TYPES[r.type].c,fillOpacity:1}).bindTooltip(TYPES[r.type].n).addTo(repLayer)};
+const drawReps=()=>{const now=Date.now();REPS=REPS.filter(r=>now-r.t<TYPES[r.type].h*3600e3);
+ src('reps',{type:'FeatureCollection',features:REPS.map(r=>({type:'Feature',geometry:{type:'Point',coordinates:[r.lon,r.lat]},properties:{c:TYPES[r.type].c}}))})};
 $('types').innerHTML=Object.entries(TYPES).map(([k,t])=>`<button data-t="${k}"><span class="dot" style="background:${t.c}">!</span>${t.n}</button>`).join('');
 // ---------- Ampeln laden (Overpass) ----------
 const tfetch=(url,opt={},ms=20000)=>{const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),ms);return fetch(url,{...opt,signal:ac.signal}).finally(()=>clearTimeout(tm))};
@@ -212,7 +222,7 @@ async function loadSignals(p,force){
  for(const url of OVERPASS){try{const r=await tfetch(url,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}});
    if(!r.ok)throw new Error(r.status);const j=await r.json();if(j.remark&&!(j.elements||[]).length)throw new Error(j.remark);
    for(const e of j.elements||[])if(e.type=='node'&&isFinite(e.lat))SIG.set(e.id,{id:e.id,lat:+e.lat,lon:+e.lon});
-   const ops=[...SIG.values()].filter(s=>!s.f);if(ops.length>4000){ops.sort((a,b)=>dist(b,p)-dist(a,p)).slice(0,ops.length-4000).forEach(s=>{SIG.delete(s.id);const m=sigMarkers.get(s.id);if(m){sigLayer.removeLayer(m);sigMarkers.delete(s.id)}})}
+   const ops=[...SIG.values()].filter(s=>!s.f);if(ops.length>4000){ops.sort((a,b)=>dist(b,p)-dist(a,p)).slice(0,ops.length-4000).forEach(s=>{SIG.delete(s.id)})}
    DIAG.load=`ok um ${hm()}, ${(j.elements||[]).length} im Umkreis von 4 km`;sigCenter={lat:p.lat,lon:p.lon};LS.set('gw_sig',[...SIG.values()].filter(s=>!s.f));LS.set('gw_sigc',sigCenter);loading=false;drawSignals();return}catch(e){}}
  loading=false;DIAG.load=`fehlgeschlagen um ${hm()}, neuer Versuch in 30 s`;$('sigs').textContent=SIG.size?`Ampeln: ${SIG.size} (Nachladen fehlgeschlagen)`:'Ampeln: Laden fehlgeschlagen';setTimeout(()=>{if(cur)loadSignals(cur,true)},30000)}
 // ---------- Lernmodell ----------
@@ -262,7 +272,7 @@ function onFix(pos){
  if(!lastMove)lastMove=p;else if(dist(lastMove,p)>8){if(!hv)heading=bearing(lastMove,p);lastMove=p}
  prev=p;cur=p;DIAG.fixes++;DIAG.acc=c.accuracy;
  $('gps').textContent='GPS ±'+Math.round(c.accuracy)+' m';$('gps').classList.toggle('warn',c.accuracy>30);
- me.setLatLng([p.lat,p.lon]);applyView();
+ applyView();
  loadSignals(p);if(NAV)updateNav(p);
  if(v<0.8&&!drive.halted){drive.halted=true;drive.stops++}if(v>3)drive.halted=false;
  // Annäherung an Ampel
@@ -285,10 +295,9 @@ function render(){
  const now=Date.now()/1000,kmh=Math.round(v*3.6),max=Math.max(set.limit+10,30);
  $('spd').textContent=kmh;$('tMax').textContent=max+' km/h';$('ndl').style.left=Math.min(100,kmh/max*100)+'%';
  const sig=$('sig'),lamps=sig.querySelectorAll('i');
- if(lastTgt&&sigMarkers.get(lastTgt))sigMarkers.get(lastTgt).setStyle({radius:6,color:'#fff'});
  if(!cur){return}
  if(!tgt||!tgt.s){sig.className='sig';lamps.forEach(e=>e.classList.remove('on'));$('cd').textContent='Keine Ampel voraus';$('hint').textContent=NAV?'Bis 500 m keine Ampel auf der Route':heading==null?'Richtung wird ermittelt, bitte losfahren':'Gute Fahrt';$('src').textContent='';$('band').style.width='0';lastTgt=null;return}
- const d=(tgt.rs!=null&&NAV)?Math.max(0,tgt.rs-NAV.s):dist(cur,tgt.s),m=fit(tgt.key,now);lastTgt=tgt.s.id;const mk=sigMarkers.get(tgt.s.id);if(mk)mk.setStyle({radius:10,color:'#22a7e8'});
+ const d=(tgt.rs!=null&&NAV)?Math.max(0,tgt.rs-NAV.s):dist(cur,tgt.s),m=fit(tgt.key,now);lastTgt=tgt.s.id;if(tgtId!==tgt.s.id){tgtId=tgt.s.id;updateSigs()}
  const waiting=appr&&appr.id===tgt.s.id&&appr.stopT&&!appr.departT&&d<60;
  if(!m.ok){const o=OBS[tgt.key]||{g:[],p:[]},gn=o.g.length,pn=o.p.length;
   if(waiting){sig.className='sig';lamps.forEach(e=>e.classList.toggle('on',e.classList.contains('r')));$('cd').textContent='Rot · du wartest';$('hint').textContent='Die App merkt sich, wann es grün wird'}
@@ -305,13 +314,12 @@ function render(){
 const renderStats=()=>{$('sPass').textContent=drive.pass;$('sGreen').textContent=drive.green;$('sStops').textContent=drive.stops};
 const renderLearn=()=>{const now=Date.now()/1000;let n=0;for(const k in OBS)if(fit(k,now).ok)n++;$('sLearn').textContent=n;
  const obsN=Object.values(OBS).reduce((s,o)=>s+o.g.length+o.p.length,0);$('dataInfo').textContent=`${Object.keys(OBS).length} Ampel-Richtungen beobachtet, ${obsN} Beobachtungen, ${n} mit Schätzung. ${REPS.length} eigene Meldungen.`;
- for(const k in OBS){const id=+k.split('_')[0],mk=sigMarkers.get(id);if(mk&&fit(k,now).ok)mk.setStyle({fillColor:'#ffb020'})}renderStats()};
+ const L2=new Set();for(const k in OBS)if(fit(k,now).ok)L2.add(+k.split('_')[0]);if(L2.size!==LEARNED.size||[...L2].some(x=>!LEARNED.has(x))){LEARNED=L2;updateSigs()}renderStats()};
 setInterval(()=>{if(cur)render()},500);
 
 // ---------- Navigation ----------
 let NAV=null;
-const routeLayer=L.layerGroup().addTo(map);
-let destMarker=null;
+const clearRoute=()=>{src('route',EMPTY);src('dest',EMPTY)};
 const ROUTERS={auto:['https://routing.openstreetmap.de/routed-car/route/v1/driving/','https://router.project-osrm.org/route/v1/driving/'],rad:['https://routing.openstreetmap.de/routed-bike/route/v1/driving/']};
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let voices=null;const pickVoice=()=>{try{const vs=speechSynthesis.getVoices();return vs.find(v=>/^de/i.test(v.lang))||null}catch(e){return null}};
@@ -365,8 +373,8 @@ async function fetchRoute(a,b){
  for(const base of ROUTERS[set.mode]){try{const r=await tfetch(`${base}${a.lon.toFixed(6)},${a.lat.toFixed(6)};${b.lon.toFixed(6)},${b.lat.toFixed(6)}?overview=full&geometries=geojson&steps=true&alternatives=false`);
   if(!r.ok)throw new Error(r.status);const j=await r.json();if(j.code!=='Ok'||!j.routes||!j.routes.length)throw new Error(j.code);return j.routes[0]}catch(e){}}
  return null}
-function drawRoute(R){routeLayer.clearLayers();L.polyline(R.ll,{color:'#ffffff',weight:11,opacity:.9}).addTo(routeLayer);L.polyline(R.ll,{color:'#22a7e8',weight:7}).addTo(routeLayer);
- if(destMarker)map.removeLayer(destMarker);destMarker=L.circleMarker([R.dest.lat,R.dest.lon],{radius:10,color:'#fff',weight:3,fillColor:'#152027',fillOpacity:1}).addTo(map)}
+function drawRoute(R){src('route',{type:'Feature',geometry:{type:'LineString',coordinates:R.ll.map(c=>[c[1],c[0]])},properties:{}});
+ src('dest',{type:'Feature',geometry:{type:'Point',coordinates:[R.dest.lon,R.dest.lat]},properties:{}})}
 // Ampeln entlang der Route
 function computeOnRoute(R){if(!R)return;const out=[];
  for(const sg of SIG.values()){const q=snap(R,sg.lat,sg.lon);if(q.d<18){const i=q.i,a=R.ll[i],b=R.ll[Math.min(i+1,R.ll.length-1)];out.push({sig:sg,s:q.s,brg:bearing({lat:a[0],lon:a[1]},{lat:b[0],lon:b[1]})})}}
@@ -390,13 +398,13 @@ function renderPreview(){const R=PREVIEW;if(!R)return;$('pvTime').textContent=fm
  $('pvLearn').textContent=R.onRoute?(R.onRoute.length?`${n} davon mit gelernten Schaltzeiten. Die übrigen lernt die App auf dieser Fahrt mit.`:'Keine Ampeln auf dieser Route gefunden.'):'Ampeln entlang der Route werden geladen …'}
 async function preview(dest){if(!cur){toast('Erst Fahrt starten');return}closeSheets();toast('Route wird berechnet …');
  const r=await fetchRoute(cur,dest);if(!r){toast('Keine Route gefunden');return}
- PREVIEW=buildRoute(r,dest);computeOnRoute(PREVIEW);drawRoute(PREVIEW);follow=false;applyView(true);map.fitBounds(L.latLngBounds(PREVIEW.ll),{padding:[40,40]});
+ PREVIEW=buildRoute(r,dest);computeOnRoute(PREVIEW);drawRoute(PREVIEW);follow=false;{const la=PREVIEW.ll.map(c=>c[0]),lo=PREVIEW.ll.map(c=>c[1]);map.fitBounds([[Math.min(...lo),Math.min(...la)],[Math.max(...lo),Math.max(...la)]],{padding:{top:60,bottom:Math.round($('map').clientHeight*0.1)+60,left:40,right:40},bearing:0,pitch:0,duration:700})}
  $('toast').classList.remove('on');$('pvName').textContent=dest.name;$('pvAddr').textContent=dest.sub||'';renderPreview();$('prevSheet').classList.add('on');loadRouteSignals(PREVIEW)}
-$('pvGo').onclick=()=>{if(!PREVIEW)return;NAV=PREVIEW;PREVIEW=null;closeSheets();follow=true;document.getElementById('app').classList.add('app-nav');document.body.classList.add('nav-on');
+$('pvGo').onclick=()=>{if(!PREVIEW)return;NAV=PREVIEW;PREVIEW=null;closeSheets();follow=true;setTimeout(()=>applyView(true),0);document.getElementById('app').classList.add('app-nav');document.body.classList.add('nav-on');
  const rec=LS.get('gw_recent',[]).filter(x=>x.name!==NAV.dest.name);rec.unshift(NAV.dest);LS.set('gw_recent',rec.slice(0,6));
  appr=null;const first=NAV.steps[1];announce('start','Route gestartet. '+(first?`${inDist(first.s)} ${farText(first)}`:''),0);if(first&&first.s<Math.max(180,v*14))first.said.far=1;if(cur)updateNav(cur);renderNav()};
-$('pvCancel').onclick=()=>{PREVIEW=null;routeLayer.clearLayers();if(destMarker){map.removeLayer(destMarker);destMarker=null}closeSheets();follow=true};
-function endNav(silent){if(!NAV&&!PREVIEW)return;NAV=null;PREVIEW=null;routeLayer.clearLayers();if(destMarker){map.removeLayer(destMarker);destMarker=null}
+$('pvCancel').onclick=()=>{PREVIEW=null;clearRoute();closeSheets();follow=true;applyView(true)};
+function endNav(silent){if(!NAV&&!PREVIEW)return;NAV=null;PREVIEW=null;clearRoute();
  document.getElementById('app').classList.remove('app-nav');document.body.classList.remove('nav-on');$('nav').classList.remove('on');appr=null;if(!silent)toast('Navigation beendet')}
 $('navX').onclick=()=>endNav();
 // laufende Navigation
@@ -440,7 +448,7 @@ $('res').onclick=e=>{const b=e.target.closest('[data-r]');if(!b)return;const d=R
 // ---------- Diagnose ----------
 function renderDiag(){const now=Date.now()/1000,R=NAV;
  const rows=[['GPS',DIAG.acc==null?'noch kein Signal':`±${Math.round(DIAG.acc)} m, ${DIAG.fixes} Positionen in dieser Sitzung`],
-  ['Ampel-Datei Leipzig',fileState],['Ampeln geladen',`${SIG.size} gesamt · Online-Abruf: ${DIAG.load}`],
+  ['Karte',mapReady?(mapErr?'geladen, Hinweis: '+mapErr:'3D-Karte geladen'):(mapErr||'lädt …')],['Ampel-Datei Leipzig',fileState],['Ampeln geladen',`${SIG.size} gesamt · Online-Abruf: ${DIAG.load}`],
   ['Nächste Ampel',(()=>{if(!cur||!SIG.size)return '–';let b=1e9;for(const x of SIG.values()){const d=dist(cur,x);if(d<b)b=d}return fmt(b)+' entfernt'})()],
   ['Fahrtrichtung',heading==null?'noch unbekannt (erst losfahren)':Math.round(heading)+'°'],
   ['Navigation',R?`aktiv, ${(R.onRoute||[]).length} Ampeln auf der Route`:'aus (Ampeln werden per Fahrtrichtung erkannt)'],
@@ -483,7 +491,7 @@ $('imp').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const j=J
  for(const r of j.reports||[])if(TYPES[r.type]&&!REPS.some(x=>x.id===r.id))REPS.push(r);
  saveObs();saveReps();fitCache.clear();drawReps();renderLearn();toast('Daten importiert')}catch(err){toast('Datei nicht lesbar')}};
 $('reload').onclick=()=>{if(cur)loadSignals(cur,true);else toast('Erst Fahrt starten')};
-$('wipe').onclick=()=>{if($('wipe').dataset.sure){OBS={};REPS=[];saveObs();saveReps();fitCache.clear();drawReps();renderLearn();sigMarkers.forEach(m=>m.setStyle({fillColor:'#8a949b'}));toast('Gelöscht');delete $('wipe').dataset.sure;$('wipe').textContent='Alle Daten löschen'}
+$('wipe').onclick=()=>{if($('wipe').dataset.sure){OBS={};REPS=[];saveObs();saveReps();fitCache.clear();drawReps();renderLearn();LEARNED=new Set();updateSigs();toast('Gelöscht');delete $('wipe').dataset.sure;$('wipe').textContent='Alle Daten löschen'}
  else{$('wipe').dataset.sure=1;$('wipe').textContent='Wirklich löschen?';setTimeout(()=>{delete $('wipe').dataset.sure;$('wipe').textContent='Alle Daten löschen'},4000)}};
 async function keepAwake(){try{if('wakeLock' in navigator)wake=await navigator.wakeLock.request('screen')}catch(e){}}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState=='visible'&&watch!=null)keepAwake()});
@@ -491,12 +499,12 @@ $('go').onclick=()=>{if(!('geolocation' in navigator)){$('startInfo').textConten
  if(location.protocol!=='https:'&&location.hostname!=='localhost'){$('startInfo').textContent='GPS braucht eine https-Adresse. Bitte die App über https öffnen.'}
  watch=navigator.geolocation.watchPosition(onFix,err=>{$('gps').textContent=err.code==1?'GPS nicht erlaubt':'GPS-Fehler';$('gps').classList.add('warn');
   if(err.code==1){$('cd').textContent='GPS nicht erlaubt';$('hint').textContent='In iOS: Einstellungen › Datenschutz › Ortungsdienste › Safari-Websites erlauben'}},{enableHighAccuracy:true,maximumAge:0,timeout:15000});
- keepAwake();unlockSpeech();$('start').style.display='none';setTimeout(sizeMap,50);$('cd').textContent='Suche GPS …';$('hint').textContent='Einen Moment';
+ keepAwake();unlockSpeech();$('start').style.display='none';setTimeout(()=>map.resize(),50);$('cd').textContent='Suche GPS …';$('hint').textContent='Einen Moment';
  Object.assign(drive,{pass:0,green:0,stops:0,halted:true});renderStats()};
 $('stop').onclick=()=>{endNav(true);if(watch!=null)navigator.geolocation.clearWatch(watch);watch=null;try{wake&&wake.release()}catch(e){}closeSheets();$('start').style.display='';
  $('startInfo').textContent=`Letzte Fahrt: ${drive.pass} Ampeln, ${drive.green} bei Grün, ${drive.stops} Stopps.`};
-sizeMap();drawSignals();drawReps();renderLearn();loadFile();
-if(location.hostname=='gw.test')window.__gw={OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr};
+drawSignals();drawReps();renderLearn();loadFile();
+if(location.hostname=='gw.test')window.__gw={OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr,map};
 $('startInfo').textContent=Object.keys(OBS).length?`Bisher gelernt: ${Object.keys(OBS).length} Ampel-Richtungen.`:'';
 
 }
