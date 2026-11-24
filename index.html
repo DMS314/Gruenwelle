@@ -12,7 +12,11 @@
 *{box-sizing:border-box;min-width:0}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:16px/1.45 Rubik,system-ui,sans-serif;overflow:hidden}
 #app{position:fixed;inset:0;display:flex;flex-direction:column}
-#map{flex:1;min-height:120px;background:var(--line)}
+#mapwrap{flex:1;min-height:120px;position:relative;overflow:hidden;background:var(--line)}
+#map{position:absolute;background:var(--line);transition:transform .6s ease-out;will-change:transform}
+.attr{position:absolute;right:4px;bottom:2px;z-index:400;font-size:11px;background:#ffffffcc;color:#333;padding:0 4px;border-radius:4px}
+.attr a{color:inherit}
+.car{width:34px;height:34px;transition:transform .4s}.car svg{width:34px;height:34px;display:block}
 .top{align-items:flex-start;position:absolute;top:calc(env(safe-area-inset-top) + 10px);left:10px;right:10px;display:flex;gap:8px;z-index:500;pointer-events:none}
 .pill{pointer-events:auto;background:var(--card);border-radius:20px;padding:6px 12px;font-size:13px;box-shadow:0 4px 14px -6px #0007;white-space:nowrap}
 .pill.warn{background:var(--amber);color:#152027}
@@ -73,7 +77,7 @@ input[type=search]{width:100%;font:inherit;font-size:17px;border:1px solid var(-
 textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--line);border-radius:12px;padding:8px;background:var(--bg);color:var(--ink)}
 </style></head><body>
 <div id="app">
- <div id="map"></div>
+ <div id="mapwrap"><div id="map"></div><div class="attr">© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a></div></div>
  <div id="nav"><svg viewBox="0 0 48 48" id="navIco"></svg><div class="tx"><b id="navD">–</b><span id="navT">–</span></div><button class="x" id="navX" aria-label="Navigation beenden">×</button></div>
  <div class="top"><span class="pill" id="gps">GPS aus</span><span class="pill" id="sigs">Ampeln: –</span><button class="ibtn" id="searchBtn" aria-label="Ziel suchen" style="margin-left:auto"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg></button><button class="ibtn" id="setBtn" aria-label="Einstellungen">⚙</button></div>
  <div class="alert" id="alert"><div class="dot" id="aDot">!</div><div class="tx"><b id="aT"></b><span id="aD"></span></div><button class="btn pri" id="aYes">Noch da</button><button class="btn" id="aNo">Weg</button></div>
@@ -107,7 +111,9 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
  <button class="btn big" id="pvCancel" style="margin-top:8px">Abbrechen</button></div>
 
 <div class="sheet" id="setSheet"><h2>Einstellungen</h2>
- <h3>Sprachansagen</h3><div class="row"><button class="chip" data-voice="1">An</button><button class="chip" data-voice="0">Aus</button></div>
+ <h3>Ansagen</h3><div class="row"><button class="chip" data-audio="ton">Signaltöne</button><button class="chip" data-audio="sprache">Sprache</button><button class="chip" data-audio="aus">Aus</button></div>
+ <p class="small" id="audioInfo"></p>
+ <h3>Karte</h3><div class="row"><button class="chip" data-ori="fahrt">Fahrtrichtung oben</button><button class="chip" data-ori="nord">Norden oben</button></div>
  <h3>Fahrzeug</h3><div class="row"><button class="chip" data-mode="auto">Auto</button><button class="chip" data-mode="rad">Rad</button></div>
  <h3>Tempolimit für Empfehlungen</h3><div class="row" id="limits"></div>
  <h3>Gelernte Daten</h3>
@@ -149,20 +155,37 @@ const adiff=(a,b)=>((a-b+540)%360)-180;
 const mod=(a,b)=>((a%b)+b)%b;
 // ---------- Einstellungen & Speicher ----------
 const MODES={auto:{vmin:15,limits:[30,50,60,70],def:50},rad:{vmin:8,limits:[20,25,30],def:25}};
-const set=Object.assign({mode:'auto',limit:50,voice:1},LS.get('gw_set',{}));
+const set=Object.assign({mode:'auto',limit:50,audio:'ton',ori:'fahrt'},LS.get('gw_set',{}));
 let OBS=LS.get('gw_obs',{});            // key -> {g:[], p:[], r:[[a,b]]}  Zeiten in Sekunden
 let REPS=LS.get('gw_reps',[]);
 const SIG=new Map((LS.get('gw_sig',[])).map(s=>[s.id,s]));
 let sigCenter=LS.get('gw_sigc',null);
 const saveObs=()=>LS.set('gw_obs',OBS),saveSet=()=>LS.set('gw_set',set),saveReps=()=>LS.set('gw_reps',REPS);
 // ---------- Karte ----------
-const map=L.map('map',{zoomControl:false,attributionControl:true}).setView([51.3397,12.3731],15);
+const map=L.map('map',{zoomControl:false,attributionControl:false}).setView([51.3397,12.3731],15);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
 map.createPane('sigs').style.zIndex=450;
 const sigRenderer=L.canvas({pane:'sigs'});
 const sigLayer=L.layerGroup().addTo(map),repLayer=L.layerGroup().addTo(map);
-const me=L.circleMarker([0,0],{pane:'sigs',radius:9,color:'#fff',weight:3,fillColor:'#22a7e8',fillOpacity:1}).addTo(map);
-let follow=true;map.on('dragstart',()=>{follow=false;setTimeout(()=>follow=true,15000)});
+const me=L.marker([0,0],{interactive:false,zIndexOffset:1000,icon:L.divIcon({className:'',iconSize:[34,34],iconAnchor:[17,17],html:'<div class="car" id="car"><svg viewBox="0 0 34 34"><circle cx="17" cy="17" r="15" fill="#22a7e8" opacity=".25"/><path d="M17 5l9 22-9-5-9 5z" fill="#22a7e8" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg></div>'})}).addTo(map);
+let follow=true,freeT=null;
+const freeMap=()=>{follow=false;clearTimeout(freeT);freeT=setTimeout(()=>{follow=true;applyView(true)},15000);applyView(true)};
+map.on('dragstart',freeMap);
+// Drehbare Karte: innere Fläche so groß wie die Diagonale, wird per CSS gedreht
+let rot=0,rotShown=0;
+function sizeMap(){const w=$('mapwrap'),W=w.clientWidth,H=w.clientHeight,D=Math.ceil(Math.hypot(W,H));const m=$('map');m.style.width=m.style.height=D+'px';m.style.left=(W-D)/2+'px';m.style.top=(H-D)/2+'px';map.invalidateSize({pan:false})}
+window.addEventListener('resize',()=>{sizeMap();applyView(true)});
+$('mapwrap').addEventListener('pointerdown',()=>{if(rotShown)freeMap()},true);
+function applyView(force){
+ const want=(follow&&set.ori=='fahrt'&&heading!=null&&!PREVIEW_ACTIVE())?heading:0;
+ if(force||Math.abs(adiff(want,rot))>4){let dlt=adiff(want,rotShown);rotShown+=dlt;rot=want}
+ const turned=Math.abs(mod(rotShown,360))>0.5&&Math.abs(mod(rotShown,360)-360)>0.5;
+ $('map').style.transform=`rotate(${-rotShown}deg)`;
+ if(turned){map.dragging.disable()}else map.dragging.enable();
+ const car=document.getElementById('car');if(car)car.style.transform=`rotate(${heading??0}deg)`;
+ if(follow&&cur){const z=NAV?17:Math.max(map.getZoom(),16),H=$('mapwrap').clientHeight,dy=H*0.22,h=rotShown*RAD,cp=map.project([cur.lat,cur.lon],z);
+  const c=map.unproject(L.point(cp.x+dy*Math.sin(h),cp.y-dy*Math.cos(h)),z);map.setView(c,z,{animate:false})}}
+const PREVIEW_ACTIVE=()=>typeof PREVIEW!=='undefined'&&!!PREVIEW;
 const sigMarkers=new Map();
 const drawSignals=()=>{for(const s of SIG.values()){if(sigMarkers.has(s.id))continue;const m=L.circleMarker([s.lat,s.lon],{pane:'sigs',renderer:sigRenderer,radius:6,color:'#fff',weight:2,fillColor:'#8a949b',fillOpacity:1});m.addTo(sigLayer);sigMarkers.set(s.id,m)}
  $('sigs').textContent='Ampeln: '+SIG.size;if(typeof onSignalsChanged=='function')onSignalsChanged()};
@@ -239,7 +262,7 @@ function onFix(pos){
  if(!lastMove)lastMove=p;else if(dist(lastMove,p)>8){if(!hv)heading=bearing(lastMove,p);lastMove=p}
  prev=p;cur=p;DIAG.fixes++;DIAG.acc=c.accuracy;
  $('gps').textContent='GPS ±'+Math.round(c.accuracy)+' m';$('gps').classList.toggle('warn',c.accuracy>30);
- me.setLatLng([p.lat,p.lon]);if(follow)map.setView([p.lat,p.lon],NAV?17:Math.max(map.getZoom(),16),{animate:false});
+ me.setLatLng([p.lat,p.lon]);applyView();
  loadSignals(p);if(NAV)updateNav(p);
  if(v<0.8&&!drive.halted){drive.halted=true;drive.stops++}if(v>3)drive.halted=false;
  // Annäherung an Ampel
@@ -292,8 +315,19 @@ let destMarker=null;
 const ROUTERS={auto:['https://routing.openstreetmap.de/routed-car/route/v1/driving/','https://router.project-osrm.org/route/v1/driving/'],rad:['https://routing.openstreetmap.de/routed-bike/route/v1/driving/']};
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let voices=null;const pickVoice=()=>{try{const vs=speechSynthesis.getVoices();return vs.find(v=>/^de/i.test(v.lang))||null}catch(e){return null}};
-function say(text){if(!set.voice||!('speechSynthesis' in window))return;try{const u=new SpeechSynthesisUtterance(text);u.lang='de-DE';voices=voices||pickVoice();if(voices)u.voice=voices;u.rate=1.05;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){}}
-function unlockSpeech(){try{if('speechSynthesis' in window){const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u)}}catch(e){}}
+let actx=null;
+function audioInit(){try{if('audioSession' in navigator&&set.audio!=='sprache')navigator.audioSession.type='ambient'}catch(e){}
+ try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();if(actx.state!=='running')actx.resume()}catch(e){}}
+function beep(seq,pan){if(!actx)audioInit();if(!actx)return;const t0=actx.currentTime+0.02;
+ seq.forEach(([f,st,du])=>{const o=actx.createOscillator(),g=actx.createGain();o.type='sine';o.frequency.value=f;
+  g.gain.setValueAtTime(0,t0+st);g.gain.linearRampToValueAtTime(0.35,t0+st+0.02);g.gain.exponentialRampToValueAtTime(0.001,t0+st+du);
+  let last=g;if(actx.createStereoPanner){const p=actx.createStereoPanner();p.pan.value=pan||0;g.connect(p);last=p}
+  o.connect(g);last.connect(actx.destination);o.start(t0+st);o.stop(t0+st+du+0.05)})}
+const TONES={far:[[880,0,.18]],near:[[880,0,.14],[1175,.18,.22]],arrive:[[784,0,.16],[988,.18,.16],[1319,.36,.3]],reroute:[[523,0,.18],[392,.22,.28]],start:[[659,0,.14],[880,.16,.2]],test:[[880,0,.14],[1175,.18,.22]]};
+function announce(kind,text,pan){if(set.audio==='aus')return;if(set.audio==='ton'){beep(TONES[kind]||TONES.far,pan);return}say(text)}
+const panOf=st=>{const m=(st&&st.st.maneuver.modifier)||'';return /left/.test(m)?-0.8:/right/.test(m)?0.8:0};
+function say(text){if(set.audio!=='sprache'||!('speechSynthesis' in window))return;try{const u=new SpeechSynthesisUtterance(text);u.lang='de-DE';voices=voices||pickVoice();if(voices)u.voice=voices;u.rate=1.05;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){}}
+function unlockSpeech(){audioInit();if(set.audio!=='sprache')return;try{if('speechSynthesis' in window){const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u)}}catch(e){}}
 const MODS={'uturn':'wenden','sharp right':'scharf rechts','right':'rechts','slight right':'leicht rechts','straight':'geradeaus','slight left':'leicht links','left':'links','sharp left':'scharf links'};
 const ANG={'uturn':180,'sharp right':135,'right':90,'slight right':45,'straight':0,'slight left':-45,'left':-90,'sharp left':-135};
 function stepText(st){const m=st.maneuver||{},mod=MODS[m.modifier]||'',on=st.name?' auf '+st.name:'',into=st.name?' in '+st.name:'';
@@ -356,18 +390,18 @@ function renderPreview(){const R=PREVIEW;if(!R)return;$('pvTime').textContent=fm
  $('pvLearn').textContent=R.onRoute?(R.onRoute.length?`${n} davon mit gelernten Schaltzeiten. Die übrigen lernt die App auf dieser Fahrt mit.`:'Keine Ampeln auf dieser Route gefunden.'):'Ampeln entlang der Route werden geladen …'}
 async function preview(dest){if(!cur){toast('Erst Fahrt starten');return}closeSheets();toast('Route wird berechnet …');
  const r=await fetchRoute(cur,dest);if(!r){toast('Keine Route gefunden');return}
- PREVIEW=buildRoute(r,dest);computeOnRoute(PREVIEW);drawRoute(PREVIEW);follow=false;map.fitBounds(L.latLngBounds(PREVIEW.ll),{padding:[40,40]});
+ PREVIEW=buildRoute(r,dest);computeOnRoute(PREVIEW);drawRoute(PREVIEW);follow=false;applyView(true);map.fitBounds(L.latLngBounds(PREVIEW.ll),{padding:[40,40]});
  $('toast').classList.remove('on');$('pvName').textContent=dest.name;$('pvAddr').textContent=dest.sub||'';renderPreview();$('prevSheet').classList.add('on');loadRouteSignals(PREVIEW)}
 $('pvGo').onclick=()=>{if(!PREVIEW)return;NAV=PREVIEW;PREVIEW=null;closeSheets();follow=true;document.getElementById('app').classList.add('app-nav');document.body.classList.add('nav-on');
  const rec=LS.get('gw_recent',[]).filter(x=>x.name!==NAV.dest.name);rec.unshift(NAV.dest);LS.set('gw_recent',rec.slice(0,6));
- appr=null;const first=NAV.steps[1];say('Route gestartet. '+(first?`${inDist(first.s)} ${farText(first)}`:''));if(first&&first.s<Math.max(180,v*14))first.said.far=1;if(cur)updateNav(cur);renderNav()};
+ appr=null;const first=NAV.steps[1];announce('start','Route gestartet. '+(first?`${inDist(first.s)} ${farText(first)}`:''),0);if(first&&first.s<Math.max(180,v*14))first.said.far=1;if(cur)updateNav(cur);renderNav()};
 $('pvCancel').onclick=()=>{PREVIEW=null;routeLayer.clearLayers();if(destMarker){map.removeLayer(destMarker);destMarker=null}closeSheets();follow=true};
 function endNav(silent){if(!NAV&&!PREVIEW)return;NAV=null;PREVIEW=null;routeLayer.clearLayers();if(destMarker){map.removeLayer(destMarker);destMarker=null}
  document.getElementById('app').classList.remove('app-nav');document.body.classList.remove('nav-on');$('nav').classList.remove('on');appr=null;if(!silent)toast('Navigation beendet')}
 $('navX').onclick=()=>endNav();
 // laufende Navigation
 let rerouting=false;
-async function reroute(p){if(rerouting||!NAV)return;rerouting=true;NAV.last=p.t;say('Route wird neu berechnet');$('navT').textContent='Route wird neu berechnet …';
+async function reroute(p){if(rerouting||!NAV)return;rerouting=true;NAV.last=p.t;announce('reroute','Route wird neu berechnet',0);$('navT').textContent='Route wird neu berechnet …';
  const r=await fetchRoute(p,NAV.dest);rerouting=false;if(!r||!NAV)return;const d=NAV.dest;NAV=buildRoute(r,d);computeOnRoute(NAV);drawRoute(NAV);appr=null;loadRouteSignals(NAV);updateNav(p)}
 const lf=t=>t?t[0].toLowerCase()+t.slice(1):'';
 const inDist=d=>'In '+(d>=1000?(Math.round(d/100)/10).toString().replace('.',',')+' Kilometern':(d>=100?Math.round(d/50)*50:Math.max(10,Math.round(d/10)*10))+' Metern');
@@ -377,12 +411,12 @@ function updateNav(p){const R=NAV;if(!R)return;
  R.off=q.d;if(q.d>45&&(p.acc||0)<35)R.offN++;else{R.offN=0;R.i=q.i;R.s=Math.max(R.s-15,q.s)}
  if(R.offN>=3&&p.t-R.last>12){reroute(p);return}
  const rem=R.total-R.s;
- if(rem<30||dist(p,R.dest)<30){say('Du hast dein Ziel erreicht');toast('Ziel erreicht');endNav(true);return}
+ if(rem<30||dist(p,R.dest)<30){announce('arrive','Du hast dein Ziel erreicht',0);toast('Ziel erreicht');endNav(true);return}
  // Ansagen
  const nx=R.steps.findIndex((x,k)=>k>0&&x.s>R.s+3);R.next=nx;
  if(nx>0){const st=R.steps[nx],d=st.s-R.s,far=Math.max(180,v*14),near=Math.max(35,v*4);
-  if(d<=far&&d>near+40&&!st.said.far&&(nx==1||st.s-R.steps[nx-1].s>far*0.8)){st.said.far=1;say(`${inDist(d)} ${farText(st)}`)}
-  if(d<=near&&!st.said.near){st.said.near=1;st.said.far=1;say(st.st.maneuver.type=='arrive'?st.text:'Jetzt '+lf(st.text))}}
+  if(d<=far&&d>near+40&&!st.said.far&&(nx==1||st.s-R.steps[nx-1].s>far*0.8)){st.said.far=1;announce('far',`${inDist(d)} ${farText(st)}`,panOf(st))}
+  if(d<=near&&!st.said.near){st.said.near=1;st.said.far=1;if(st.st.maneuver.type!=='arrive')announce('near','Jetzt '+lf(st.text),panOf(st))}}
  renderNav()}
 function renderNav(){const R=NAV;if(!R)return;const el=$('nav');el.classList.add('on');el.classList.toggle('off',R.offN>0);
  const nx=R.next>0?R.next:R.steps.length-1,st=R.steps[nx];if(st){$('navIco').innerHTML=navIcon(st.st);$('navD').textContent=fmt(Math.max(0,st.s-R.s));$('navT').textContent=R.offN>0?'Abseits der Route':st.text}
@@ -432,10 +466,13 @@ $('searchSheet').addEventListener('click',e=>{if(e.target.matches('[data-close]'
 $('repBtn').onclick=()=>{if(!cur){toast('Erst Fahrt starten');return}$('repSheet').classList.add('on')};
 $('setBtn').onclick=()=>{renderLearn();renderDiag();$('setSheet').classList.add('on')};
 const renderSet=()=>{document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mode==set.mode));
- document.querySelectorAll('[data-voice]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.voice==set.voice));
+ document.querySelectorAll('[data-audio]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.audio==set.audio));
+ document.querySelectorAll('[data-ori]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.ori==set.ori));
+ $('audioInfo').textContent={ton:'Kurze Töne über dem Radio, das Radio läuft weiter. Links abbiegen klingt von links, rechts von rechts.',sprache:'Gesprochene Hinweise. Achtung: iOS hält dabei das Radio oder die Musik an und startet sie danach nicht wieder.',aus:'Keine Ansagen, nur Anzeige.'}[set.audio];
  $('limits').innerHTML=MODES[set.mode].limits.map(l=>`<button class="chip" data-lim="${l}" aria-pressed="${l==set.limit}">${l} km/h</button>`).join('')};
 document.addEventListener('click',e=>{const m=e.target.closest('[data-mode]');if(m){set.mode=m.dataset.mode;set.limit=MODES[set.mode].def;saveSet();renderSet();render()}
- const vo=e.target.closest('[data-voice]');if(vo){set.voice=+vo.dataset.voice;saveSet();renderSet();if(set.voice)say('Sprachansagen an')}
+ const au=e.target.closest('[data-audio]');if(au){set.audio=au.dataset.audio;saveSet();renderSet();unlockSpeech();announce('test','Sprachansagen an',0)}
+ const or=e.target.closest('[data-ori]');if(or){set.ori=or.dataset.ori;saveSet();renderSet();applyView(true)}
  const l=e.target.closest('[data-lim]');if(l){set.limit=+l.dataset.lim;saveSet();renderSet();render()}});
 renderSet();
 const exportText=()=>JSON.stringify({version:1,exported:new Date().toISOString(),obs:OBS,reports:REPS});
@@ -454,11 +491,11 @@ $('go').onclick=()=>{if(!('geolocation' in navigator)){$('startInfo').textConten
  if(location.protocol!=='https:'&&location.hostname!=='localhost'){$('startInfo').textContent='GPS braucht eine https-Adresse. Bitte die App über https öffnen.'}
  watch=navigator.geolocation.watchPosition(onFix,err=>{$('gps').textContent=err.code==1?'GPS nicht erlaubt':'GPS-Fehler';$('gps').classList.add('warn');
   if(err.code==1){$('cd').textContent='GPS nicht erlaubt';$('hint').textContent='In iOS: Einstellungen › Datenschutz › Ortungsdienste › Safari-Websites erlauben'}},{enableHighAccuracy:true,maximumAge:0,timeout:15000});
- keepAwake();unlockSpeech();$('start').style.display='none';$('cd').textContent='Suche GPS …';$('hint').textContent='Einen Moment';
+ keepAwake();unlockSpeech();$('start').style.display='none';setTimeout(sizeMap,50);$('cd').textContent='Suche GPS …';$('hint').textContent='Einen Moment';
  Object.assign(drive,{pass:0,green:0,stops:0,halted:true});renderStats()};
 $('stop').onclick=()=>{endNav(true);if(watch!=null)navigator.geolocation.clearWatch(watch);watch=null;try{wake&&wake.release()}catch(e){}closeSheets();$('start').style.display='';
  $('startInfo').textContent=`Letzte Fahrt: ${drive.pass} Ampeln, ${drive.green} bei Grün, ${drive.stops} Stopps.`};
-drawSignals();drawReps();renderLearn();loadFile();
+sizeMap();drawSignals();drawReps();renderLearn();loadFile();
 if(location.hostname=='gw.test')window.__gw={OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr};
 $('startInfo').textContent=Object.keys(OBS).length?`Bisher gelernt: ${Object.keys(OBS).length} Ampel-Richtungen.`:'';
 
