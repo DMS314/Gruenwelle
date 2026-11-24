@@ -191,6 +191,10 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 
 <div class="sheet" id="workSheet"><h2 id="wkT">Baustelle</h2><p class="small" id="wkS"></p><div id="wkD" style="font-size:15px;line-height:1.45"></div><p class="small" id="wkSrc" style="margin-top:10px"></p><button class="btn big" data-close style="margin-top:8px">Schließen</button></div>
 
+<div class="sheet" id="repInfo"><div style="display:flex;gap:12px;align-items:center"><img id="riIco" width="44" height="44" alt=""><div><h2 id="riT" style="margin:0">Meldung</h2><p class="small" id="riS" style="margin:2px 0 0"></p></div></div>
+ <div class="row" style="margin-top:14px"><button class="btn pri" id="riYes" style="flex:1">Noch da</button><button class="btn" id="riDel" style="flex:1;background:#e5484d;color:#fff">Nicht mehr da</button></div>
+ <p class="small" id="riInfo" style="margin-top:8px"></p><button class="btn big" data-close style="margin-top:4px">Schließen</button></div>
+
 <div class="sheet" id="tramSheet"><h2 id="trN">Haltestelle</h2><div class="tlines" id="trL"></div><div id="trD"></div><p class="small" id="trS" style="margin-top:10px"></p><button class="btn big" data-close style="margin-top:8px">Schließen</button></div>
 
 <div class="sheet" id="wxSheet"><h2>Wetterwarnungen</h2><p class="small" id="wxLoc"></p><div id="wxL"></div><p class="small">Amtliche Warnungen des Deutschen Wetterdienstes für deinen aktuellen Ort, abgerufen über Bright Sky. Alle 10 Minuten aktualisiert.</p><button class="btn big" data-close style="margin-top:8px">Schließen</button></div>
@@ -219,6 +223,8 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
  <h3>Tempolimit für Empfehlungen</h3><div class="row" id="limits"></div>
  <h3>Daten mit allen teilen</h3><div class="row"><button class="chip" data-share="1">An</button><button class="chip" data-share="0">Aus</button></div>
  <p class="small">Geteilt werden nur anonyme Ampel-Ereignisse (Ampel, Richtung, Uhrzeit von Halt, Losfahren oder Durchfahrt bei Grün) und deine Meldungen. Keine Fahrtstrecken, kein Konto, keine Geräte-Kennung. Server: Supabase, Rechenzentrum Frankfurt. Daten älter als 60 Tage werden gelöscht. Bei „Aus“ lernt die App nur auf diesem Gerät und zeigt nur eigene Meldungen.</p>
+ <h3>Meine Meldungen</h3><div id="myReps"></div><div class="row" style="margin-top:6px"><button class="btn" id="delAllReps">Alle eigenen löschen</button></div>
+ <p class="small">Meldungen anderer entfernst du, indem du sie auf der Karte antippst und „Nicht mehr da“ wählst.</p>
  <h3>Gelernte Daten</h3>
  <p class="small" id="dataInfo"></p>
  <div class="row"><button class="btn" id="exp">Exportieren</button><button class="btn" id="copy">Kopieren</button><label class="btn" style="display:inline-flex;align-items:center">Importieren<input type="file" id="imp" accept=".json,application/json" hidden></label></div>
@@ -251,7 +257,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='24.11.2026 · 17';
+const APP_VERSION='24.11.2026 · 18';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -287,8 +293,9 @@ map.on('load',()=>{
  map.addSource('trams',{type:'geojson',data:EMPTY});
  map.addLayer({id:'trams',type:'symbol',source:'trams',minzoom:14,layout:{'icon-image':'ico-tram','icon-size':['interpolate',['linear'],['zoom'],14,0.45,16,0.7,18,0.9],'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-pitch-alignment':'viewport','icon-rotation-alignment':'viewport',
   'text-field':['step',['zoom'],'',16,['get','n']],'text-size':11,'text-offset':[0,1.5],'text-anchor':'top','text-optional':true,'text-font':['Noto Sans Regular']},paint:{'text-color':'#0b5fa0','text-halo-color':'#ffffff','text-halo-width':1.5}});
+ map.on('click','reps',e=>{const f=e.features&&e.features[0];if(f)showRep(f.properties.rid)});
  map.on('click','trams',e=>{const f=e.features&&e.features[0];if(f)showTram(f.properties.i)});
- for(const id of['works','trams'])map.on('mouseenter',id,()=>map.getCanvas().style.cursor='pointer');
+ for(const id of['works','trams','reps'])map.on('mouseenter',id,()=>map.getCanvas().style.cursor='pointer');
  for(const id of['sigs','reps','dest'])map.addSource(id,{type:'geojson',data:EMPTY});
  map.addLayer({id:'sigs',type:'symbol',source:'sigs',minzoom:13,layout:{'icon-image':['match',['get','k'],'t','ico-ampel-t','l','ico-ampel-l','ico-ampel-u'],'icon-size':['interpolate',['linear'],['zoom'],13,0.55,16,0.8,18,1],'icon-anchor':'bottom','symbol-sort-key':['match',['get','k'],'t',2,'l',1,0],'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-pitch-alignment':'viewport','icon-rotation-alignment':'viewport'}});
  map.addLayer({id:'reps',type:'symbol',source:'reps',layout:{'icon-image':['get','icon'],'icon-size':['interpolate',['linear'],['zoom'],13,0.55,16,0.8,18,1],'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-pitch-alignment':'viewport','icon-rotation-alignment':'viewport'}});
@@ -360,9 +367,11 @@ function updateSigs(){if(sigQueued)return;sigQueued=true;requestAnimationFrame((
 const drawSignals=()=>{updateSigs();
  $('sigs').textContent=SIG.size.toLocaleString('de-DE');if(typeof onSignalsChanged=='function')onSignalsChanged()};
 const TYPES={pol:{n:'Polizei',c:'#2f6fe0',h:2},unf:{n:'Unfall',c:'#e5484d',h:3},stau:{n:'Stau',c:'#d9480f',h:1},gef:{n:'Gefahr',c:'#f08c00',h:3},bau:{n:'Baustelle',c:'#e8590c',h:24*14}};
-const allReps=()=>{if(!set.share)return REPS;const seen=new Set(SHREPS.map(r=>r.sid));return[...SHREPS,...REPS.filter(r=>!r.sid||!seen.has(r.sid))]};
+let HIDE=LS.get('gw_hide',{});{const c=Date.now()-2*864e5;for(const k in HIDE)if(HIDE[k]<c)delete HIDE[k]}
+const allReps=()=>{if(!set.share)return REPS;const mine=new Map(REPS.filter(r=>r.sid).map(r=>[r.sid,r]));return[...SHREPS.filter(r=>!HIDE[r.sid]).map(r=>mine.get(r.sid)?Object.assign(mine.get(r.sid),{up:r.up}):r),...REPS.filter(r=>!r.sid||!SHREPS.some(x=>x.sid===r.sid))]};
+const isMine=r=>REPS.includes(r)||REPS.some(x=>x.sid&&x.sid===r.sid);
 const drawReps=()=>{const now=Date.now();REPS=REPS.filter(r=>now-r.t<TYPES[r.type].h*3600e3);
- src('reps',{type:'FeatureCollection',features:allReps().map(r=>({type:'Feature',geometry:{type:'Point',coordinates:[r.lon,r.lat]},properties:{icon:'ico-'+r.type}}))})};
+ src('reps',{type:'FeatureCollection',features:allReps().map(r=>({type:'Feature',geometry:{type:'Point',coordinates:[r.lon,r.lat]},properties:{icon:'ico-'+r.type,rid:String(r.id)}}))});if($('setSheet').classList.contains('on'))renderMyReps()};
 $('types').innerHTML=Object.entries(TYPES).map(([k,t])=>`<button data-t="${k}"><img src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(ICONS['ico-'+k])}" width="40" height="40" alt="">${t.n}</button>`).join('');
 // ---------- Ampeln laden (Overpass) ----------
 const tfetch=(url,opt={},ms=20000)=>{const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),ms);return fetch(url,{...opt,signal:ac.signal}).finally(()=>clearTimeout(tm))};
@@ -817,17 +826,37 @@ function checkAlerts(p){if(heading==null)return;let best=null;
  for(const r of allReps()){if(answered.has(r.id))continue;const d=dist(p,r);if(d>350)continue;const df=Math.abs(adiff(bearing(p,r),heading));if(df>40&&d>30)continue;if(!best||d<best.d)best={r,d}}
  if(best){curAlert=best.r;const T=TYPES[best.r.type];$('aDot').style.background=T.c;$('aT').textContent=T.n+' gemeldet';$('aD').textContent=`in ${fmt(best.d)} · ${Math.round((Date.now()-best.r.t)/60000)} Min alt · noch da?`;$('alert').classList.add('on')}
  else{curAlert=null;$('alert').classList.remove('on')}}
+const repAge=r=>{const m=Math.round((Date.now()-r.t)/60000);return m<1?'gerade eben':m<60?`vor ${m} Min`:m<48*60?`vor ${Math.round(m/60)} Std`:`vor ${Math.round(m/1440)} Tagen`};
+function removeRep(r){if(!r)return;answered.add(r.id);const mine=isMine(r),own=mine?REPS.find(x=>x===r||(x.sid&&x.sid===r.sid)):null;
+ if(r.sid&&set.share){if(own&&own.tok)rpc('delete_report',{p_id:r.sid,p_token:own.tok}).catch(()=>{});else rpc('vote_report',{p_id:r.sid,p_still:false}).catch(()=>{});
+  if(!mine){HIDE[r.sid]=Date.now();LS.set('gw_hide',HIDE)}SHREPS=SHREPS.filter(x=>x.sid!==r.sid)}
+ REPS=REPS.filter(x=>x!==r&&!(own&&x===own));saveReps();drawReps();if(curAlert&&(curAlert===r||curAlert.sid&&curAlert.sid===r.sid)){curAlert=null;$('alert').classList.remove('on')}
+ toast(mine?'Meldung gelöscht':'Danke, als „nicht mehr da“ gemeldet')}
+let repOpen=null;
+function showRep(rid){const r=allReps().find(x=>String(x.id)===String(rid));if(!r)return;closeSheets();repOpen=r;const T=TYPES[r.type],mine=isMine(r);
+ $('riIco').src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(ICONS['ico-'+r.type]);$('riT').textContent=T.n;
+ $('riS').textContent=`${mine?'Von dir gemeldet':'Von anderen gemeldet'} · ${repAge(r)}${r.up?` · ${r.up}× bestätigt`:''}${cur?` · ${fmt(dist(cur,r))} entfernt`:''}`;
+ $('riYes').style.display=mine?'none':'';$('riDel').textContent=mine?'Meldung löschen':'Nicht mehr da';
+ $('riInfo').textContent=mine?(r.sid&&set.share?'Wird auch bei allen anderen entfernt.':'Wird von diesem Gerät entfernt.'):'Verschwindet sofort bei dir. Bei allen anderen, sobald weitere Fahrer sie ebenfalls als erledigt melden.';
+ $('repInfo').classList.add('on')}
+$('riDel').onclick=()=>{const r=repOpen;closeSheets();removeRep(r)};
+$('riYes').onclick=()=>{const r=repOpen;if(!r)return;closeSheets();answered.add(r.id);r.t=Date.now();if(r.sid&&set.share)rpc('vote_report',{p_id:r.sid,p_still:true}).catch(()=>{});drawReps();toast('Bestätigt')};
+function renderMyReps(){const now=Date.now(),L=REPS.filter(r=>now-r.t<TYPES[r.type].h*3600e3).sort((a,b)=>b.t-a.t);
+ $('myReps').innerHTML=L.length?L.map(r=>`<div class="dep"><img width="28" height="28" alt="" src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(ICONS['ico-'+r.type])}"><span class="h">${TYPES[r.type].n} <small>${repAge(r)}${cur?' · '+fmt(dist(cur,r)):''}</small></span><button class="btn" data-delrep="${r.id}" style="min-height:36px">Löschen</button></div>`).join(''):'<p class="small">Keine aktiven eigenen Meldungen.</p>';
+ $('delAllReps').style.display=L.length>1?'':'none'}
+$('myReps').onclick=e=>{const b=e.target.closest('[data-delrep]');if(!b)return;const r=REPS.find(x=>String(x.id)===b.dataset.delrep);removeRep(r);renderMyReps();renderLearn()};
+$('delAllReps').onclick=()=>{[...REPS].forEach(r=>removeRep(r));renderMyReps();renderLearn();toast('Alle eigenen Meldungen gelöscht')};
 $('aYes').onclick=()=>{if(!curAlert)return;answered.add(curAlert.id);curAlert.t=Date.now();if(curAlert.sid&&set.share)rpc('vote_report',{p_id:curAlert.sid,p_still:true}).catch(()=>{});saveReps();toast('Bestätigt');$('alert').classList.remove('on')};
-$('aNo').onclick=()=>{if(!curAlert)return;answered.add(curAlert.id);if(curAlert.sid&&set.share){rpc('vote_report',{p_id:curAlert.sid,p_still:false}).catch(()=>{});SHREPS=SHREPS.filter(r=>r.sid!==curAlert.sid)}REPS=REPS.filter(r=>r.id!==curAlert.id);saveReps();drawReps();toast('Meldung entfernt');$('alert').classList.remove('on')};
-$('types').onclick=e=>{const b=e.target.closest('button');if(!b||!cur)return;const r={id:Date.now(),type:b.dataset.t,lat:cur.lat,lon:cur.lon,t:Date.now()};REPS.push(r);answered.add(r.id);saveReps();drawReps();closeSheets();toast(TYPES[r.type].n+(set.share?' gemeldet, sichtbar für alle':' gespeichert'));
- if(set.share)rpc('add_report',{p_type:r.type,p_lat:r.lat,p_lon:r.lon}).then(id=>{r.sid=id;answered.add('s'+id);saveReps()}).catch(()=>{})};
+$('aNo').onclick=()=>{if(curAlert)removeRep(curAlert)};
+$('types').onclick=e=>{const b=e.target.closest('button');if(!b||!cur)return;const tk=(crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2)+Date.now().toString(36)),r={id:Date.now(),type:b.dataset.t,lat:cur.lat,lon:cur.lon,t:Date.now(),tok:tk};REPS.push(r);answered.add(r.id);saveReps();drawReps();closeSheets();toast(TYPES[r.type].n+(set.share?' gemeldet, sichtbar für alle':' gespeichert'));
+ if(set.share)rpc('add_report',{p_type:r.type,p_lat:r.lat,p_lon:r.lon,p_token:r.tok}).then(id=>{r.sid=id;answered.add('s'+id);saveReps()}).catch(()=>{})};
 // ---------- Bedienung ----------
 let tt;const toast=m=>{const e=$('toast');e.textContent=m;e.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>e.classList.remove('on'),2200)};
 const closeSheets=()=>{document.querySelectorAll('.sheet').forEach(s=>s.classList.remove('on'));if(typeof healSoon==='function')healSoon()};
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=closeSheets);
 $('searchSheet').addEventListener('click',e=>{if(e.target.matches('[data-close]')){clearTimeout(qt);qn++}});
 $('repBtn').onclick=()=>{if(!cur){toast('Erst Fahrt starten');return}$('repSheet').classList.add('on')};
-$('setBtn').onclick=()=>{renderLearn();renderDiag();$('setSheet').classList.add('on')};
+$('setBtn').onclick=()=>{renderLearn();renderDiag();renderMyReps();$('setSheet').classList.add('on')};
 const renderSet=()=>{document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mode==set.mode));
  document.querySelectorAll('[data-audio]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.audio==set.audio));
  document.querySelectorAll('[data-ori]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.ori==set.ori));
