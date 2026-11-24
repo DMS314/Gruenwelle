@@ -13,7 +13,10 @@ try_pbf () {
   osmium extract -b "$BBOX" src.osm.pbf -o region.osm.pbf --overwrite || return 1
   osmium tags-filter region.osm.pbf n/highway=traffic_signals n/crossing=traffic_signals -o sig.osm.pbf --overwrite || return 1
   osmium export sig.osm.pbf -f geojsonseq --add-unique-id=type_id -o sig.geojsonseq --overwrite || return 1
-  python3 tools/build_signals.py sig.geojsonseq signals.json "$BBOX"
+  python3 tools/build_signals.py sig.geojsonseq signals.json "$BBOX" || return 1
+  osmium tags-filter region.osm.pbf n/highway=speed_camera -o cam.osm.pbf --overwrite || return 0
+  osmium export cam.osm.pbf -f geojsonseq --add-unique-id=type_id -o cam.geojsonseq --overwrite || return 0
+  python3 tools/build_cameras.py cam.geojsonseq cameras.json || true
 }
 
 try_overpass () {
@@ -24,7 +27,9 @@ try_overpass () {
   code=$(curl -sS --max-time 240 -A "$UA" -o sig.json -w '%{http_code}' --data-urlencode "data=$q" "$url") || code="curl-fehler"
   echo "  HTTP $code"
   [ "$code" = "200" ] || return 1
-  python3 tools/build_signals.py sig.json signals.json "$BBOX"
+  python3 tools/build_signals.py sig.json signals.json "$BBOX" || return 1
+  local qc="[out:json][timeout:120];node[\"highway\"=\"speed_camera\"]($S,$W,$N,$E);out body;"
+  curl -sS --max-time 180 -A "$UA" -o cam.json --data-urlencode "data=$qc" "$url" && python3 tools/build_cameras.py cam.json cameras.json || true
 }
 
 try_pbf https://download.geofabrik.de/europe/germany/sachsen-latest.osm.pbf && exit 0

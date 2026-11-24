@@ -7,6 +7,7 @@ on:
       - .github/workflows/ampeln.yml
       - tools/build_signals.py
       - tools/fetch_signals.sh
+      - tools/build_cameras.py
   schedule:
     - cron: '17 3 * * 1'
   workflow_dispatch:
@@ -34,6 +35,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add signals.json
+          if [ -f cameras.json ]; then git add cameras.json; fi
           if git diff --cached --quiet; then echo "Keine Änderung"; exit 0; fi
           git commit -m "Ampeldaten Leipzig aktualisiert"
           git push

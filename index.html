@@ -64,6 +64,10 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:16px/1
 #nav{position:absolute;top:calc(env(safe-area-inset-top) + 10px);left:10px;right:10px;z-index:560;background:var(--blue);color:var(--onblue);border-radius:18px;padding:10px 12px;display:none;gap:12px;align-items:center;box-shadow:0 8px 20px -8px #0007}
 #nav.on{display:flex}#nav svg{width:46px;height:46px;flex:none}#nav .tx{flex:1;line-height:1.2}#nav b{font-size:28px;display:block;white-space:nowrap}#nav span{font-size:15px}
 #nav .x{width:44px;height:44px;border-radius:50%;border:0;background:#0b1a261f;color:var(--onblue);font:inherit;font-size:22px;cursor:pointer;flex:none}
+#blitz{position:absolute;left:10px;right:10px;top:calc(env(safe-area-inset-top) + 64px);z-index:555;pointer-events:none;background:#fff;color:#1d2329;border-radius:16px;padding:8px 12px;display:none;gap:10px;align-items:center;box-shadow:0 8px 20px -8px #0007;border:3px solid #e53935}
+#blitz.on{display:flex}.nav-on #blitz{top:calc(env(safe-area-inset-top) + 148px)}#blitz.fast{background:#e53935;color:#fff}
+#blitz .lim{width:44px;height:44px;border-radius:50%;border:5px solid #e53935;background:#fff;color:#1d2329;display:grid;place-items:center;font-weight:800;font-size:17px;flex:none}
+#blitz b{font-size:18px;display:block}#blitz span{font-size:14px}
 #nav.off{background:var(--amber);color:#152027}#nav.off .x{background:#15202722;color:#152027}
 .app-nav .top .pill{display:none}.app-nav .top{top:calc(env(safe-area-inset-top) + 92px)}
 .eta{display:none;justify-content:space-between;align-items:baseline;gap:10px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font-size:14px;color:var(--mute)}
@@ -80,6 +84,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <div id="app">
  <div id="mapwrap"><div id="map"></div><div class="attr"><a href="https://openfreemap.org">OpenFreeMap</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a></div></div>
  <div id="nav"><svg viewBox="0 0 48 48" id="navIco"></svg><div class="tx"><b id="navD">–</b><span id="navT">–</span></div><button class="x" id="navX" aria-label="Navigation beenden">×</button></div>
+ <div id="blitz"><div class="lim" id="bLim">–</div><div><b id="bT">Blitzer</b><span id="bD"></span></div></div>
  <div class="top"><span class="pill" id="gps">GPS aus</span><span class="pill" id="sigs">Ampeln: –</span><button class="ibtn" id="searchBtn" aria-label="Ziel suchen" style="margin-left:auto"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg></button><button class="ibtn" id="setBtn" aria-label="Einstellungen">⚙</button></div>
  <div class="alert" id="alert"><div class="dot" id="aDot">!</div><div class="tx"><b id="aT"></b><span id="aD"></span></div><button class="btn pri" id="aYes">Noch da</button><button class="btn" id="aNo">Weg</button></div>
  <div class="panel">
@@ -115,6 +120,8 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
  <h3>Ansagen</h3><div class="row"><button class="chip" data-audio="ton">Signaltöne</button><button class="chip" data-audio="sprache">Sprache</button><button class="chip" data-audio="aus">Aus</button></div>
  <p class="small" id="audioInfo"></p>
  <h3>Karte</h3><div class="row"><button class="chip" data-ori="3d">3D</button><button class="chip" data-ori="fahrt">2D Fahrtrichtung</button><button class="chip" data-ori="nord">2D Norden</button></div>
+ <h3>Feste Blitzer</h3><div class="row"><button class="chip" data-blitz="0">Aus</button><button class="chip" data-blitz="1">An</button></div>
+ <p class="small">Zeigt feste Blitzer aus OpenStreetMap und warnt beim Annähern: immer auf dem Bildschirm, mit Ton nur, wenn du schneller als erlaubt fährst. <b>In Deutschland ist die Nutzung während der Fahrt für Fahrer verboten (§ 23 Abs. 1c StVO, Bußgeld und Punkt), auch über das Handy des Beifahrers.</b> Einschalten auf eigene Verantwortung, z. B. zur Planung vor der Fahrt.</p>
  <h3>Farben</h3><div class="row"><button class="chip" data-theme="auto">Automatisch</button><button class="chip" data-theme="day">Tag</button><button class="chip" data-theme="night">Nacht</button></div>
  <h3>Fahrzeug</h3><div class="row"><button class="chip" data-mode="auto">Auto</button><button class="chip" data-mode="rad">Rad</button></div>
  <h3>Tempolimit für Empfehlungen</h3><div class="row" id="limits"></div>
@@ -157,7 +164,7 @@ const adiff=(a,b)=>((a-b+540)%360)-180;
 const mod=(a,b)=>((a%b)+b)%b;
 // ---------- Einstellungen & Speicher ----------
 const MODES={auto:{vmin:15,limits:[30,50,60,70],def:50},rad:{vmin:8,limits:[20,25,30],def:25}};
-const set=Object.assign({mode:'auto',limit:50,audio:'ton',ori:'3d',theme:'auto'},LS.get('gw_set',{}));if(!set.v3d){set.ori='3d';set.v3d=1}
+const set=Object.assign({mode:'auto',limit:50,audio:'ton',ori:'3d',theme:'auto',blitz:0},LS.get('gw_set',{}));if(!set.v3d){set.ori='3d';set.v3d=1}
 let OBS=LS.get('gw_obs',{});            // key -> {g:[], p:[], r:[[a,b]]}  Zeiten in Sekunden
 let REPS=LS.get('gw_reps',[]);
 const SIG=new Map((LS.get('gw_sig',[])).map(s=>[s.id,s]));
@@ -177,9 +184,12 @@ map.on('load',()=>{
  for(const id of['sigs','reps','dest'])map.addSource(id,{type:'geojson',data:EMPTY});
  map.addLayer({id:'sigs',type:'circle',source:'sigs',minzoom:12,paint:{'circle-radius':['case',['==',['get','k'],'t'],9,5.5],'circle-color':['match',['get','k'],'l','#ffc72c','t','#33ccff','#8a949b'],'circle-stroke-color':'#ffffff','circle-stroke-width':2}});
  map.addLayer({id:'reps',type:'circle',source:'reps',paint:{'circle-radius':10,'circle-color':['get','c'],'circle-stroke-color':'#ffffff','circle-stroke-width':3}});
+ map.addSource('cams',{type:'geojson',data:EMPTY});
+ map.addLayer({id:'cams',type:'circle',source:'cams',paint:{'circle-radius':8,'circle-color':'#e53935','circle-stroke-color':'#ffffff','circle-stroke-width':3}});
+ map.addLayer({id:'cams-dot',type:'circle',source:'cams',paint:{'circle-radius':3,'circle-color':'#ffffff'}});
  map.addLayer({id:'dest',type:'circle',source:'dest',paint:{'circle-radius':10,'circle-color':'#152027','circle-stroke-color':'#ffffff','circle-stroke-width':3}});
  styleMap();
- mapReady=true;mapQ.splice(0).forEach(f=>{try{f()}catch(e){}});applyView(true)});
+ mapReady=true;setTimeout(()=>{try{drawCams()}catch(e){}},0);mapQ.splice(0).forEach(f=>{try{f()}catch(e){}});applyView(true)});
 // Waze-ähnliche Kartenfarben, Tag und Nacht
 const THEMES={
  day:{bg:'#e9ecef',land:'#e4e7ea',park:'#cdeac3',water:'#a9d8f3',bld:'#dadde1',bld3:'#d3d7dc',road:'#ffffff',major:'#ffe28a',motor:'#f9c04f',casing:'#c4cad0',text:'#3c4852',halo:'#ffffff',rcase:'#127fb0'},
@@ -233,6 +243,24 @@ const hm=()=>new Date(Date.now()).toLocaleTimeString('de-DE',{hour:'2-digit',min
 const logEv=e=>{LOG.push(e);if(LOG.length>40)LOG=LOG.slice(-40);LS.set('gw_log',LOG)};
 let FILEBOX=null,fileState='lädt';
 const inBox=(p,m=0.02)=>FILEBOX&&p.lat>FILEBOX[0]+m&&p.lat<FILEBOX[2]-m&&p.lon>FILEBOX[1]+m*1.6&&p.lon<FILEBOX[3]-m*1.6;
+// ---------- Feste Blitzer (nur wenn eingeschaltet) ----------
+let CAMS=null,camState='aus',camWarned=new Map(),camCur=null;
+async function loadCams(){if(CAMS)return;camState='lädt …';try{const r=await tfetch('cameras.json',{cache:'no-cache'},30000);if(!r.ok)throw new Error(r.status);const j=await r.json();
+ CAMS=(j.cameras||[]).map(([id,lat,lon,max])=>({id,lat,lon,max}));camState=`${CAMS.length} feste Blitzer, Stand ${j.updated}`}catch(e){CAMS=null;camState='Blitzer-Datei nicht verfügbar'}drawCams()}
+function drawCams(){src('cams',set.blitz&&CAMS?{type:'FeatureCollection',features:CAMS.map(c=>({type:'Feature',geometry:{type:'Point',coordinates:[c.lon,c.lat]},properties:{}}))}:EMPTY)}
+function setBlitz(){if(set.blitz)loadCams();else{camState='aus';$('blitz').classList.remove('on');camCur=null}drawCams()}
+function camAhead(p){if(!set.blitz||!CAMS||heading==null)return null;let best=null;
+ for(const c of CAMS){let d;
+  if(NAV){const q=snap(NAV,c.lat,c.lon);if(q.d>25)continue;d=q.s-NAV.s;if(d<-15||d>500)continue}
+  else{d=dist(p,c);if(d>500)continue;const df=Math.abs(adiff(bearing(p,c),heading));if(d>30&&(df>30||d*Math.sin(df*RAD)>30))continue;if(df>100)continue}
+  if(!best||d<best.d)best={c,d}}return best}
+function checkCams(p){const a=camAhead(p),el=$('blitz');
+ if(!a){el.classList.remove('on');camCur=null;return}
+ const lim=a.c.max||set.limit,kmh=Math.round(v*3.6),fast=kmh>lim+3;camCur=a.c.id;
+ $('bLim').textContent=lim;$('bT').textContent=a.d>15?'Blitzer in '+fmt(a.d):'Blitzer';$('bD').textContent=(a.c.max?`Erlaubt ${lim} km/h`:`Limit unbekannt, geprüft mit ${lim} km/h`)+(fast?` · du fährst ${kmh}`:'');
+ el.classList.add('on');el.classList.toggle('fast',fast);
+ const w=camWarned.get(a.c.id)||0;if(fast&&Date.now()-w>300000){camWarned.set(a.c.id,Date.now());announce('blitz',`Achtung Blitzer. Erlaubt sind ${lim}.`,0)}
+ if(camWarned.size>200)camWarned=new Map()}
 async function loadFile(){try{const r=await tfetch('signals.json',{cache:'no-cache'},30000);if(!r.ok)throw new Error(r.status);const j=await r.json();
  for(const[id,lat,lon]of j.nodes||[])if(!SIG.has(id))SIG.set(id,{id,lat,lon,f:1});else SIG.get(id).f=1;
  FILEBOX=j.bbox;fileState=`${(j.nodes||[]).length} Ampeln, Stand ${j.updated}`;drawSignals()}catch(e){fileState='nicht verfügbar, nutze Online-Abruf'}
@@ -309,7 +337,7 @@ function onFix(pos){
   if(appr.stopT&&!appr.departT&&(gv>1.5||dist(appr.sp,p)>4))appr.departT=t;
   if(appr.stopT&&appr.departT&&v<1&&d>15&&t-appr.departT>3){appr.stopT=t;appr.stopD=d;appr.sp=p;appr.departT=0}}
  tgt=appr?{s:SIG.get(appr.id),key:appr.key,rs:appr.rs}:null;
- checkAlerts(p);render()}
+ checkAlerts(p);checkCams(p);render()}
 // ---------- Anzeige ----------
 const fmt=m=>m<1000?Math.max(10,Math.round(m/10)*10)+' m':(m/1000).toFixed(1).replace('.',',')+' km';
 let lastTgt=null;
@@ -353,7 +381,7 @@ function beep(seq,pan){if(!actx)audioInit();if(!actx)return;const t0=actx.curren
   g.gain.setValueAtTime(0,t0+st);g.gain.linearRampToValueAtTime(0.35,t0+st+0.02);g.gain.exponentialRampToValueAtTime(0.001,t0+st+du);
   let last=g;if(actx.createStereoPanner){const p=actx.createStereoPanner();p.pan.value=pan||0;g.connect(p);last=p}
   o.connect(g);last.connect(actx.destination);o.start(t0+st);o.stop(t0+st+du+0.05)})}
-const TONES={far:[[880,0,.18]],near:[[880,0,.14],[1175,.18,.22]],arrive:[[784,0,.16],[988,.18,.16],[1319,.36,.3]],reroute:[[523,0,.18],[392,.22,.28]],start:[[659,0,.14],[880,.16,.2]],test:[[880,0,.14],[1175,.18,.22]]};
+const TONES={blitz:[[1480,0,.12],[1050,.16,.12],[1480,.32,.12],[1050,.48,.16]],far:[[880,0,.18]],near:[[880,0,.14],[1175,.18,.22]],arrive:[[784,0,.16],[988,.18,.16],[1319,.36,.3]],reroute:[[523,0,.18],[392,.22,.28]],start:[[659,0,.14],[880,.16,.2]],test:[[880,0,.14],[1175,.18,.22]]};
 function announce(kind,text,pan){if(set.audio==='aus')return;if(set.audio==='ton'){beep(TONES[kind]||TONES.far,pan);return}say(text)}
 const panOf=st=>{const m=(st&&st.st.maneuver.modifier)||'';return /left/.test(m)?-0.8:/right/.test(m)?0.8:0};
 function say(text){if(set.audio!=='sprache'||!('speechSynthesis' in window))return;try{const u=new SpeechSynthesisUtterance(text);u.lang='de-DE';voices=voices||pickVoice();if(voices)u.voice=voices;u.rate=1.05;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){}}
@@ -470,7 +498,7 @@ $('res').onclick=e=>{const b=e.target.closest('[data-r]');if(!b)return;const d=R
 // ---------- Diagnose ----------
 function renderDiag(){const now=Date.now()/1000,R=NAV;
  const rows=[['GPS',DIAG.acc==null?'noch kein Signal':`±${Math.round(DIAG.acc)} m, ${DIAG.fixes} Positionen in dieser Sitzung`],
-  ['Karte',mapReady?(mapErr?'geladen, Hinweis: '+mapErr:'3D-Karte geladen'):(mapErr||'lädt …')],['Ampel-Datei Leipzig',fileState],['Ampeln geladen',`${SIG.size} gesamt · Online-Abruf: ${DIAG.load}`],
+  ['Karte',mapReady?(mapErr?'geladen, Hinweis: '+mapErr:'3D-Karte geladen'):(mapErr||'lädt …')],['Ampel-Datei Leipzig',fileState],['Feste Blitzer',camState],['Ampeln geladen',`${SIG.size} gesamt · Online-Abruf: ${DIAG.load}`],
   ['Nächste Ampel',(()=>{if(!cur||!SIG.size)return '–';let b=1e9;for(const x of SIG.values()){const d=dist(cur,x);if(d<b)b=d}return fmt(b)+' entfernt'})()],
   ['Fahrtrichtung',heading==null?'noch unbekannt (erst losfahren)':Math.round(heading)+'°'],
   ['Navigation',R?`aktiv, ${(R.onRoute||[]).length} Ampeln auf der Route`:'aus (Ampeln werden per Fahrtrichtung erkannt)'],
@@ -499,10 +527,12 @@ const renderSet=()=>{document.querySelectorAll('[data-mode]').forEach(b=>b.setAt
  document.querySelectorAll('[data-audio]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.audio==set.audio));
  document.querySelectorAll('[data-ori]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.ori==set.ori));
  document.querySelectorAll('[data-theme]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.theme==set.theme));
+ document.querySelectorAll('[data-blitz]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.blitz==set.blitz));
  $('audioInfo').textContent={ton:'Kurze Töne über dem Radio, das Radio läuft weiter. Links abbiegen klingt von links, rechts von rechts.',sprache:'Gesprochene Hinweise. Achtung: iOS hält dabei das Radio oder die Musik an und startet sie danach nicht wieder.',aus:'Keine Ansagen, nur Anzeige.'}[set.audio];
  $('limits').innerHTML=MODES[set.mode].limits.map(l=>`<button class="chip" data-lim="${l}" aria-pressed="${l==set.limit}">${l} km/h</button>`).join('')};
 document.addEventListener('click',e=>{const m=e.target.closest('[data-mode]');if(m){set.mode=m.dataset.mode;set.limit=MODES[set.mode].def;saveSet();renderSet();render()}
  const au=e.target.closest('[data-audio]');if(au){set.audio=au.dataset.audio;saveSet();renderSet();unlockSpeech();announce('test','Sprachansagen an',0)}
+ const bz=e.target.closest('[data-blitz]');if(bz){set.blitz=+bz.dataset.blitz;saveSet();renderSet();setBlitz()}
  const th=e.target.closest('[data-theme]');if(th){set.theme=th.dataset.theme;saveSet();renderSet();applyTheme()}
  const or=e.target.closest('[data-ori]');if(or){set.ori=or.dataset.ori;saveSet();renderSet();applyView(true)}
  const l=e.target.closest('[data-lim]');if(l){set.limit=+l.dataset.lim;saveSet();renderSet();render()}});
@@ -527,7 +557,7 @@ $('go').onclick=()=>{if(!('geolocation' in navigator)){$('startInfo').textConten
  Object.assign(drive,{pass:0,green:0,stops:0,halted:true});renderStats()};
 $('stop').onclick=()=>{endNav(true);if(watch!=null)navigator.geolocation.clearWatch(watch);watch=null;try{wake&&wake.release()}catch(e){}closeSheets();$('start').style.display='';
  $('startInfo').textContent=`Letzte Fahrt: ${drive.pass} Ampeln, ${drive.green} bei Grün, ${drive.stops} Stopps.`};
-drawSignals();drawReps();renderLearn();loadFile();
+drawSignals();drawReps();renderLearn();loadFile();setBlitz();
 if(location.hostname=='gw.test')window.__gw={OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr,map};
 $('startInfo').textContent=Object.keys(OBS).length?`Bisher gelernt: ${Object.keys(OBS).length} Ampel-Richtungen.`:'';
 
