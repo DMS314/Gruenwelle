@@ -4,6 +4,11 @@ import json, sys, datetime
 src, dst = sys.argv[1], sys.argv[2]
 bbox = [float(x) for x in sys.argv[3].split(',')]  # west,south,east,north
 nodes = {}
+if src.endswith('.json'):  # Overpass-Antwort
+    for e in json.load(open(src, encoding='utf-8')).get('elements', []):
+        if e.get('type') == 'node' and 'lat' in e:
+            nodes[e['id']] = [e['id'], round(e['lat'], 6), round(e['lon'], 6)]
+    src = '/dev/null'
 with open(src, encoding='utf-8') as f:
     for line in f:
         line = line.strip('\x1e \n\r')

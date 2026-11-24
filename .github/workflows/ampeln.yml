@@ -6,6 +6,7 @@ on:
     paths:
       - .github/workflows/ampeln.yml
       - tools/build_signals.py
+      - tools/fetch_signals.sh
   schedule:
     - cron: '17 3 * * 1'
   workflow_dispatch:
@@ -26,15 +27,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: osmium installieren
         run: sudo apt-get update -qq && sudo apt-get install -y -qq osmium-tool
-      - name: OSM-Daten Sachsen laden (Geofabrik)
-        run: curl -sSfL --retry 3 -o sachsen.osm.pbf https://download.geofabrik.de/europe/germany/sachsen-latest.osm.pbf
-      - name: Region Leipzig ausschneiden und Ampeln filtern
-        run: |
-          osmium extract -b "$BBOX" sachsen.osm.pbf -o region.osm.pbf --overwrite
-          osmium tags-filter region.osm.pbf n/highway=traffic_signals n/crossing=traffic_signals -o sig.osm.pbf --overwrite
-          osmium export sig.osm.pbf -f geojsonseq --add-unique-id=type_id -o sig.geojsonseq --overwrite
-      - name: signals.json bauen
-        run: python3 tools/build_signals.py sig.geojsonseq signals.json "$BBOX"
+      - name: Ampeln laden (Geofabrik, BBBike oder Overpass)
+        run: bash tools/fetch_signals.sh
       - name: Committen, wenn sich etwas geändert hat
         run: |
           git config user.name "github-actions[bot]"
