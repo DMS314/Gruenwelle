@@ -76,6 +76,11 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:16px/1
 #nav .stp{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid color-mix(in srgb,var(--ink) 6%,transparent);font-size:14px}
 #nav .stp svg{width:22px;height:22px;flex:none;color:var(--blue)}#nav .stp em{font-style:normal;margin-left:auto;color:var(--mute);white-space:nowrap;padding-left:8px}
 #nav .stp div{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#nav .lanes{display:none;align-items:center;gap:10px;padding:6px 12px 8px;border-top:1px solid color-mix(in srgb,var(--ink) 8%,transparent)}#nav .lanes.on{display:flex}
+#nav .lanes .ln{display:flex;gap:3px;background:color-mix(in srgb,var(--ink) 8%,transparent);border-radius:10px;padding:3px}
+#nav .lanes .l{width:30px;height:34px;border-radius:7px;display:grid;place-items:center;color:color-mix(in srgb,var(--ink) 35%,transparent)}
+#nav .lanes .l svg{width:24px;height:24px}#nav .lanes .l.ok{color:var(--ink)}#nav .lanes .l.rec{background:var(--blue);color:var(--onblue)}
+#nav .lanes .lt{font-size:13px;line-height:1.25;color:var(--mute);min-width:0}#nav .lanes .lt b{display:block;font-size:15px;color:var(--ink);white-space:nowrap}
 #nav .acts{display:flex;gap:8px;margin-top:10px}#nav .acts button{flex:1;min-height:44px}
 #nav.on{display:flex}
 
@@ -103,6 +108,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
   <div class="tx"><b id="navD">–</b><span id="navT">–</span></div>
   <span class="then" id="navThen"></span>
   <svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+  <div class="lanes" id="lanes"><div class="ln" id="laneBox"></div><div class="lt"><b id="laneT"></b><span id="laneS"></span></div></div>
   <div class="prog"><i id="navProg"></i></div>
   <div class="more"><div id="navSteps"></div><div class="acts"><button class="btn" id="navOv">Übersicht</button><button class="btn" id="navX">Beenden</button></div></div></div>
  <div id="blitz"><div class="lim" id="bLim">–</div><div><b id="bT">Blitzer</b><span id="bD"></span></div></div>
@@ -440,7 +446,7 @@ function beep(seq,pan){if(!actx)audioInit();if(!actx)return;const t0=actx.curren
   g.gain.setValueAtTime(0,t0+st);g.gain.linearRampToValueAtTime(0.35,t0+st+0.02);g.gain.exponentialRampToValueAtTime(0.001,t0+st+du);
   let last=g;if(actx.createStereoPanner){const p=actx.createStereoPanner();p.pan.value=pan||0;g.connect(p);last=p}
   o.connect(g);last.connect(actx.destination);o.start(t0+st);o.stop(t0+st+du+0.05)})}
-const TONES={blitz:[[1480,0,.12],[1050,.16,.12],[1480,.32,.12],[1050,.48,.16]],far:[[880,0,.18]],near:[[880,0,.14],[1175,.18,.22]],arrive:[[784,0,.16],[988,.18,.16],[1319,.36,.3]],reroute:[[523,0,.18],[392,.22,.28]],start:[[659,0,.14],[880,.16,.2]],test:[[880,0,.14],[1175,.18,.22]]};
+const TONES={lane:[[660,0,.12],[660,.16,.12]],blitz:[[1480,0,.12],[1050,.16,.12],[1480,.32,.12],[1050,.48,.16]],far:[[880,0,.18]],near:[[880,0,.14],[1175,.18,.22]],arrive:[[784,0,.16],[988,.18,.16],[1319,.36,.3]],reroute:[[523,0,.18],[392,.22,.28]],start:[[659,0,.14],[880,.16,.2]],test:[[880,0,.14],[1175,.18,.22]]};
 function announce(kind,text,pan){if(set.audio==='aus')return;if(set.audio==='ton'){beep(TONES[kind]||TONES.far,pan);return}say(text)}
 const panOf=st=>{const m=(st&&st.st.maneuver.modifier)||'';return /left/.test(m)?-0.8:/right/.test(m)?0.8:0};
 function say(text){if(set.audio!=='sprache'||!('speechSynthesis' in window))return;try{const u=new SpeechSynthesisUtterance(text);u.lang='de-DE';voices=voices||pickVoice();if(voices)u.voice=voices;u.rate=1.05;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){}}
@@ -489,7 +495,11 @@ function buildRoute(route,dest){
  const xy=ll.map(c=>P(c[0],c[1])),cum=[0];for(let i=1;i<xy.length;i++)cum.push(cum[i-1]+Math.hypot(xy[i][0]-xy[i-1][0],xy[i][1]-xy[i-1][1]));
  const R={dest,ll,xy,cum,total:cum[cum.length-1],duration:route.duration,s:0,i:0,off:0,offN:0,last:0,onRoute:null,steps:[]};
  const steps=route.legs.flatMap(l=>l.steps);let from=0;
- for(const st of steps){const[lon,lat]=st.maneuver.location;const q=snap(R,lat,lon,from);from=q.i;R.steps.push({st,s:q.s,text:stepText(st),said:{}})}
+ R.lanes=[];
+ for(const st of steps){const[lon,lat]=st.maneuver.location;const q=snap(R,lat,lon,from);from=q.i;R.steps.push({st,s:q.s,text:stepText(st),said:{}});
+  let f2=Math.max(0,from-2);for(const it of(st.intersections||[])){if(!it.lanes||!it.lanes.length||!it.location)continue;const qi=snap(R,it.location[1],it.location[0],f2,f2+400);f2=qi.i;
+   if(qi.d<30)R.lanes.push({s:qi.s,lanes:it.lanes.map(l=>({ind:(l.indications||['none']),ok:!!l.valid})),said:0})}}
+ R.lanes.sort((a,b)=>a.s-b.s);
  return R}
 async function fetchRoute(a,b){
  for(const base of ROUTERS[set.mode]){try{const r=await tfetch(`${base}${a.lon.toFixed(6)},${a.lat.toFixed(6)};${b.lon.toFixed(6)},${b.lat.toFixed(6)}?overview=full&geometries=geojson&steps=true&alternatives=false`);
@@ -553,7 +563,40 @@ function updateNav(p){const R=NAV;if(!R)return;
   if(d<=far&&d>near+40&&!st.said.far&&(nx==1||st.s-R.steps[nx-1].s>far*0.8)){st.said.far=1;announce('far',`${inDist(d)} ${farText(st)}`,panOf(st))}
   if(d<=near&&!st.said.near){st.said.near=1;st.said.far=1;if(st.st.maneuver.type!=='arrive')announce('near','Jetzt '+lf(st.text),panOf(st))}}
  renderNav()}
+// ---------- Spurassistent ----------
+// Ziel: so früh wie möglich eine Spurseite wählen, die an der entscheidenden Kreuzung passt
+// und für Folgemanöver günstig liegt, damit möglichst wenige Spurwechsel nötig sind.
+const LANEKIND=i=>/uturn/.test(i)?'uturn':/sharp/.test(i)?'sharp':/slight/.test(i)?'slight':/left|right/.test(i)?'turn':'straight';
+function laneIcon(inds){return inds.map(i=>arrowSvg(i==='none'?'straight':LANEKIND(i),/left|uturn/.test(i))).join('')}
+function sideOk(L,side){const n=L.lanes.length,v=L.lanes.map(l=>l.ok);if(side==='left')return v[0];if(side==='right')return v[n-1];return n>=3&&v.slice(1,n-1).some(Boolean)}
+function recLanes(L,side){const n=L.lanes.length,v=L.lanes.map(l=>l.ok),idx=[...Array(n).keys()];let pick=[];
+ if(side==='left'){for(const i of idx){if(v[i])pick.push(i);else if(pick.length)break}}
+ else if(side==='right'){for(const i of idx.reverse()){if(v[i])pick.push(i);else if(pick.length)break}}
+ else pick=idx.filter(i=>i>0&&i<n-1&&v[i]);
+ if(!pick.length)pick=idx.filter(i=>v[i]);return pick}
+function laneAdvice(R){if(!R.lanes||!R.lanes.length)return null;
+ const nx=R.steps.findIndex((x,k)=>k>0&&x.s>R.s+3);if(nx<1)return null;const M=R.steps[nx];if(M.st.maneuver.type==='arrive')return null;
+ const ahead=R.lanes.filter(L=>L.s>R.s+3&&L.s<=M.s+30&&L.s-R.s<1500);if(!ahead.length)return null;
+ const D=ahead.reduce((a,b)=>Math.abs(b.s-M.s)<Math.abs(a.s-M.s)?b:a);
+ if(D.lanes.every(l=>l.ok))return null;               // alle Spuren passen: kein Hinweis nötig
+ const M2=R.steps[nx+1],m2=M2&&M2.s-M.s<800&&M2.st.maneuver.type!=='arrive'?(M2.st.maneuver.modifier||''):'';
+ let best=null;
+ for(const side of['left','middle','right']){if(!sideOk(D,side))continue;
+  let sc=3;for(const L of ahead)if(L!==D&&sideOk(L,side))sc+=1;
+  if(m2&&((side==='left'&&/left/.test(m2))||(side==='right'&&/right/.test(m2))))sc+=1.5;
+  if(side==='middle'&&m2&&/straight/.test(m2))sc+=0.5;
+  if(!best||sc>best.sc)best={side,sc}}
+ if(!best)return null;return{D,M,side:best.side,lanes:recLanes(D,best.side),d:D.s-R.s}}
+const SIDETXT={left:'Linke Spur',middle:'Mittlere Spur',right:'Rechte Spur'},SIDEPL={left:'Linke Spuren',middle:'Mittlere Spuren',right:'Rechte Spuren'};
+function updateLanes(R){const el=$('lanes'),a=laneAdvice(R);
+ if(!a||a.d>Math.max(1000,v*45)){el.classList.remove('on');return}
+ const n=a.D.lanes.length,several=a.lanes.length>1&&a.lanes.length<n;
+ $('laneBox').innerHTML=a.D.lanes.map((l,i)=>`<div class="l ${a.lanes.includes(i)?'rec':l.ok?'ok':''}"><svg viewBox="0 0 48 48">${laneIcon(l.ind)}</svg></div>`).join('');
+ $('laneT').textContent=(several?SIDEPL[a.side]:SIDETXT[a.side])+(a.d>250?' wählen':' halten');
+ $('laneS').textContent=`für ${lf(a.M.text)} in ${fmt(Math.max(0,a.M.s-R.s))}`;el.classList.add('on');
+ const trig=Math.max(350,v*22);if(!a.D.said&&a.d<=trig){a.D.said=1;announce('lane',`${SIDETXT[a.side]} ${a.d>200?'wählen':'halten'}`,a.side==='left'?-0.8:a.side==='right'?0.8:0)}}
 function renderNav(){const R=NAV;if(!R)return;const el=$('nav');el.classList.add('on');el.classList.toggle('off',R.offN>0);
+ updateLanes(R);
  const nx=R.next>0?R.next:R.steps.length-1,st=R.steps[nx];
  if(st){const d=Math.max(0,st.s-R.s);$('navIco').innerHTML=navIcon(st.st);$('navD').textContent=fmt(d);$('navT').textContent=R.offN>0?'Abseits der Route':st.text;
   const span=Math.min(400,st.s-(nx>0?R.steps[nx-1].s:0));$('navProg').style.width=Math.max(0,Math.min(100,(1-d/Math.max(span,1))*100))+'%';
