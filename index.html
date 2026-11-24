@@ -13,7 +13,7 @@
 :root[data-ui=day]{color-scheme:light}:root[data-ui=night]{color-scheme:dark}
 *{box-sizing:border-box;min-width:0}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:16px/1.45 Rubik,system-ui,sans-serif;overflow:hidden}
-#app{position:fixed;top:0;left:0;right:0;height:100vh;height:var(--apph,100lvh);display:flex;flex-direction:column}
+#app{position:fixed;top:0;left:0;right:0;height:100%;height:var(--apph,100%);display:flex;flex-direction:column}
 .scrim{position:absolute;left:0;right:0;top:0;height:calc(env(safe-area-inset-top) + 70px);background:linear-gradient(var(--sky,#17212b) 35%,transparent);pointer-events:none;z-index:450}
 #mapwrap{flex:1;min-height:120px;position:relative;overflow:hidden;background:var(--line)}
 #map{position:absolute;inset:0;background:var(--line)}
@@ -221,7 +221,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='24.11.2026 · 9';
+const APP_VERSION='24.11.2026 · 10';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -683,7 +683,7 @@ $('aNo').onclick=()=>{if(!curAlert)return;REPS=REPS.filter(r=>r.id!==curAlert.id
 $('types').onclick=e=>{const b=e.target.closest('button');if(!b||!cur)return;const r={id:Date.now(),type:b.dataset.t,lat:cur.lat,lon:cur.lon,t:Date.now()};REPS.push(r);answered.add(r.id);saveReps();drawReps();closeSheets();toast(TYPES[r.type].n+' gespeichert')};
 // ---------- Bedienung ----------
 let tt;const toast=m=>{const e=$('toast');e.textContent=m;e.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>e.classList.remove('on'),2200)};
-const closeSheets=()=>document.querySelectorAll('.sheet').forEach(s=>s.classList.remove('on'));
+const closeSheets=()=>{document.querySelectorAll('.sheet').forEach(s=>s.classList.remove('on'));if(typeof healSoon==='function')healSoon()};
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=closeSheets);
 $('searchSheet').addEventListener('click',e=>{if(e.target.matches('[data-close]')){clearTimeout(qt);qn++}});
 $('repBtn').onclick=()=>{if(!cur){toast('Erst Fahrt starten');return}$('repSheet').classList.add('on')};
@@ -716,9 +716,19 @@ $('wipe').onclick=()=>{if($('wipe').dataset.sure){OBS={};REPS=[];saveObs();saveR
  else{$('wipe').dataset.sure=1;$('wipe').textContent='Wirklich löschen?';setTimeout(()=>{delete $('wipe').dataset.sure;$('wipe').textContent='Alle Daten löschen'},4000)}};
 // ---------- Vollbild ----------
 const isStandalone=()=>navigator.standalone===true||matchMedia('(display-mode: fullscreen)').matches||matchMedia('(display-mode: standalone)').matches;
-// iOS meldet als Home-Bildschirm-App teils eine zu kleine Fensterhöhe: dann die Bildschirmhöhe nehmen
-function fitApp(){let h=innerHeight;if(isStandalone()){const land=innerWidth>innerHeight,sh=land?Math.min(screen.width,screen.height):Math.max(screen.width,screen.height);if(sh>h&&sh-h<160)h=sh}
- document.documentElement.style.setProperty('--apph',h+'px');try{map.resize()}catch(e){}}
+// iOS-Fehler (Home-Bildschirm-App): nach dem ersten Öffnen der Tastatur bleibt der Anzeigebereich ~59 px zu klein.
+// Abhilfe: App immer genau so hoch wie der gemeldete Bereich (nichts wird abgeschnitten) und nach dem
+// Schließen der Tastatur den Container kurz aus- und einblenden, damit WebKit die Höhe neu misst.
+const maxH={p:0,l:0};const okey=()=>innerWidth>innerHeight?'l':'p';
+const screenH=()=>okey()==='l'?Math.min(screen.width,screen.height):Math.max(screen.width,screen.height);
+function fitApp(){const k=okey();maxH[k]=Math.max(maxH[k],innerHeight);document.documentElement.style.setProperty('--apph',innerHeight+'px');try{map.resize()}catch(e){}}
+function stuck(){if(!isStandalone())return false;const k=okey(),want=Math.max(maxH[k],screenH());return innerHeight<want-4&&want-innerHeight<160}
+let healing=false;
+function healViewport(){if(healing||!stuck())return;healing=true;const a=$('app');a.style.display='none';void a.offsetHeight;a.style.display='';
+ requestAnimationFrame(()=>{fitApp();setTimeout(()=>{fitApp();healing=false},120)})}
+const healSoon=()=>setTimeout(healViewport,140);
+$('q').addEventListener('blur',healSoon);$('imp').addEventListener('change',healSoon);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')setTimeout(()=>{fitApp();healViewport()},300)});
 window.addEventListener('resize',fitApp);window.addEventListener('orientationchange',()=>setTimeout(fitApp,300));
 const canFS=()=>!!(document.documentElement.requestFullscreen&&document.fullscreenEnabled);
 function fsState(){const st=isStandalone(),on=st||!!document.fullscreenElement;document.body.classList.toggle('fs-on',on);
@@ -737,7 +747,7 @@ $('go').onclick=()=>{if(!('geolocation' in navigator)){$('startInfo').textConten
  Object.assign(drive,{pass:0,green:0,stops:0,halted:true});renderStats()};
 $('stop').onclick=()=>{endNav(true);if(watch!=null)navigator.geolocation.clearWatch(watch);watch=null;try{wake&&wake.release()}catch(e){}closeSheets();$('start').style.display='';
  $('startInfo').textContent=`Letzte Fahrt: ${drive.pass} Ampeln, ${drive.green} bei Grün, ${drive.stops} Stopps.`};
-fitApp();setTimeout(fitApp,500);fsState();
+fitApp();setTimeout(()=>{fitApp();healViewport()},500);fsState();
 // Automatische Aktualisierung: aktuelle index.html ohne Cache holen und bei neuer Version neu laden
 async function checkUpdate(){try{const r=await fetch('./?v='+Date.now(),{cache:'no-store'});if(!r.ok)return;const t=await r.text();
  const m=t.match(/APP_VERSION='([^']+)'/);if(m&&m[1]!==APP_VERSION){if(cur&&(NAV||v>3)){toast('Neue Version verfügbar, wird nach der Fahrt geladen');return}
