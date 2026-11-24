@@ -93,6 +93,10 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:16px/1
 .eta{display:none;justify-content:space-between;align-items:baseline;gap:10px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font-size:14px;color:var(--mute)}
 .eta b{font-size:18px;color:var(--ink);white-space:nowrap}.app-nav .eta{display:flex}
 .ibtn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round}
+.top .pill{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}.top #gps{flex:none}.top .ibtn{flex:none}
+.ibtn.navbtn{width:auto;padding:0 16px 0 8px;border-radius:22px;display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:15px;font-weight:700}
+.ibtn.navbtn svg.dir{width:30px;height:30px}
+.app-nav .ibtn.navbtn{padding:0 8px}.app-nav .ibtn.navbtn span{display:none}
 .ibtn+.ibtn{margin-left:0}
 input[type=search]{width:100%;font:inherit;font-size:17px;border:1px solid var(--line);border-radius:14px;padding:12px 14px;background:var(--bg);color:var(--ink)}
 .res{display:grid;gap:2px;margin-top:10px}
@@ -112,7 +116,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
   <div class="prog"><i id="navProg"></i></div>
   <div class="more"><div id="navSteps"></div><div class="acts"><button class="btn" id="navOv">Übersicht</button><button class="btn" id="navX">Beenden</button></div></div></div>
  <div id="blitz"><div class="lim" id="bLim">–</div><div><b id="bT">Blitzer</b><span id="bD"></span></div></div>
- <div class="top"><span class="pill" id="gps">GPS aus</span><span class="pill" id="sigs">Ampeln: –</span><button class="ibtn" id="searchBtn" aria-label="Ziel suchen" style="margin-left:auto"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg></button><button class="ibtn" id="setBtn" aria-label="Einstellungen">⚙</button></div>
+ <div class="top"><span class="pill" id="gps">GPS aus</span><span class="pill" id="sigs">Ampeln: –</span><button class="ibtn navbtn" id="searchBtn" aria-label="Navigation starten: Ziel eingeben" style="margin-left:auto"><svg viewBox="0 0 24 24" class="dir"><rect x="4.2" y="4.2" width="15.6" height="15.6" rx="3" transform="rotate(45 12 12)" fill="#33ccff" stroke="none"/><path d="M9.2 15.5v-2.6a2 2 0 0 1 2-2h4.3" fill="none" stroke="#0b1a26" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.6 8.6l2.6 2.3-2.6 2.3" fill="none" stroke="#0b1a26" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Wohin?</span></button><button class="ibtn" id="setBtn" aria-label="Einstellungen">⚙</button></div>
  <div class="alert" id="alert"><div class="dot" id="aDot">!</div><div class="tx"><b id="aT"></b><span id="aD"></span></div><button class="btn pri" id="aYes">Noch da</button><button class="btn" id="aNo">Weg</button></div>
  <div class="panel">
   <div class="pilot" id="pilot">
