@@ -61,15 +61,30 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:16px/1
 .toast.on{opacity:1}
 .nav-on .toast{top:calc(env(safe-area-inset-top) + 100px)}
 .small{font-size:13px;color:var(--mute)}
-#nav{position:absolute;top:calc(env(safe-area-inset-top) + 10px);left:10px;right:10px;z-index:560;background:var(--blue);color:var(--onblue);border-radius:18px;padding:10px 12px;display:none;gap:12px;align-items:center;box-shadow:0 8px 20px -8px #0007}
-#nav.on{display:flex}#nav svg{width:46px;height:46px;flex:none}#nav .tx{flex:1;line-height:1.2}#nav b{font-size:28px;display:block;white-space:nowrap}#nav span{font-size:15px}
-#nav .x{width:44px;height:44px;border-radius:50%;border:0;background:#0b1a261f;color:var(--onblue);font:inherit;font-size:22px;cursor:pointer;flex:none}
+#nav{position:absolute;top:calc(env(safe-area-inset-top) + 10px);left:12px;right:12px;z-index:560;display:none;flex-direction:column;border-radius:22px;overflow:hidden;
+ background:color-mix(in srgb,var(--card) 90%,transparent);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);color:var(--ink);box-shadow:0 10px 28px -12px #000a;border:1px solid color-mix(in srgb,var(--ink) 10%,transparent)}
+#nav .head{display:flex;align-items:center;gap:12px;padding:8px 12px 8px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+#nav .ni{width:48px;height:48px;border-radius:16px;background:var(--blue);color:var(--onblue);display:grid;place-items:center;flex:none}
+#nav .ni svg{width:32px;height:32px}
+#nav .tx{flex:1;min-width:0;line-height:1.15}#nav b{font-size:22px;font-weight:800;display:block;white-space:nowrap}
+#nav .tx span{font-size:14px;color:var(--mute);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#nav .then{font-size:12px;font-weight:600;background:color-mix(in srgb,var(--blue) 22%,transparent);color:var(--ink);border-radius:10px;padding:3px 8px;white-space:nowrap;display:none;align-items:center;gap:4px;flex:none}
+#nav .then svg{width:16px;height:16px}#nav .then.on{display:inline-flex}
+#nav .chev{width:20px;height:20px;flex:none;color:var(--mute);transition:transform .25s}#nav.open .chev{transform:rotate(180deg)}
+#nav .prog{height:3px;background:color-mix(in srgb,var(--ink) 10%,transparent)}#nav .prog i{display:block;height:100%;width:0;background:var(--blue);transition:width .8s linear}
+#nav .more{display:none;padding:4px 12px 12px;border-top:1px solid color-mix(in srgb,var(--ink) 8%,transparent)}#nav.open .more{display:block}
+#nav .stp{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid color-mix(in srgb,var(--ink) 6%,transparent);font-size:14px}
+#nav .stp svg{width:22px;height:22px;flex:none;color:var(--blue)}#nav .stp em{font-style:normal;margin-left:auto;color:var(--mute);white-space:nowrap;padding-left:8px}
+#nav .stp div{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#nav .acts{display:flex;gap:8px;margin-top:10px}#nav .acts button{flex:1;min-height:44px}
+#nav.on{display:flex}
+
 #blitz{position:absolute;left:10px;right:10px;top:calc(env(safe-area-inset-top) + 64px);z-index:555;pointer-events:none;background:#fff;color:#1d2329;border-radius:16px;padding:8px 12px;display:none;gap:10px;align-items:center;box-shadow:0 8px 20px -8px #0007;border:3px solid #e53935}
-#blitz.on{display:flex}.nav-on #blitz{top:calc(env(safe-area-inset-top) + 148px)}#blitz.fast{background:#e53935;color:#fff}
+#blitz.on{display:flex}.nav-on #blitz{top:calc(env(safe-area-inset-top) + 140px)}.nav-on.nav-open #blitz{display:none}#blitz.fast{background:#e53935;color:#fff}
 #blitz .lim{width:44px;height:44px;border-radius:50%;border:5px solid #e53935;background:#fff;color:#1d2329;display:grid;place-items:center;font-weight:800;font-size:17px;flex:none}
 #blitz b{font-size:18px;display:block}#blitz span{font-size:14px}
-#nav.off{background:var(--amber);color:#152027}#nav.off .x{background:#15202722;color:#152027}
-.app-nav .top .pill{display:none}.app-nav .top{top:calc(env(safe-area-inset-top) + 92px)}
+#nav.off{border:2px solid var(--amber)}#nav.off .ni{background:var(--amber)}
+.app-nav .top .pill{display:none}.app-nav .top{top:calc(env(safe-area-inset-top) + 86px)}
 .eta{display:none;justify-content:space-between;align-items:baseline;gap:10px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font-size:14px;color:var(--mute)}
 .eta b{font-size:18px;color:var(--ink);white-space:nowrap}.app-nav .eta{display:flex}
 .ibtn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round}
@@ -83,7 +98,13 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 </style></head><body>
 <div id="app">
  <div id="mapwrap"><div id="map"></div><div class="attr"><a href="https://openfreemap.org">OpenFreeMap</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a></div></div>
- <div id="nav"><svg viewBox="0 0 48 48" id="navIco"></svg><div class="tx"><b id="navD">–</b><span id="navT">–</span></div><button class="x" id="navX" aria-label="Navigation beenden">×</button></div>
+ <div id="nav"><div class="head" id="navHead" role="button" aria-expanded="false" aria-label="Weitere Abbiegungen anzeigen">
+  <div class="ni"><svg viewBox="0 0 48 48" id="navIco"></svg></div>
+  <div class="tx"><b id="navD">–</b><span id="navT">–</span></div>
+  <span class="then" id="navThen"></span>
+  <svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+  <div class="prog"><i id="navProg"></i></div>
+  <div class="more"><div id="navSteps"></div><div class="acts"><button class="btn" id="navOv">Übersicht</button><button class="btn" id="navX">Beenden</button></div></div></div>
  <div id="blitz"><div class="lim" id="bLim">–</div><div><b id="bT">Blitzer</b><span id="bD"></span></div></div>
  <div class="top"><span class="pill" id="gps">GPS aus</span><span class="pill" id="sigs">Ampeln: –</span><button class="ibtn" id="searchBtn" aria-label="Ziel suchen" style="margin-left:auto"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg></button><button class="ibtn" id="setBtn" aria-label="Einstellungen">⚙</button></div>
  <div class="alert" id="alert"><div class="dot" id="aDot">!</div><div class="tx"><b id="aT"></b><span id="aD"></span></div><button class="btn pri" id="aYes">Noch da</button><button class="btn" id="aNo">Weg</button></div>
@@ -468,9 +489,14 @@ $('pvGo').onclick=()=>{if(!PREVIEW)return;NAV=PREVIEW;PREVIEW=null;closeSheets()
  const rec=LS.get('gw_recent',[]).filter(x=>x.name!==NAV.dest.name);rec.unshift(NAV.dest);LS.set('gw_recent',rec.slice(0,6));
  appr=null;const first=NAV.steps[1];announce('start','Route gestartet. '+(first?`${inDist(first.s)} ${farText(first)}`:''),0);if(first&&first.s<Math.max(180,v*14))first.said.far=1;if(cur)updateNav(cur);renderNav()};
 $('pvCancel').onclick=()=>{PREVIEW=null;clearRoute();closeSheets();follow=true;applyView(true)};
-function endNav(silent){if(!NAV&&!PREVIEW)return;NAV=null;PREVIEW=null;clearRoute();
+function endNav(silent){if(!NAV&&!PREVIEW)return;$('nav').classList.remove('open');document.body.classList.remove('nav-open');NAV=null;PREVIEW=null;clearRoute();
  document.getElementById('app').classList.remove('app-nav');document.body.classList.remove('nav-on');$('nav').classList.remove('on');appr=null;if(!silent)toast('Navigation beendet')}
-$('navX').onclick=()=>endNav();
+$('navX').onclick=()=>{$('nav').classList.remove('open');document.body.classList.remove('nav-open');endNav()};
+$('navHead').onclick=()=>{const o=$('nav').classList.toggle('open');document.body.classList.toggle('nav-open',o);$('navHead').setAttribute('aria-expanded',o);renderNav()};
+$('navOv').onclick=()=>{if(!NAV)return;$('nav').classList.remove('open');document.body.classList.remove('nav-open');follow=false;clearTimeout(freeT);
+ const rest=NAV.ll.filter((c,i)=>NAV.cum[i]>=NAV.s-20),la=rest.map(c=>c[0]),lo=rest.map(c=>c[1]);
+ map.fitBounds([[Math.min(...lo),Math.min(...la)],[Math.max(...lo),Math.max(...la)]],{padding:{top:110,bottom:40,left:40,right:40},bearing:0,pitch:0,duration:700});
+ freeT=setTimeout(()=>{follow=true;applyView(true)},10000)};
 // laufende Navigation
 let rerouting=false;
 async function reroute(p){if(rerouting||!NAV)return;rerouting=true;NAV.last=p.t;announce('reroute','Route wird neu berechnet',0);$('navT').textContent='Route wird neu berechnet …';
@@ -491,7 +517,12 @@ function updateNav(p){const R=NAV;if(!R)return;
   if(d<=near&&!st.said.near){st.said.near=1;st.said.far=1;if(st.st.maneuver.type!=='arrive')announce('near','Jetzt '+lf(st.text),panOf(st))}}
  renderNav()}
 function renderNav(){const R=NAV;if(!R)return;const el=$('nav');el.classList.add('on');el.classList.toggle('off',R.offN>0);
- const nx=R.next>0?R.next:R.steps.length-1,st=R.steps[nx];if(st){$('navIco').innerHTML=navIcon(st.st);$('navD').textContent=fmt(Math.max(0,st.s-R.s));$('navT').textContent=R.offN>0?'Abseits der Route':st.text}
+ const nx=R.next>0?R.next:R.steps.length-1,st=R.steps[nx];
+ if(st){const d=Math.max(0,st.s-R.s);$('navIco').innerHTML=navIcon(st.st);$('navD').textContent=fmt(d);$('navT').textContent=R.offN>0?'Abseits der Route':st.text;
+  const span=Math.min(400,st.s-(nx>0?R.steps[nx-1].s:0));$('navProg').style.width=Math.max(0,Math.min(100,(1-d/Math.max(span,1))*100))+'%';
+  const n2=R.steps[nx+1],th=$('navThen');
+  if(n2&&n2.st.maneuver.type!=='arrive'&&n2.s-st.s<150){th.innerHTML='dann <svg viewBox="0 0 48 48">'+navIcon(n2.st)+'</svg>';th.classList.add('on')}else th.classList.remove('on');
+  if(el.classList.contains('open')){$('navSteps').innerHTML=R.steps.slice(nx,nx+5).map(x=>`<div class="stp"><svg viewBox="0 0 48 48">${navIcon(x.st)}</svg><div>${esc(x.text)}</div><em>${fmt(Math.max(0,x.s-R.s))}</em></div>`).join('')}}
  const rem=Math.max(0,R.total-R.s),secs=R.duration*rem/Math.max(1,R.total),eta=new Date(Date.now()+secs*1000);
  const ahead=(R.onRoute||[]).filter(o=>o.s>R.s).length;
  $('etaT').textContent=eta.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})+' Ankunft';$('etaS').textContent=`${fmtDur(secs)} · ${fmt(rem)} · ${ahead} Ampel${ahead==1?'':'n'}`}
