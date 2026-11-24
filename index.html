@@ -221,7 +221,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='24.11.2026 · 8';
+const APP_VERSION='24.11.2026 · 9';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -737,7 +737,13 @@ $('go').onclick=()=>{if(!('geolocation' in navigator)){$('startInfo').textConten
  Object.assign(drive,{pass:0,green:0,stops:0,halted:true});renderStats()};
 $('stop').onclick=()=>{endNav(true);if(watch!=null)navigator.geolocation.clearWatch(watch);watch=null;try{wake&&wake.release()}catch(e){}closeSheets();$('start').style.display='';
  $('startInfo').textContent=`Letzte Fahrt: ${drive.pass} Ampeln, ${drive.green} bei Grün, ${drive.stops} Stopps.`};
-fitApp();setTimeout(fitApp,500);fsState();drawSignals();drawReps();renderLearn();loadFile();setBlitz();loadWorks();
+fitApp();setTimeout(fitApp,500);fsState();
+// Automatische Aktualisierung: aktuelle index.html ohne Cache holen und bei neuer Version neu laden
+async function checkUpdate(){try{const r=await fetch('./?v='+Date.now(),{cache:'no-store'});if(!r.ok)return;const t=await r.text();
+ const m=t.match(/APP_VERSION='([^']+)'/);if(m&&m[1]!==APP_VERSION){if(cur&&(NAV||v>3)){toast('Neue Version verfügbar, wird nach der Fahrt geladen');return}
+  let n=0;try{n=+sessionStorage.getItem('gw_upd')||0}catch(e){}if(n>2)return;try{sessionStorage.setItem('gw_upd',n+1)}catch(e){}
+  location.replace(location.pathname+'?v='+encodeURIComponent(m[1]))}}catch(e){}}
+setTimeout(checkUpdate,1500);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});drawSignals();drawReps();renderLearn();loadFile();setBlitz();loadWorks();
 if(location.hostname=='gw.test')window.__gw={OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr,map};
 $('startInfo').textContent=(Object.keys(OBS).length?`Bisher gelernt: ${Object.keys(OBS).length} Ampel-Richtungen. `:'')+'Version '+APP_VERSION;
 
