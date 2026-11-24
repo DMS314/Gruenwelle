@@ -170,19 +170,20 @@ const drawReps=()=>{repLayer.clearLayers();const now=Date.now();REPS=REPS.filter
  for(const r of REPS)L.circleMarker([r.lat,r.lon],{pane:'sigs',radius:10,color:'#fff',weight:3,fillColor:TYPES[r.type].c,fillOpacity:1}).bindTooltip(TYPES[r.type].n).addTo(repLayer)};
 $('types').innerHTML=Object.entries(TYPES).map(([k,t])=>`<button data-t="${k}"><span class="dot" style="background:${t.c}">!</span>${t.n}</button>`).join('');
 // ---------- Ampeln laden (Overpass) ----------
-const OVERPASS=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter'];
+const tfetch=(url,opt={},ms=20000)=>{const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),ms);return fetch(url,{...opt,signal:ac.signal}).finally(()=>clearTimeout(tm))};
+const OVERPASS=['https://overpass-api.de/api/interpreter','https://overpass.private.coffee/api/interpreter','https://overpass.kumi.systems/api/interpreter'];
 let loading=false;const DIAG={load:'noch nicht geladen',fixes:0,acc:null};let LOG=LS.get('gw_log',[]);
 const hm=()=>new Date(Date.now()).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
 const logEv=e=>{LOG.push(e);if(LOG.length>40)LOG=LOG.slice(-40);LS.set('gw_log',LOG)};
 async function loadSignals(p,force){
- if(loading)return;if(!force&&sigCenter&&dist(sigCenter,p)<1500&&SIG.size)return;loading=true;$('sigs').textContent='Ampeln laden …';
- const q=`[out:json][timeout:25];node["highway"="traffic_signals"](around:3000,${p.lat.toFixed(5)},${p.lon.toFixed(5)});out body;`;
- for(const url of OVERPASS){try{const r=await fetch(url,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}});
-   if(!r.ok)throw new Error(r.status);const j=await r.json();
+ if(loading)return;if(!force&&sigCenter&&dist(sigCenter,p)<1500&&SIG.size)return;loading=true;$('sigs').textContent=SIG.size?`Ampeln: ${SIG.size} · lädt nach …`:'Ampeln laden …';
+ const a=`(around:4000,${p.lat.toFixed(5)},${p.lon.toFixed(5)})`,q=`[out:json][timeout:20];(node["highway"="traffic_signals"]${a};node["crossing"="traffic_signals"]${a};);out body;`;
+ for(const url of OVERPASS){try{const r=await tfetch(url,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}});
+   if(!r.ok)throw new Error(r.status);const j=await r.json();if(j.remark&&!(j.elements||[]).length)throw new Error(j.remark);
    for(const e of j.elements||[])if(e.type=='node'&&isFinite(e.lat))SIG.set(e.id,{id:e.id,lat:+e.lat,lon:+e.lon});
    if(SIG.size>4000){const arr=[...SIG.values()].sort((a,b)=>dist(a,p)-dist(b,p)).slice(0,4000);SIG.clear();arr.forEach(s=>SIG.set(s.id,s));sigMarkers.forEach(m=>sigLayer.removeLayer(m));sigMarkers.clear()}
-   DIAG.load=`ok um ${hm()}, ${(j.elements||[]).length} im Umkreis von 3 km`;sigCenter={lat:p.lat,lon:p.lon};LS.set('gw_sig',[...SIG.values()]);LS.set('gw_sigc',sigCenter);loading=false;drawSignals();return}catch(e){}}
- loading=false;DIAG.load=`fehlgeschlagen um ${hm()}, neuer Versuch in 30 s`;$('sigs').textContent='Ampeln: Laden fehlgeschlagen';setTimeout(()=>{if(cur)loadSignals(cur,true)},30000)}
+   DIAG.load=`ok um ${hm()}, ${(j.elements||[]).length} im Umkreis von 4 km`;sigCenter={lat:p.lat,lon:p.lon};LS.set('gw_sig',[...SIG.values()]);LS.set('gw_sigc',sigCenter);loading=false;drawSignals();return}catch(e){}}
+ loading=false;DIAG.load=`fehlgeschlagen um ${hm()}, neuer Versuch in 30 s`;$('sigs').textContent=SIG.size?`Ampeln: ${SIG.size} (Nachladen fehlgeschlagen)`:'Ampeln: Laden fehlgeschlagen';setTimeout(()=>{if(cur)loadSignals(cur,true)},30000)}
 // ---------- Lernmodell ----------
 const sector=h=>Math.round(mod(h,360)/45)%8;
 const band=ts=>{const h=new Date(ts*1000).getHours();return h<6?0:h<10?1:h<15?2:h<19?3:h<23?4:0};
@@ -319,7 +320,7 @@ function buildRoute(route,dest){
  for(const st of steps){const[lon,lat]=st.maneuver.location;const q=snap(R,lat,lon,from);from=q.i;R.steps.push({st,s:q.s,text:stepText(st),said:{}})}
  return R}
 async function fetchRoute(a,b){
- for(const base of ROUTERS[set.mode]){try{const r=await fetch(`${base}${a.lon.toFixed(6)},${a.lat.toFixed(6)};${b.lon.toFixed(6)},${b.lat.toFixed(6)}?overview=full&geometries=geojson&steps=true&alternatives=false`);
+ for(const base of ROUTERS[set.mode]){try{const r=await tfetch(`${base}${a.lon.toFixed(6)},${a.lat.toFixed(6)};${b.lon.toFixed(6)},${b.lat.toFixed(6)}?overview=full&geometries=geojson&steps=true&alternatives=false`);
   if(!r.ok)throw new Error(r.status);const j=await r.json();if(j.code!=='Ok'||!j.routes||!j.routes.length)throw new Error(j.code);return j.routes[0]}catch(e){}}
  return null}
 function drawRoute(R){routeLayer.clearLayers();L.polyline(R.ll,{color:'#ffffff',weight:11,opacity:.9}).addTo(routeLayer);L.polyline(R.ll,{color:'#22a7e8',weight:7}).addTo(routeLayer);
@@ -333,8 +334,8 @@ function computeOnRoute(R){if(!R)return;const out=[];
 let routeSigLoading=false;
 async function loadRouteSignals(R){if(routeSigLoading||R.total>60000)return;routeSigLoading=true;
  const pts=[];let next=0;for(let i=0;i<R.ll.length;i++)if(R.cum[i]>=next||i==R.ll.length-1){pts.push(R.ll[i][0].toFixed(5)+','+R.ll[i][1].toFixed(5));next=R.cum[i]+120}
- const q=`[out:json][timeout:25];node["highway"="traffic_signals"](around:25,${pts.slice(0,450).join(',')});out body;`;
- for(const url of OVERPASS){try{const r=await fetch(url,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}});if(!r.ok)throw 0;const j=await r.json();
+ const ar=`(around:25,${pts.slice(0,450).join(',')})`,q=`[out:json][timeout:25];(node["highway"="traffic_signals"]${ar};node["crossing"="traffic_signals"]${ar};);out body;`;
+ for(const url of OVERPASS){try{const r=await tfetch(url,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}});if(!r.ok)throw 0;const j=await r.json();
    for(const e of j.elements||[])if(e.type=='node'&&isFinite(e.lat))SIG.set(e.id,{id:e.id,lat:+e.lat,lon:+e.lon});LS.set('gw_sig',[...SIG.values()].slice(-4000));break}catch(e){}}
  routeSigLoading=false;drawSignals()}
 function onSignalsChanged(){const R=NAV||PREVIEW;if(R){computeOnRoute(R);if(R===PREVIEW)renderPreview()}}
@@ -388,7 +389,7 @@ $('searchBtn').onclick=()=>{$('q').value='';renderRecent();$('searchSheet').clas
 $('q').oninput=()=>{clearTimeout(qt);const q=$('q').value.trim();if(q.length<3){renderRecent();return}qt=setTimeout(()=>search(q),350)};
 $('q').onkeydown=e=>{if(e.key=='Enter'){clearTimeout(qt);const q=$('q').value.trim();if(q.length>=2)search(q)}};
 async function search(q){const my=++qn;$('resInfo').textContent='Suche …';const c=cur||{lat:51.3397,lon:12.3731};
- try{const r=await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&lat=${c.lat.toFixed(4)}&lon=${c.lon.toFixed(4)}&limit=7&lang=de`);const j=await r.json();if(my!==qn)return;
+ try{const r=await tfetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&lat=${c.lat.toFixed(4)}&lon=${c.lon.toFixed(4)}&limit=7&lang=de`);const j=await r.json();if(my!==qn)return;
   RES=(j.features||[]).map(f=>{const p=f.properties||{},[lon,lat]=f.geometry.coordinates,street=[p.street,p.housenumber].filter(Boolean).join(' ');
    const name=p.name||street||p.city||'Ort',sub=[p.name&&street?street:'',[p.postcode,p.city||p.town||p.village].filter(Boolean).join(' ')].filter(Boolean).join(', ');return{name,sub,lat:+lat,lon:+lon}}).filter(x=>isFinite(x.lat));
   $('res').innerHTML=RES.map((r,k)=>`<button data-r="${k}">${esc(r.name)}<small>${esc(r.sub)}</small></button>`).join('');$('resInfo').textContent=RES.length?'':'Nichts gefunden.'}
