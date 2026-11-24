@@ -18,27 +18,28 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:16px/1
 .attr{position:absolute;right:4px;bottom:2px;z-index:400;font-size:11px;background:#ffffffcc;color:#333;padding:0 4px;border-radius:4px}
 .attr a{color:inherit}
 .car{width:44px;height:44px}.car svg{width:44px;height:44px;display:block;filter:drop-shadow(0 2px 3px #0006)}
-.top{align-items:flex-start;position:absolute;top:calc(env(safe-area-inset-top) + 10px);left:10px;right:10px;display:flex;gap:8px;z-index:500;pointer-events:none}
-.pill{pointer-events:auto;background:var(--card);border-radius:20px;padding:6px 12px;font-size:13px;box-shadow:0 4px 14px -6px #0007;white-space:nowrap}
-.pill.warn{background:var(--amber);color:#152027}
-.ibtn{pointer-events:auto;width:44px;height:44px;border-radius:50%;border:0;background:var(--card);color:var(--ink);font:inherit;font-size:20px;box-shadow:0 4px 14px -6px #0007;cursor:pointer}
-.panel{background:var(--card);padding:12px 16px calc(env(safe-area-inset-bottom) + 12px);box-shadow:0 -8px 24px -12px #0006;z-index:600}
-.pilot{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;border-radius:16px;padding:4px;transition:background .3s}
-.sig{background:#111;border-radius:12px;padding:6px;display:grid;gap:5px;position:relative}
-.sig i{width:18px;height:18px;border-radius:50%;background:#333;display:block}
+.top{align-items:center;position:absolute;top:calc(env(safe-area-inset-top) + 10px);left:10px;right:10px;display:flex;gap:8px;z-index:500;pointer-events:none}
+.pill{pointer-events:auto;background:var(--card);color:var(--ink);border-radius:20px;height:40px;padding:0 12px 0 9px;display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;box-shadow:0 4px 14px -6px #0007;white-space:nowrap}
+.pill svg{width:20px;height:20px;flex:none}.pill:has(.warn){background:var(--amber);color:#152027}
+
+.ibtn{pointer-events:auto;width:40px;height:40px;display:grid;place-items:center;padding:0;border-radius:50%;border:0;background:var(--card);color:var(--ink);font:inherit;font-size:20px;box-shadow:0 4px 14px -6px #0007;cursor:pointer}
+.panel{background:var(--card);padding:8px 14px calc(env(safe-area-inset-bottom) + 8px);border-radius:20px 20px 0 0;box-shadow:0 -8px 24px -12px #0006;z-index:600}
+.pilot{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;border-radius:16px;padding:4px;transition:background .3s}
+.sig{background:#111;border-radius:10px;padding:5px;display:grid;gap:4px;position:relative}
+.sig i{width:13px;height:13px;border-radius:50%;background:#333;display:block}
 .sig i.r.on{background:var(--red);box-shadow:0 0 10px var(--red)}.sig i.y.on{background:var(--amber)}.sig i.g.on{background:var(--green);box-shadow:0 0 10px var(--green)}
-.sig.est{outline:2px dashed var(--amber);outline-offset:2px}.sig b{position:absolute;inset:0;display:none;place-items:center;color:#fff;font-size:22px}.sig.unk b{display:grid}
-.cd{font-size:clamp(22px,6vw,28px);font-weight:700;line-height:1.1}.hint{font-size:15px;line-height:1.3}.src{font-size:13px;color:var(--mute);line-height:1.3;margin-top:2px}
-.spd{text-align:center;border:3px solid var(--line);border-radius:50%;width:74px;height:74px;display:grid;place-content:center;line-height:1}
-.spd b{font-size:28px}.spd small{font-size:13px;color:var(--mute)}
-.tape{margin:10px 0 0;height:16px;border-radius:8px;background:var(--line);position:relative}
-.band{position:absolute;top:0;bottom:0;border-radius:8px;width:0;background:repeating-linear-gradient(45deg,var(--green) 0 6px,color-mix(in srgb,var(--green) 55%,transparent) 6px 12px);transition:left .4s,width .4s}
-.ndl{position:absolute;top:-5px;width:4px;height:26px;border-radius:2px;background:var(--ink);margin-left:-2px}
-.tl{display:flex;justify-content:space-between;font-size:12px;color:var(--mute);margin-top:2px}
-.foot{display:flex;align-items:center;gap:10px;margin-top:8px}
-.stats{flex:1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
-.stats div{line-height:1.15}.stats b{font-size:18px;display:block}.stats span{font-size:12px;color:var(--mute)}
-.rep{width:56px;height:56px;border-radius:50%;background:var(--amber);border:0;cursor:pointer;font-size:30px;font-weight:700;color:#152027;flex:none}
+.sig.est{outline:2px dashed var(--amber);outline-offset:2px}.sig b{position:absolute;inset:0;display:none;place-items:center;color:#fff;font-size:17px}.sig.unk b{display:grid}
+.cd{font-size:20px;font-weight:700;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.hint{font-size:14px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.src{font-size:12px;color:var(--mute);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.spd{text-align:center;border:3px solid var(--line);border-radius:50%;width:56px;height:56px;display:grid;place-content:center;line-height:1}
+.spd b{font-size:21px}.spd small{font-size:11px;color:var(--mute)}
+.tape{margin:8px 0 0;height:10px;border-radius:5px;background:var(--line);position:relative}
+.band{position:absolute;top:0;bottom:0;border-radius:5px;width:0;background:repeating-linear-gradient(45deg,var(--green) 0 6px,color-mix(in srgb,var(--green) 55%,transparent) 6px 12px);transition:left .4s,width .4s}
+.ndl{position:absolute;top:-4px;width:4px;height:18px;border-radius:2px;background:var(--ink);margin-left:-2px}
+.tl{display:none;justify-content:space-between;font-size:12px;color:var(--mute);margin-top:2px}
+.foot{display:flex;align-items:center;gap:10px;margin-top:8px;min-height:44px}
+.stats{flex:1;min-width:0;font-size:13px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stats b{color:var(--ink);font-size:15px}
+.rep{width:44px;height:44px;border-radius:50%;background:var(--amber);border:0;cursor:pointer;font-size:26px;line-height:1;font-weight:700;color:#152027;flex:none}
 .alert{position:absolute;left:10px;right:10px;bottom:10px;z-index:550;background:var(--card);border-radius:18px;padding:12px;display:none;gap:10px;align-items:center;box-shadow:0 10px 24px -10px #0008}
 .alert.on{display:flex}.alert .tx{flex:1;font-size:14px;line-height:1.3}.alert b{display:block;font-size:16px}
 .dot{width:38px;height:38px;border-radius:50%;flex:none;display:grid;place-items:center;color:#fff;font-weight:800}
@@ -85,17 +86,17 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:16px/1
 #nav.on{display:flex}
 
 #blitz{position:absolute;left:10px;right:10px;top:calc(env(safe-area-inset-top) + 64px);z-index:555;pointer-events:none;background:#fff;color:#1d2329;border-radius:16px;padding:8px 12px;display:none;gap:10px;align-items:center;box-shadow:0 8px 20px -8px #0007;border:3px solid #e53935}
-#blitz.on{display:flex}.nav-on #blitz{top:calc(env(safe-area-inset-top) + 140px)}.nav-on.nav-open #blitz{display:none}#blitz.fast{background:#e53935;color:#fff}
+#blitz.on{display:flex}.nav-on #blitz{top:calc(env(safe-area-inset-top) + var(--navh,64px) + 66px)}.nav-on.nav-open #blitz{display:none}#blitz.fast{background:#e53935;color:#fff}
 #blitz .lim{width:44px;height:44px;border-radius:50%;border:5px solid #e53935;background:#fff;color:#1d2329;display:grid;place-items:center;font-weight:800;font-size:17px;flex:none}
 #blitz b{font-size:18px;display:block}#blitz span{font-size:14px}
 #nav.off{border:2px solid var(--amber)}#nav.off .ni{background:var(--amber)}
-.app-nav .top .pill{display:none}.app-nav .top{top:calc(env(safe-area-inset-top) + 86px)}
-.eta{display:none;justify-content:space-between;align-items:baseline;gap:10px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font-size:14px;color:var(--mute)}
+.app-nav .top .pill{display:none}.app-nav .top{top:calc(env(safe-area-inset-top) + var(--navh,64px) + 18px)}
+.eta{display:none;flex:1;min-width:0;align-items:baseline;gap:8px;font-size:13px;color:var(--mute);white-space:nowrap;overflow:hidden}.eta span{overflow:hidden;text-overflow:ellipsis}.app-nav .stats{display:none}
 .eta b{font-size:18px;color:var(--ink);white-space:nowrap}.app-nav .eta{display:flex}
 .ibtn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round}
 .top .pill{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}.top #gps{flex:none}.top .ibtn{flex:none}
-.ibtn.navbtn{width:auto;padding:0 16px 0 8px;border-radius:22px;display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:15px;font-weight:700}
-.ibtn.navbtn svg.dir{width:30px;height:30px}
+.ibtn.navbtn{width:auto;padding:0 14px 0 8px;border-radius:20px;display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:14px;font-weight:700}
+.ibtn.navbtn svg.dir{width:26px;height:26px}
 .app-nav .ibtn.navbtn{padding:0 8px}.app-nav .ibtn.navbtn span{display:none}
 .ibtn+.ibtn{margin-left:0}
 input[type=search]{width:100%;font:inherit;font-size:17px;border:1px solid var(--line);border-radius:14px;padding:12px 14px;background:var(--bg);color:var(--ink)}
@@ -116,7 +117,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
   <div class="prog"><i id="navProg"></i></div>
   <div class="more"><div id="navSteps"></div><div class="acts"><button class="btn" id="navOv">Übersicht</button><button class="btn" id="navX">Beenden</button></div></div></div>
  <div id="blitz"><div class="lim" id="bLim">–</div><div><b id="bT">Blitzer</b><span id="bD"></span></div></div>
- <div class="top"><span class="pill" id="gps">GPS aus</span><span class="pill" id="sigs">Ampeln: –</span><button class="ibtn navbtn" id="searchBtn" aria-label="Navigation starten: Ziel eingeben" style="margin-left:auto"><svg viewBox="0 0 24 24" class="dir"><rect x="4.2" y="4.2" width="15.6" height="15.6" rx="3" transform="rotate(45 12 12)" fill="#33ccff" stroke="none"/><path d="M9.2 15.5v-2.6a2 2 0 0 1 2-2h4.3" fill="none" stroke="#0b1a26" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.6 8.6l2.6 2.3-2.6 2.3" fill="none" stroke="#0b1a26" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Wohin?</span></button><button class="ibtn" id="setBtn" aria-label="Einstellungen">⚙</button></div>
+ <div class="top"><span class="pill"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="var(--blue)" stroke-width="2.2"/><circle cx="12" cy="12" r="3.5" fill="var(--blue)"/></svg><span id="gps">GPS aus</span></span><span class="pill"><svg viewBox="0 0 24 24"><rect x="7.5" y="2.5" width="9" height="19" rx="3" fill="#1d2329" stroke="currentColor" stroke-width="1.2" stroke-opacity=".35"/><circle cx="12" cy="7" r="1.9" fill="#ff4d4f"/><circle cx="12" cy="12" r="1.9" fill="#ffc72c"/><circle cx="12" cy="17" r="1.9" fill="#1fbf5f"/></svg><span id="sigs">–</span></span><button class="ibtn navbtn" id="searchBtn" aria-label="Navigation starten: Ziel eingeben" style="margin-left:auto"><svg viewBox="0 0 24 24" class="dir"><rect x="4.2" y="4.2" width="15.6" height="15.6" rx="3" transform="rotate(45 12 12)" fill="#33ccff" stroke="none"/><path d="M9.2 15.5v-2.6a2 2 0 0 1 2-2h4.3" fill="none" stroke="#0b1a26" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.6 8.6l2.6 2.3-2.6 2.3" fill="none" stroke="#0b1a26" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Wohin?</span></button><button class="ibtn" id="setBtn" aria-label="Einstellungen"><svg viewBox="0 0 24 24"><path d="M19.46 10.09 L22.06 10.34 L22.06 13.66 L19.46 13.91 L18.63 15.92 L20.29 17.94 L17.94 20.29 L15.92 18.63 L13.91 19.46 L13.66 22.06 L10.34 22.06 L10.09 19.46 L8.08 18.63 L6.06 20.29 L3.71 17.94 L5.37 15.92 L4.54 13.91 L1.94 13.66 L1.94 10.34 L4.54 10.09 L5.37 8.08 L3.71 6.06 L6.06 3.71 L8.08 5.37 L10.09 4.54 L10.34 1.94 L13.66 1.94 L13.91 4.54 L15.92 5.37 L17.94 3.71 L20.29 6.06 L18.63 8.08Z" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/><circle cx="12" cy="12" r="3.4" fill="var(--card)" stroke="none"/></svg></button></div>
  <div class="alert" id="alert"><div class="dot" id="aDot">!</div><div class="tx"><b id="aT"></b><span id="aD"></span></div><button class="btn pri" id="aYes">Noch da</button><button class="btn" id="aNo">Weg</button></div>
  <div class="panel">
   <div class="pilot" id="pilot">
@@ -127,10 +128,10 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
   <div class="tape"><div class="band" id="band"></div><div class="ndl" id="ndl"></div></div>
   <div class="tl"><span>0</span><span id="tMax">60 km/h</span></div>
   <div class="foot">
-   <div class="stats"><div><b id="sPass">0</b><span>Ampeln</span></div><div><b id="sGreen">0</b><span>bei Grün</span></div><div><b id="sStops">0</b><span>Stopps</span></div><div><b id="sLearn">0</b><span>gelernt</span></div></div>
+   <div class="stats"><b id="sGreen">0</b>/<b id="sPass">0</b> Ampeln bei Grün · <b id="sStops">0</b> Stopps · <b id="sLearn">0</b> gelernt</div>
+   <div class="eta"><b id="etaT">–</b><span id="etaS">–</span></div>
    <button class="rep" id="repBtn" aria-label="Melden">+</button>
   </div>
-  <div class="eta"><b id="etaT">–</b><span id="etaS">–</span></div>
  </div>
 </div>
 
@@ -285,7 +286,7 @@ let LEARNED=new Set(),tgtId=null,sigQueued=false;
 function updateSigs(){if(sigQueued)return;sigQueued=true;requestAnimationFrame(()=>{sigQueued=false;
  src('sigs',{type:'FeatureCollection',features:[...SIG.values()].map(x=>({type:'Feature',geometry:{type:'Point',coordinates:[x.lon,x.lat]},properties:{k:x.id===tgtId?'t':LEARNED.has(x.id)?'l':'u'}}))})})}
 const drawSignals=()=>{updateSigs();
- $('sigs').textContent='Ampeln: '+SIG.size;if(typeof onSignalsChanged=='function')onSignalsChanged()};
+ $('sigs').textContent=SIG.size.toLocaleString('de-DE');if(typeof onSignalsChanged=='function')onSignalsChanged()};
 const TYPES={pol:{n:'Polizei',c:'#2f6fe0',h:2},unf:{n:'Unfall',c:'#e5484d',h:3},stau:{n:'Stau',c:'#d9480f',h:1},gef:{n:'Gefahr',c:'#f08c00',h:3},bau:{n:'Baustelle',c:'#e8590c',h:24*14}};
 const drawReps=()=>{const now=Date.now();REPS=REPS.filter(r=>now-r.t<TYPES[r.type].h*3600e3);
  src('reps',{type:'FeatureCollection',features:REPS.map(r=>({type:'Feature',geometry:{type:'Point',coordinates:[r.lon,r.lat]},properties:{icon:'ico-'+r.type}}))})};
@@ -335,15 +336,15 @@ async function loadFile(){try{const r=await tfetch('signals.json',{cache:'no-cac
  FILEBOX=j.bbox;fileState=`${(j.nodes||[]).length} Ampeln, Stand ${j.updated}`;drawSignals()}catch(e){fileState='nicht verfügbar, nutze Online-Abruf'}
  if(cur)loadSignals(cur)}
 async function loadSignals(p,force){
- if(fileState==='lädt')return;if(inBox(p)){DIAG.load='nicht nötig, Leipzig-Datei deckt das Gebiet ab';$('sigs').textContent='Ampeln: '+SIG.size;return}
- if(loading)return;if(!force&&sigCenter&&dist(sigCenter,p)<1500&&SIG.size)return;loading=true;$('sigs').textContent=SIG.size?`Ampeln: ${SIG.size} · lädt nach …`:'Ampeln laden …';
+ if(fileState==='lädt')return;if(inBox(p)){DIAG.load='nicht nötig, Leipzig-Datei deckt das Gebiet ab';$('sigs').textContent=SIG.size.toLocaleString('de-DE');return}
+ if(loading)return;if(!force&&sigCenter&&dist(sigCenter,p)<1500&&SIG.size)return;loading=true;$('sigs').textContent=SIG.size?`${SIG.size.toLocaleString('de-DE')} · lädt …`:'lädt …';
  const a=`(around:4000,${p.lat.toFixed(5)},${p.lon.toFixed(5)})`,q=`[out:json][timeout:20];(node["highway"="traffic_signals"]${a};node["crossing"="traffic_signals"]${a};);out body;`;
  for(const url of OVERPASS){try{const r=await tfetch(url,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}});
    if(!r.ok)throw new Error(r.status);const j=await r.json();if(j.remark&&!(j.elements||[]).length)throw new Error(j.remark);
    for(const e of j.elements||[])if(e.type=='node'&&isFinite(e.lat))SIG.set(e.id,{id:e.id,lat:+e.lat,lon:+e.lon});
    const ops=[...SIG.values()].filter(s=>!s.f);if(ops.length>4000){ops.sort((a,b)=>dist(b,p)-dist(a,p)).slice(0,ops.length-4000).forEach(s=>{SIG.delete(s.id)})}
    DIAG.load=`ok um ${hm()}, ${(j.elements||[]).length} im Umkreis von 4 km`;sigCenter={lat:p.lat,lon:p.lon};LS.set('gw_sig',[...SIG.values()].filter(s=>!s.f));LS.set('gw_sigc',sigCenter);loading=false;drawSignals();return}catch(e){}}
- loading=false;DIAG.load=`fehlgeschlagen um ${hm()}, neuer Versuch in 30 s`;$('sigs').textContent=SIG.size?`Ampeln: ${SIG.size} (Nachladen fehlgeschlagen)`:'Ampeln: Laden fehlgeschlagen';setTimeout(()=>{if(cur)loadSignals(cur,true)},30000)}
+ loading=false;DIAG.load=`fehlgeschlagen um ${hm()}, neuer Versuch in 30 s`;$('sigs').textContent=SIG.size?`${SIG.size.toLocaleString('de-DE')} · offline`:'Fehler';setTimeout(()=>{if(cur)loadSignals(cur,true)},30000)}
 // ---------- Lernmodell ----------
 const sector=h=>Math.round(mod(h,360)/45)%8;
 const band=ts=>{const h=new Date(ts*1000).getHours();return h<6?0:h<10?1:h<15?2:h<19?3:h<23?4:0};
@@ -390,7 +391,7 @@ function onFix(pos){
  const hv=c.heading!=null&&!isNaN(c.heading)&&c.heading>=0&&v>2;if(hv)heading=c.heading;
  if(!lastMove)lastMove=p;else if(dist(lastMove,p)>8){if(!hv)heading=bearing(lastMove,p);lastMove=p}
  prev=p;cur=p;DIAG.fixes++;DIAG.acc=c.accuracy;
- $('gps').textContent='GPS ±'+Math.round(c.accuracy)+' m';$('gps').classList.toggle('warn',c.accuracy>30);
+ $('gps').textContent='±'+Math.round(c.accuracy)+' m';$('gps').classList.toggle('warn',c.accuracy>30);
  applyView();
  loadSignals(p);if(NAV)updateNav(p);
  if(v<0.8&&!drive.halted){drive.halted=true;drive.stops++}if(v>3)drive.halted=false;
@@ -599,7 +600,7 @@ function updateLanes(R){const el=$('lanes'),a=laneAdvice(R);
  $('laneT').textContent=(several?SIDEPL[a.side]:SIDETXT[a.side])+(a.d>250?' wählen':' halten');
  $('laneS').textContent=`für ${lf(a.M.text)} in ${fmt(Math.max(0,a.M.s-R.s))}`;el.classList.add('on');
  const trig=Math.max(350,v*22);if(!a.D.said&&a.d<=trig){a.D.said=1;announce('lane',`${SIDETXT[a.side]} ${a.d>200?'wählen':'halten'}`,a.side==='left'?-0.8:a.side==='right'?0.8:0)}}
-function renderNav(){const R=NAV;if(!R)return;const el=$('nav');el.classList.add('on');el.classList.toggle('off',R.offN>0);
+function renderNav(){const R=NAV;if(!R)return;const el=$('nav');el.classList.add('on');el.classList.toggle('off',R.offN>0);requestAnimationFrame(()=>document.documentElement.style.setProperty('--navh',el.offsetHeight+'px'));
  updateLanes(R);
  const nx=R.next>0?R.next:R.steps.length-1,st=R.steps[nx];
  if(st){const d=Math.max(0,st.s-R.s);$('navIco').innerHTML=navIcon(st.st);$('navD').textContent=fmt(d);$('navT').textContent=R.offN>0?'Abseits der Route':st.text;
@@ -609,7 +610,7 @@ function renderNav(){const R=NAV;if(!R)return;const el=$('nav');el.classList.add
   if(el.classList.contains('open')){$('navSteps').innerHTML=R.steps.slice(nx,nx+5).map(x=>`<div class="stp"><svg viewBox="0 0 48 48">${navIcon(x.st)}</svg><div>${esc(x.text)}</div><em>${fmt(Math.max(0,x.s-R.s))}</em></div>`).join('')}}
  const rem=Math.max(0,R.total-R.s),secs=R.duration*rem/Math.max(1,R.total),eta=new Date(Date.now()+secs*1000);
  const ahead=(R.onRoute||[]).filter(o=>o.s>R.s).length;
- $('etaT').textContent=eta.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})+' Ankunft';$('etaS').textContent=`${fmtDur(secs)} · ${fmt(rem)} · ${ahead} Ampel${ahead==1?'':'n'}`}
+ $('etaT').textContent=eta.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});$('etaS').textContent=`Ankunft · ${fmtDur(secs)} · ${fmt(rem)} · ${ahead} Ampel${ahead==1?'':'n'}`}
 // Suche
 let qt,qn=0;
 function renderRecent(){const rec=LS.get('gw_recent',[]);$('res').innerHTML=rec.map((r,k)=>`<button data-r="${k}">${esc(r.name)}<small>${esc(r.sub||'Zuletzt')}</small></button>`).join('');$('resInfo').textContent=rec.length?'Zuletzt gesucht':'Tippe eine Adresse ein, z. B. „Augustusplatz“.';RES=rec}
