@@ -4,6 +4,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="theme-color" content="#0d1215">
 <title>Grünwelle Live</title>
+<link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-title" content="Grünwelle">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
 <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800&display=swap" rel="stylesheet">
 <style>
@@ -105,6 +106,23 @@ input[type=search]{width:100%;font:inherit;font-size:17px;border:1px solid var(-
 .res button small{display:block;color:var(--mute);font-size:13px}
 .kv{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:12px 0}.kv b{font-size:22px;display:block}.kv span{font-size:13px;color:var(--mute)}
 textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--line);border-radius:12px;padding:8px;background:var(--bg);color:var(--ink)}
+
+/* Querformat (Handy im Auto quer): nur Navigation und Ampelanzeige, links als Spalte */
+@media (orientation:landscape) and (max-height:540px){
+ :root{--col:min(340px,42vw)}
+ .stats,.rep,.tl,.top .pill,#setBtn,.app-nav .top{display:none!important}
+ .top{left:auto;right:calc(env(safe-area-inset-right) + 10px)}
+ .panel{position:absolute;left:calc(env(safe-area-inset-left) + 10px);bottom:calc(env(safe-area-inset-bottom) + 10px);width:var(--col);border-radius:20px;padding:8px 12px;box-shadow:0 10px 28px -12px #000a}
+ .foot{min-height:0;margin-top:6px}
+ #app:not(.app-nav) .foot{display:none}
+ #nav{left:calc(env(safe-area-inset-left) + 10px);right:auto;width:var(--col);top:calc(env(safe-area-inset-top) + 10px)}
+ #nav.open .more{max-height:52vh;overflow:auto}
+ .nav-open .panel{display:none}
+ #blitz{left:calc(env(safe-area-inset-left) + 10px);right:auto;width:var(--col);top:calc(env(safe-area-inset-top) + 10px)}
+ .nav-on #blitz{top:calc(env(safe-area-inset-top) + var(--navh,64px) + 18px)}
+ .alert{left:auto;right:calc(env(safe-area-inset-right) + 10px);width:min(360px,44vw)}
+ .attr{right:calc(env(safe-area-inset-right) + 4px)}
+}
 </style></head><body>
 <div id="app">
  <div id="mapwrap"><div id="map"></div><div class="attr"><a href="https://openfreemap.org">OpenFreeMap</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a></div></div>
@@ -279,7 +297,9 @@ function applyView(force){
  const o=set.ori,want=(o!=='nord'&&heading!=null)?heading:0;
  if(force||Math.abs(adiff(want,camBrg))>4)camBrg=want;
  const H=$('map').clientHeight,three=o==='3d';
- map.easeTo({center:[cur.lon,cur.lat],bearing:camBrg,pitch:three?60:0,zoom:three?17.2:(NAV?17:16.3),padding:{top:o==='nord'?0:H*(three?0.5:0.4),bottom:0,left:0,right:0},duration:force?600:950,easing:t=>t})}
+ map.easeTo({center:[cur.lon,cur.lat],bearing:camBrg,pitch:three?60:0,zoom:three?17.2:(NAV?17:16.3),padding:{top:o==='nord'?0:H*(three?0.5:0.4),bottom:0,left:isLand()?Math.min(360,innerWidth*0.42)+20:0,right:0},duration:force?600:950,easing:t=>t})}
+const isLand=()=>matchMedia('(orientation:landscape) and (max-height:540px)').matches;
+window.addEventListener('resize',()=>{setTimeout(()=>{map.resize();applyView(true)},150)});
 const PREVIEW_ACTIVE=()=>typeof PREVIEW!=='undefined'&&!!PREVIEW;
 // Ampeln als GeoJSON (grau = unbekannt, gelb = gelernt, blau = nächste)
 let LEARNED=new Set(),tgtId=null,sigQueued=false;
