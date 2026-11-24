@@ -182,12 +182,12 @@ map.on('load',()=>{
  map.addLayer({id:'route-case',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#127fb0','line-width':['interpolate',['linear'],['zoom'],12,6,18,22]}},before);
  map.addLayer({id:'route-line',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#33ccff','line-width':['interpolate',['linear'],['zoom'],12,4,18,15]}},before);
  for(const id of['sigs','reps','dest'])map.addSource(id,{type:'geojson',data:EMPTY});
- map.addLayer({id:'sigs',type:'circle',source:'sigs',minzoom:12,paint:{'circle-radius':['case',['==',['get','k'],'t'],9,5.5],'circle-color':['match',['get','k'],'l','#ffc72c','t','#33ccff','#8a949b'],'circle-stroke-color':'#ffffff','circle-stroke-width':2}});
- map.addLayer({id:'reps',type:'circle',source:'reps',paint:{'circle-radius':10,'circle-color':['get','c'],'circle-stroke-color':'#ffffff','circle-stroke-width':3}});
+ map.addLayer({id:'sigs',type:'symbol',source:'sigs',minzoom:13,layout:{'icon-image':['match',['get','k'],'t','ico-ampel-t','l','ico-ampel-l','ico-ampel-u'],'icon-size':['interpolate',['linear'],['zoom'],13,0.55,16,0.8,18,1],'icon-anchor':'bottom','symbol-sort-key':['match',['get','k'],'t',2,'l',1,0],'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-pitch-alignment':'viewport','icon-rotation-alignment':'viewport'}});
+ map.addLayer({id:'reps',type:'symbol',source:'reps',layout:{'icon-image':['get','icon'],'icon-size':['interpolate',['linear'],['zoom'],13,0.55,16,0.8,18,1],'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-pitch-alignment':'viewport','icon-rotation-alignment':'viewport'}});
  map.addSource('cams',{type:'geojson',data:EMPTY});
- map.addLayer({id:'cams',type:'circle',source:'cams',paint:{'circle-radius':8,'circle-color':'#e53935','circle-stroke-color':'#ffffff','circle-stroke-width':3}});
- map.addLayer({id:'cams-dot',type:'circle',source:'cams',paint:{'circle-radius':3,'circle-color':'#ffffff'}});
- map.addLayer({id:'dest',type:'circle',source:'dest',paint:{'circle-radius':10,'circle-color':'#152027','circle-stroke-color':'#ffffff','circle-stroke-width':3}});
+ map.addLayer({id:'cams',type:'symbol',source:'cams',layout:{'icon-image':'ico-blitz','icon-size':['interpolate',['linear'],['zoom'],13,0.55,16,0.8,18,1],'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-pitch-alignment':'viewport','icon-rotation-alignment':'viewport'}});
+ map.addLayer({id:'dest',type:'symbol',source:'dest',layout:{'icon-image':'ico-ziel','icon-size':['interpolate',['linear'],['zoom'],12,0.7,17,1],'icon-anchor':'bottom-left','icon-allow-overlap':true,'icon-ignore-placement':true,'icon-pitch-alignment':'viewport','icon-rotation-alignment':'viewport'}});
+ loadIcons();
  styleMap();
  mapReady=true;setTimeout(()=>{try{drawCams()}catch(e){}},0);mapQ.splice(0).forEach(f=>{try{f()}catch(e){}});applyView(true)});
 // Waze-ähnliche Kartenfarben, Tag und Nacht
@@ -209,6 +209,20 @@ function styleMap(){if(!map.getStyle())return;const T=THEMES[isNight()?'night':'
  P('route-case','line-color',T.rcase);$('map').style.background=T.bg}
 function applyTheme(){const n=isNight();document.documentElement.dataset.ui=set.theme==='auto'?'':(n?'night':'day');if(mapReady||map.isStyleLoaded())styleMap()}
 try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',applyTheme)}catch(e){}
+// ---------- Kartensymbole (SVG, doppelte Auflösung) ----------
+const AMPEL=(dim,ring)=>`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="104" viewBox="0 0 32 52">${ring?'<rect x="1" y="1" width="30" height="42" rx="9" fill="#33ccff"/>':''}<rect x="5" y="4" width="22" height="36" rx="6" fill="#1d2329" stroke="#fff" stroke-width="2"/><circle cx="16" cy="12" r="4.2" fill="#ff4d4f" opacity="${dim}"/><circle cx="16" cy="22" r="4.2" fill="#ffc72c" opacity="${dim}"/><circle cx="16" cy="32" r="4.2" fill="#1fbf5f" opacity="${dim}"/><path d="M16 40v11" stroke="#1d2329" stroke-width="3"/><path d="M16 40v11" stroke="#fff" stroke-width="1" opacity=".6"/></svg>`;
+const BADGE=(bg,inner)=>`<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 40 40"><circle cx="20" cy="20" r="17" fill="${bg}" stroke="#fff" stroke-width="3"/><g fill="#fff" transform="translate(8 8)">${inner}</g></svg>`;
+const ICONS={
+ 'ico-ampel-u':AMPEL(.35,false),'ico-ampel-l':AMPEL(1,false),'ico-ampel-t':AMPEL(1,true),
+ 'ico-blitz':`<svg xmlns="http://www.w3.org/2000/svg" width="84" height="84" viewBox="0 0 42 42"><rect x="2" y="2" width="38" height="38" rx="10" fill="#e53935" stroke="#fff" stroke-width="3"/><path d="M15 12h12l2 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V18a2 2 0 0 1 2-2h4z" fill="#fff"/><circle cx="21" cy="24" r="5.5" fill="#e53935"/><circle cx="21" cy="24" r="3" fill="#fff"/><path d="M29 9l3-4M33 12l4-2" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>`,
+ 'ico-pol':BADGE('#2f6fe0','<path d="M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5z"/>'),
+ 'ico-unf':BADGE('#e5484d','<path d="M12 2l2.4 5.6 6-1.6-3.6 4.8 4.6 3.6-6 .6L14 21l-2-4.6L10 21l-1.4-6-6-.6 4.6-3.6L3.6 6l6 1.6z"/>'),
+ 'ico-stau':BADGE('#d9480f','<rect x="3" y="4" width="18" height="4" rx="2"/><rect x="3" y="10" width="13" height="4" rx="2"/><rect x="3" y="16" width="8" height="4" rx="2"/>'),
+ 'ico-gef':BADGE('#f08c00','<path d="M12 2L1.5 21h21zM11 9h2v6h-2zm0 8h2v2h-2z"/>'),
+ 'ico-bau':BADGE('#e8590c','<path d="M10 2h4l1.2 4H8.8zM8.2 8h7.6l1.3 4.5H6.9zM6.3 14.5h11.4L19 19H5zM3 20h18v2H3z"/>'),
+ 'ico-ziel':`<svg xmlns="http://www.w3.org/2000/svg" width="72" height="88" viewBox="0 0 36 44"><path d="M5 42V4" stroke="#1d2329" stroke-width="3.5" stroke-linecap="round"/><path d="M6 4h26l-6 8 6 8H6z" fill="#fff" stroke="#1d2329" stroke-width="2"/><path d="M6 4h6.5v4H6zm13 0h6.5v4H19zM12.5 8H19v4h-6.5zm13 0H32l-3 4h-3.5zM6 12h6.5v4H6zm13 0h6.5v4H19zM12.5 16H19v4h-6.5zm13 0H29l3 4h-6.5z" fill="#1d2329"/></svg>`};
+function loadIcons(){for(const[name,svg]of Object.entries(ICONS)){if(map.hasImage(name))continue;const img=new Image();
+ img.onload=()=>{try{if(!map.hasImage(name))map.addImage(name,img,{pixelRatio:2})}catch(e){}};img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg)}}
 const carEl=document.createElement('div');carEl.className='car';
 carEl.innerHTML='<svg viewBox="0 0 38 38"><circle cx="19" cy="19" r="17" fill="#33ccff" opacity=".25"/><path d="M19 5l10 24-10-6-10 6z" fill="#33ccff" stroke="#0b1a26" stroke-width="2.5" stroke-linejoin="round"/></svg>';
 const me=new maplibregl.Marker({element:carEl,rotationAlignment:'map',pitchAlignment:'viewport'}).setLngLat([12.3731,51.3397]);
@@ -233,8 +247,8 @@ const drawSignals=()=>{updateSigs();
  $('sigs').textContent='Ampeln: '+SIG.size;if(typeof onSignalsChanged=='function')onSignalsChanged()};
 const TYPES={pol:{n:'Polizei',c:'#2f6fe0',h:2},unf:{n:'Unfall',c:'#e5484d',h:3},stau:{n:'Stau',c:'#d9480f',h:1},gef:{n:'Gefahr',c:'#f08c00',h:3},bau:{n:'Baustelle',c:'#e8590c',h:24*14}};
 const drawReps=()=>{const now=Date.now();REPS=REPS.filter(r=>now-r.t<TYPES[r.type].h*3600e3);
- src('reps',{type:'FeatureCollection',features:REPS.map(r=>({type:'Feature',geometry:{type:'Point',coordinates:[r.lon,r.lat]},properties:{c:TYPES[r.type].c}}))})};
-$('types').innerHTML=Object.entries(TYPES).map(([k,t])=>`<button data-t="${k}"><span class="dot" style="background:${t.c}">!</span>${t.n}</button>`).join('');
+ src('reps',{type:'FeatureCollection',features:REPS.map(r=>({type:'Feature',geometry:{type:'Point',coordinates:[r.lon,r.lat]},properties:{icon:'ico-'+r.type}}))})};
+$('types').innerHTML=Object.entries(TYPES).map(([k,t])=>`<button data-t="${k}"><img src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(ICONS['ico-'+k])}" width="40" height="40" alt="">${t.n}</button>`).join('');
 // ---------- Ampeln laden (Overpass) ----------
 const tfetch=(url,opt={},ms=20000)=>{const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),ms);return fetch(url,{...opt,signal:ac.signal}).finally(()=>clearTimeout(tm))};
 const OVERPASS=['https://overpass-api.de/api/interpreter','https://overpass.private.coffee/api/interpreter','https://overpass.kumi.systems/api/interpreter'];
