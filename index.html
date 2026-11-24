@@ -137,10 +137,14 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
  <div class="row"><button class="btn pri big" id="pvGo" style="flex:1">Los</button></div>
  <button class="btn big" id="pvCancel" style="margin-top:8px">Abbrechen</button></div>
 
+<div class="sheet" id="workSheet"><h2 id="wkT">Baustelle</h2><p class="small" id="wkS"></p><div id="wkD" style="font-size:15px;line-height:1.45"></div><p class="small" id="wkSrc" style="margin-top:10px"></p><button class="btn big" data-close style="margin-top:8px">Schließen</button></div>
+
 <div class="sheet" id="setSheet"><h2>Einstellungen</h2>
  <h3>Ansagen</h3><div class="row"><button class="chip" data-audio="ton">Signaltöne</button><button class="chip" data-audio="sprache">Sprache</button><button class="chip" data-audio="aus">Aus</button></div>
  <p class="small" id="audioInfo"></p>
  <h3>Karte</h3><div class="row"><button class="chip" data-ori="3d">3D</button><button class="chip" data-ori="fahrt">2D Fahrtrichtung</button><button class="chip" data-ori="nord">2D Norden</button></div>
+ <h3>Baustellen</h3><div class="row"><button class="chip" data-works="1">Anzeigen</button><button class="chip" data-works="0">Ausblenden</button></div>
+ <p class="small">Autobahn-Baustellen der Autobahn GmbH und Straßenbaustellen aus OpenStreetMap, täglich aktualisiert. Antippen zeigt Details.</p>
  <h3>Feste Blitzer</h3><div class="row"><button class="chip" data-blitz="0">Aus</button><button class="chip" data-blitz="1">An</button></div>
  <p class="small">Zeigt feste Blitzer aus OpenStreetMap und warnt beim Annähern: immer auf dem Bildschirm, mit Ton nur, wenn du schneller als erlaubt fährst. <b>In Deutschland ist die Nutzung während der Fahrt für Fahrer verboten (§ 23 Abs. 1c StVO, Bußgeld und Punkt), auch über das Handy des Beifahrers.</b> Einschalten auf eigene Verantwortung, z. B. zur Planung vor der Fahrt.</p>
  <h3>Farben</h3><div class="row"><button class="chip" data-theme="auto">Automatisch</button><button class="chip" data-theme="day">Tag</button><button class="chip" data-theme="night">Nacht</button></div>
@@ -185,7 +189,7 @@ const adiff=(a,b)=>((a-b+540)%360)-180;
 const mod=(a,b)=>((a%b)+b)%b;
 // ---------- Einstellungen & Speicher ----------
 const MODES={auto:{vmin:15,limits:[30,50,60,70],def:50},rad:{vmin:8,limits:[20,25,30],def:25}};
-const set=Object.assign({mode:'auto',limit:50,audio:'ton',ori:'3d',theme:'auto',blitz:0},LS.get('gw_set',{}));if(!set.v3d){set.ori='3d';set.v3d=1}
+const set=Object.assign({mode:'auto',limit:50,audio:'ton',ori:'3d',theme:'auto',blitz:0,works:1},LS.get('gw_set',{}));if(!set.v3d){set.ori='3d';set.v3d=1}
 let OBS=LS.get('gw_obs',{});            // key -> {g:[], p:[], r:[[a,b]]}  Zeiten in Sekunden
 let REPS=LS.get('gw_reps',[]);
 const SIG=new Map((LS.get('gw_sig',[])).map(s=>[s.id,s]));
@@ -202,6 +206,12 @@ map.on('load',()=>{
  map.addSource('route',{type:'geojson',data:EMPTY});
  map.addLayer({id:'route-case',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#127fb0','line-width':['interpolate',['linear'],['zoom'],12,6,18,22]}},before);
  map.addLayer({id:'route-line',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#33ccff','line-width':['interpolate',['linear'],['zoom'],12,4,18,15]}},before);
+ for(const id of['works','worksPt'])map.addSource(id,{type:'geojson',data:EMPTY});
+ map.addLayer({id:'works-case',type:'line',source:'works',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#ffffff','line-width':['interpolate',['linear'],['zoom'],12,3,18,10],'line-opacity':.9}});
+ map.addLayer({id:'works-line',type:'line',source:'works',layout:{'line-cap':'butt','line-join':'round'},paint:{'line-color':'#ff8a00','line-width':['interpolate',['linear'],['zoom'],12,2,18,7],'line-dasharray':[1.2,1]}});
+ map.addLayer({id:'works',type:'symbol',source:'worksPt',minzoom:11,layout:{'icon-image':'ico-bau','icon-size':['interpolate',['linear'],['zoom'],11,0.4,16,0.7,18,0.9],'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-pitch-alignment':'viewport','icon-rotation-alignment':'viewport'}});
+ map.on('click','works',e=>{const f=e.features&&e.features[0];if(f)showWork(f.properties.i)});
+ map.on('mouseenter','works',()=>map.getCanvas().style.cursor='pointer');map.on('mouseleave','works',()=>map.getCanvas().style.cursor='');
  for(const id of['sigs','reps','dest'])map.addSource(id,{type:'geojson',data:EMPTY});
  map.addLayer({id:'sigs',type:'symbol',source:'sigs',minzoom:13,layout:{'icon-image':['match',['get','k'],'t','ico-ampel-t','l','ico-ampel-l','ico-ampel-u'],'icon-size':['interpolate',['linear'],['zoom'],13,0.55,16,0.8,18,1],'icon-anchor':'bottom','symbol-sort-key':['match',['get','k'],'t',2,'l',1,0],'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-pitch-alignment':'viewport','icon-rotation-alignment':'viewport'}});
  map.addLayer({id:'reps',type:'symbol',source:'reps',layout:{'icon-image':['get','icon'],'icon-size':['interpolate',['linear'],['zoom'],13,0.55,16,0.8,18,1],'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-pitch-alignment':'viewport','icon-rotation-alignment':'viewport'}});
@@ -210,7 +220,7 @@ map.on('load',()=>{
  map.addLayer({id:'dest',type:'symbol',source:'dest',layout:{'icon-image':'ico-ziel','icon-size':['interpolate',['linear'],['zoom'],12,0.7,17,1],'icon-anchor':'bottom-left','icon-allow-overlap':true,'icon-ignore-placement':true,'icon-pitch-alignment':'viewport','icon-rotation-alignment':'viewport'}});
  loadIcons();
  styleMap();
- mapReady=true;setTimeout(()=>{try{drawCams()}catch(e){}},0);mapQ.splice(0).forEach(f=>{try{f()}catch(e){}});applyView(true)});
+ mapReady=true;setTimeout(()=>{try{drawCams();drawWorks()}catch(e){}},0);mapQ.splice(0).forEach(f=>{try{f()}catch(e){}});applyView(true)});
 // Waze-ähnliche Kartenfarben, Tag und Nacht
 const THEMES={
  day:{bg:'#e9ecef',land:'#e4e7ea',park:'#cdeac3',water:'#a9d8f3',bld:'#dadde1',bld3:'#d3d7dc',road:'#ffffff',major:'#ffe28a',motor:'#f9c04f',casing:'#c4cad0',text:'#3c4852',halo:'#ffffff',rcase:'#127fb0'},
@@ -278,6 +288,20 @@ const hm=()=>new Date(Date.now()).toLocaleTimeString('de-DE',{hour:'2-digit',min
 const logEv=e=>{LOG.push(e);if(LOG.length>40)LOG=LOG.slice(-40);LS.set('gw_log',LOG)};
 let FILEBOX=null,fileState='lädt';
 const inBox=(p,m=0.02)=>FILEBOX&&p.lat>FILEBOX[0]+m&&p.lat<FILEBOX[2]-m&&p.lon>FILEBOX[1]+m*1.6&&p.lon<FILEBOX[3]-m*1.6;
+// ---------- Baustellen ----------
+let WORKS=null,workState='lädt …',worksUpd='';
+async function loadWorks(){if(!set.works){drawWorks();workState='ausgeblendet';return}if(WORKS){drawWorks();return}
+ try{const r=await tfetch('roadworks.json',{cache:'no-cache'},30000);if(!r.ok)throw new Error(r.status);const j=await r.json();WORKS=j.items||[];worksUpd=j.updated||'';
+  const ab=WORKS.filter(w=>w.src==='autobahn').length;workState=`${WORKS.length} Baustellen (${ab} Autobahn, ${WORKS.length-ab} Stadt/OSM), Stand ${worksUpd}`}
+ catch(e){WORKS=null;workState='Baustellen-Datei nicht verfügbar'}drawWorks()}
+function drawWorks(){const on=set.works&&WORKS;
+ src('works',{type:'FeatureCollection',features:on?WORKS.filter(w=>w.line&&w.line.length>1).map(w=>({type:'Feature',geometry:{type:'LineString',coordinates:w.line},properties:{}})):[]});
+ src('worksPt',{type:'FeatureCollection',features:on?WORKS.map((w,i)=>({type:'Feature',geometry:{type:'Point',coordinates:[w.lon,w.lat]},properties:{i}})):[]})}
+function showWork(i){const w=WORKS&&WORKS[i];if(!w)return;closeSheets();
+ $('wkT').textContent=w.title||'Baustelle';$('wkS').textContent=[w.sub,w.blocked?'Sperrung':''].filter(Boolean).join(' · ');
+ $('wkD').innerHTML=(w.desc||[]).map(d=>`<div>${esc(d)}</div>`).join('')||'<div>Keine weiteren Angaben.</div>';
+ $('wkSrc').textContent=(w.src==='autobahn'?'Quelle: Autobahn GmbH des Bundes':'Quelle: OpenStreetMap')+(worksUpd?' · Stand '+worksUpd:'');$('workSheet').classList.add('on')}
+const worksOn=R=>!WORKS||!set.works?0:WORKS.filter(w=>{const pts=w.line&&w.line.length?w.line:[[w.lon,w.lat]];return pts.some(([lo,la])=>snap(R,la,lo).d<40)}).length;
 // ---------- Feste Blitzer (nur wenn eingeschaltet) ----------
 let CAMS=null,camState='aus',camWarned=new Map(),camCur=null;
 async function loadCams(){if(CAMS)return;camState='lädt …';try{const r=await tfetch('cameras.json',{cache:'no-cache'},30000);if(!r.ok)throw new Error(r.status);const j=await r.json();
@@ -493,7 +517,7 @@ let PREVIEW=null;
 const fmtDur=s=>{const m=Math.max(1,Math.round(s/60));return m<60?m+' Min':Math.floor(m/60)+' h '+String(m%60).padStart(2,'0')};
 function renderPreview(){const R=PREVIEW;if(!R)return;$('pvTime').textContent=fmtDur(R.duration);$('pvDist').textContent=fmt(R.total);
  $('pvSig').textContent=R.onRoute?R.onRoute.length:'…';const n=learnedOn(R);
- $('pvLearn').textContent=R.onRoute?(R.onRoute.length?`${n} davon mit gelernten Schaltzeiten. Die übrigen lernt die App auf dieser Fahrt mit.`:'Keine Ampeln auf dieser Route gefunden.'):'Ampeln entlang der Route werden geladen …'}
+ const wn=worksOn(R);$('pvLearn').textContent=(R.onRoute?(R.onRoute.length?`${n} davon mit gelernten Schaltzeiten. Die übrigen lernt die App auf dieser Fahrt mit.`:'Keine Ampeln auf dieser Route gefunden.'):'Ampeln entlang der Route werden geladen …')+(wn?` Achtung: ${wn} bekannte Baustelle${wn==1?'':'n'} auf der Route.`:'')}
 async function preview(dest){if(!cur){toast('Erst Fahrt starten');return}closeSheets();toast('Route wird berechnet …');
  const r=await fetchRoute(cur,dest);if(!r){toast('Keine Route gefunden');return}
  PREVIEW=buildRoute(r,dest);computeOnRoute(PREVIEW);drawRoute(PREVIEW);follow=false;{const la=PREVIEW.ll.map(c=>c[0]),lo=PREVIEW.ll.map(c=>c[1]);map.fitBounds([[Math.min(...lo),Math.min(...la)],[Math.max(...lo),Math.max(...la)]],{padding:{top:60,bottom:Math.round($('map').clientHeight*0.1)+60,left:40,right:40},bearing:0,pitch:0,duration:700})}
@@ -556,7 +580,7 @@ $('res').onclick=e=>{const b=e.target.closest('[data-r]');if(!b)return;const d=R
 // ---------- Diagnose ----------
 function renderDiag(){const now=Date.now()/1000,R=NAV;
  const rows=[['GPS',DIAG.acc==null?'noch kein Signal':`±${Math.round(DIAG.acc)} m, ${DIAG.fixes} Positionen in dieser Sitzung`],
-  ['Karte',mapReady?(mapErr?'geladen, Hinweis: '+mapErr:'3D-Karte geladen'):(mapErr||'lädt …')],['Ampel-Datei Leipzig',fileState],['Feste Blitzer',camState],['Ampeln geladen',`${SIG.size} gesamt · Online-Abruf: ${DIAG.load}`],
+  ['Karte',mapReady?(mapErr?'geladen, Hinweis: '+mapErr:'3D-Karte geladen'):(mapErr||'lädt …')],['Ampel-Datei Leipzig',fileState],['Feste Blitzer',camState],['Baustellen',workState],['Ampeln geladen',`${SIG.size} gesamt · Online-Abruf: ${DIAG.load}`],
   ['Nächste Ampel',(()=>{if(!cur||!SIG.size)return '–';let b=1e9;for(const x of SIG.values()){const d=dist(cur,x);if(d<b)b=d}return fmt(b)+' entfernt'})()],
   ['Fahrtrichtung',heading==null?'noch unbekannt (erst losfahren)':Math.round(heading)+'°'],
   ['Navigation',R?`aktiv, ${(R.onRoute||[]).length} Ampeln auf der Route`:'aus (Ampeln werden per Fahrtrichtung erkannt)'],
@@ -585,11 +609,13 @@ const renderSet=()=>{document.querySelectorAll('[data-mode]').forEach(b=>b.setAt
  document.querySelectorAll('[data-audio]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.audio==set.audio));
  document.querySelectorAll('[data-ori]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.ori==set.ori));
  document.querySelectorAll('[data-theme]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.theme==set.theme));
+ document.querySelectorAll('[data-works]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.works==set.works));
  document.querySelectorAll('[data-blitz]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.blitz==set.blitz));
  $('audioInfo').textContent={ton:'Kurze Töne über dem Radio, das Radio läuft weiter. Links abbiegen klingt von links, rechts von rechts.',sprache:'Gesprochene Hinweise. Achtung: iOS hält dabei das Radio oder die Musik an und startet sie danach nicht wieder.',aus:'Keine Ansagen, nur Anzeige.'}[set.audio];
  $('limits').innerHTML=MODES[set.mode].limits.map(l=>`<button class="chip" data-lim="${l}" aria-pressed="${l==set.limit}">${l} km/h</button>`).join('')};
 document.addEventListener('click',e=>{const m=e.target.closest('[data-mode]');if(m){set.mode=m.dataset.mode;set.limit=MODES[set.mode].def;saveSet();renderSet();render()}
  const au=e.target.closest('[data-audio]');if(au){set.audio=au.dataset.audio;saveSet();renderSet();unlockSpeech();announce('test','Sprachansagen an',0)}
+ const wk=e.target.closest('[data-works]');if(wk){set.works=+wk.dataset.works;saveSet();renderSet();loadWorks()}
  const bz=e.target.closest('[data-blitz]');if(bz){set.blitz=+bz.dataset.blitz;saveSet();renderSet();setBlitz()}
  const th=e.target.closest('[data-theme]');if(th){set.theme=th.dataset.theme;saveSet();renderSet();applyTheme()}
  const or=e.target.closest('[data-ori]');if(or){set.ori=or.dataset.ori;saveSet();renderSet();applyView(true)}
@@ -615,7 +641,7 @@ $('go').onclick=()=>{if(!('geolocation' in navigator)){$('startInfo').textConten
  Object.assign(drive,{pass:0,green:0,stops:0,halted:true});renderStats()};
 $('stop').onclick=()=>{endNav(true);if(watch!=null)navigator.geolocation.clearWatch(watch);watch=null;try{wake&&wake.release()}catch(e){}closeSheets();$('start').style.display='';
  $('startInfo').textContent=`Letzte Fahrt: ${drive.pass} Ampeln, ${drive.green} bei Grün, ${drive.stops} Stopps.`};
-drawSignals();drawReps();renderLearn();loadFile();setBlitz();
+drawSignals();drawReps();renderLearn();loadFile();setBlitz();loadWorks();
 if(location.hostname=='gw.test')window.__gw={OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr,map};
 $('startInfo').textContent=Object.keys(OBS).length?`Bisher gelernt: ${Object.keys(OBS).length} Ampel-Richtungen.`:'';
 

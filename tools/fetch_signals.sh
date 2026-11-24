@@ -17,6 +17,9 @@ try_pbf () {
   osmium tags-filter region.osm.pbf n/highway=speed_camera -o cam.osm.pbf --overwrite || return 0
   osmium export cam.osm.pbf -f geojsonseq --add-unique-id=type_id -o cam.geojsonseq --overwrite || return 0
   python3 tools/build_cameras.py cam.geojsonseq cameras.json || true
+  osmium tags-filter region.osm.pbf w/highway=construction -o cons.osm.pbf --overwrite \
+    && osmium export cons.osm.pbf -f geojsonseq --add-unique-id=type_id -o cons.geojsonseq --overwrite \
+    && python3 tools/build_roadworks.py cons.geojsonseq roadworks.json "$BBOX" || python3 tools/build_roadworks.py - roadworks.json "$BBOX" || true
 }
 
 try_overpass () {
@@ -30,6 +33,7 @@ try_overpass () {
   python3 tools/build_signals.py sig.json signals.json "$BBOX" || return 1
   local qc="[out:json][timeout:120];node[\"highway\"=\"speed_camera\"]($S,$W,$N,$E);out body;"
   curl -sS --max-time 180 -A "$UA" -o cam.json --data-urlencode "data=$qc" "$url" && python3 tools/build_cameras.py cam.json cameras.json || true
+  python3 tools/build_roadworks.py - roadworks.json "$BBOX" || true
 }
 
 try_pbf https://download.geofabrik.de/europe/germany/sachsen-latest.osm.pbf && exit 0
