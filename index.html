@@ -159,11 +159,12 @@ const saveObs=()=>LS.set('gw_obs',OBS),saveSet=()=>LS.set('gw_set',set),saveReps
 const map=L.map('map',{zoomControl:false,attributionControl:true}).setView([51.3397,12.3731],15);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
 map.createPane('sigs').style.zIndex=450;
+const sigRenderer=L.canvas({pane:'sigs'});
 const sigLayer=L.layerGroup().addTo(map),repLayer=L.layerGroup().addTo(map);
 const me=L.circleMarker([0,0],{pane:'sigs',radius:9,color:'#fff',weight:3,fillColor:'#22a7e8',fillOpacity:1}).addTo(map);
 let follow=true;map.on('dragstart',()=>{follow=false;setTimeout(()=>follow=true,15000)});
 const sigMarkers=new Map();
-const drawSignals=()=>{for(const s of SIG.values()){if(sigMarkers.has(s.id))continue;const m=L.circleMarker([s.lat,s.lon],{pane:'sigs',radius:6,color:'#fff',weight:2,fillColor:'#8a949b',fillOpacity:1});m.addTo(sigLayer);sigMarkers.set(s.id,m)}
+const drawSignals=()=>{for(const s of SIG.values()){if(sigMarkers.has(s.id))continue;const m=L.circleMarker([s.lat,s.lon],{pane:'sigs',renderer:sigRenderer,radius:6,color:'#fff',weight:2,fillColor:'#8a949b',fillOpacity:1});m.addTo(sigLayer);sigMarkers.set(s.id,m)}
  $('sigs').textContent='Ampeln: '+SIG.size;if(typeof onSignalsChanged=='function')onSignalsChanged()};
 const TYPES={pol:{n:'Polizei',c:'#2f6fe0',h:2},unf:{n:'Unfall',c:'#e5484d',h:3},stau:{n:'Stau',c:'#d9480f',h:1},gef:{n:'Gefahr',c:'#f08c00',h:3},bau:{n:'Baustelle',c:'#e8590c',h:24*14}};
 const drawReps=()=>{repLayer.clearLayers();const now=Date.now();REPS=REPS.filter(r=>now-r.t<TYPES[r.type].h*3600e3);
@@ -175,14 +176,21 @@ const OVERPASS=['https://overpass-api.de/api/interpreter','https://overpass.priv
 let loading=false;const DIAG={load:'noch nicht geladen',fixes:0,acc:null};let LOG=LS.get('gw_log',[]);
 const hm=()=>new Date(Date.now()).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
 const logEv=e=>{LOG.push(e);if(LOG.length>40)LOG=LOG.slice(-40);LS.set('gw_log',LOG)};
+let FILEBOX=null,fileState='lädt';
+const inBox=(p,m=0.02)=>FILEBOX&&p.lat>FILEBOX[0]+m&&p.lat<FILEBOX[2]-m&&p.lon>FILEBOX[1]+m*1.6&&p.lon<FILEBOX[3]-m*1.6;
+async function loadFile(){try{const r=await tfetch('signals.json',{cache:'no-cache'},30000);if(!r.ok)throw new Error(r.status);const j=await r.json();
+ for(const[id,lat,lon]of j.nodes||[])if(!SIG.has(id))SIG.set(id,{id,lat,lon,f:1});else SIG.get(id).f=1;
+ FILEBOX=j.bbox;fileState=`${(j.nodes||[]).length} Ampeln, Stand ${j.updated}`;drawSignals()}catch(e){fileState='nicht verfügbar, nutze Online-Abruf'}
+ if(cur)loadSignals(cur)}
 async function loadSignals(p,force){
+ if(fileState==='lädt')return;if(inBox(p)){DIAG.load='nicht nötig, Leipzig-Datei deckt das Gebiet ab';$('sigs').textContent='Ampeln: '+SIG.size;return}
  if(loading)return;if(!force&&sigCenter&&dist(sigCenter,p)<1500&&SIG.size)return;loading=true;$('sigs').textContent=SIG.size?`Ampeln: ${SIG.size} · lädt nach …`:'Ampeln laden …';
  const a=`(around:4000,${p.lat.toFixed(5)},${p.lon.toFixed(5)})`,q=`[out:json][timeout:20];(node["highway"="traffic_signals"]${a};node["crossing"="traffic_signals"]${a};);out body;`;
  for(const url of OVERPASS){try{const r=await tfetch(url,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}});
    if(!r.ok)throw new Error(r.status);const j=await r.json();if(j.remark&&!(j.elements||[]).length)throw new Error(j.remark);
    for(const e of j.elements||[])if(e.type=='node'&&isFinite(e.lat))SIG.set(e.id,{id:e.id,lat:+e.lat,lon:+e.lon});
-   if(SIG.size>4000){const arr=[...SIG.values()].sort((a,b)=>dist(a,p)-dist(b,p)).slice(0,4000);SIG.clear();arr.forEach(s=>SIG.set(s.id,s));sigMarkers.forEach(m=>sigLayer.removeLayer(m));sigMarkers.clear()}
-   DIAG.load=`ok um ${hm()}, ${(j.elements||[]).length} im Umkreis von 4 km`;sigCenter={lat:p.lat,lon:p.lon};LS.set('gw_sig',[...SIG.values()]);LS.set('gw_sigc',sigCenter);loading=false;drawSignals();return}catch(e){}}
+   const ops=[...SIG.values()].filter(s=>!s.f);if(ops.length>4000){ops.sort((a,b)=>dist(b,p)-dist(a,p)).slice(0,ops.length-4000).forEach(s=>{SIG.delete(s.id);const m=sigMarkers.get(s.id);if(m){sigLayer.removeLayer(m);sigMarkers.delete(s.id)}})}
+   DIAG.load=`ok um ${hm()}, ${(j.elements||[]).length} im Umkreis von 4 km`;sigCenter={lat:p.lat,lon:p.lon};LS.set('gw_sig',[...SIG.values()].filter(s=>!s.f));LS.set('gw_sigc',sigCenter);loading=false;drawSignals();return}catch(e){}}
  loading=false;DIAG.load=`fehlgeschlagen um ${hm()}, neuer Versuch in 30 s`;$('sigs').textContent=SIG.size?`Ampeln: ${SIG.size} (Nachladen fehlgeschlagen)`:'Ampeln: Laden fehlgeschlagen';setTimeout(()=>{if(cur)loadSignals(cur,true)},30000)}
 // ---------- Lernmodell ----------
 const sector=h=>Math.round(mod(h,360)/45)%8;
@@ -332,11 +340,11 @@ function computeOnRoute(R){if(!R)return;const out=[];
  // mehrere Knoten derselben Kreuzung: nur den ersten behalten
  R.onRoute=out.filter((o,k)=>k==0||o.s-out[k-1].s>25)}
 let routeSigLoading=false;
-async function loadRouteSignals(R){if(routeSigLoading||R.total>60000)return;routeSigLoading=true;
+async function loadRouteSignals(R){if(routeSigLoading||R.total>60000)return;if(FILEBOX&&R.ll.every(c=>inBox({lat:c[0],lon:c[1]},0.003)))return;routeSigLoading=true;
  const pts=[];let next=0;for(let i=0;i<R.ll.length;i++)if(R.cum[i]>=next||i==R.ll.length-1){pts.push(R.ll[i][0].toFixed(5)+','+R.ll[i][1].toFixed(5));next=R.cum[i]+120}
  const ar=`(around:25,${pts.slice(0,450).join(',')})`,q=`[out:json][timeout:25];(node["highway"="traffic_signals"]${ar};node["crossing"="traffic_signals"]${ar};);out body;`;
  for(const url of OVERPASS){try{const r=await tfetch(url,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}});if(!r.ok)throw 0;const j=await r.json();
-   for(const e of j.elements||[])if(e.type=='node'&&isFinite(e.lat))SIG.set(e.id,{id:e.id,lat:+e.lat,lon:+e.lon});LS.set('gw_sig',[...SIG.values()].slice(-4000));break}catch(e){}}
+   for(const e of j.elements||[])if(e.type=='node'&&isFinite(e.lat))SIG.set(e.id,{id:e.id,lat:+e.lat,lon:+e.lon});LS.set('gw_sig',[...SIG.values()].filter(s=>!s.f).slice(-4000));break}catch(e){}}
  routeSigLoading=false;drawSignals()}
 function onSignalsChanged(){const R=NAV||PREVIEW;if(R){computeOnRoute(R);if(R===PREVIEW)renderPreview()}}
 function learnedOn(R){const now=Date.now()/1000;return(R.onRoute||[]).filter(o=>fit(o.sig.id+'_'+sector(o.brg),now).ok).length}
@@ -398,7 +406,8 @@ $('res').onclick=e=>{const b=e.target.closest('[data-r]');if(!b)return;const d=R
 // ---------- Diagnose ----------
 function renderDiag(){const now=Date.now()/1000,R=NAV;
  const rows=[['GPS',DIAG.acc==null?'noch kein Signal':`±${Math.round(DIAG.acc)} m, ${DIAG.fixes} Positionen in dieser Sitzung`],
-  ['Ampeln geladen',`${SIG.size} gespeichert · letzter Abruf: ${DIAG.load}`],
+  ['Ampel-Datei Leipzig',fileState],['Ampeln geladen',`${SIG.size} gesamt · Online-Abruf: ${DIAG.load}`],
+  ['Nächste Ampel',(()=>{if(!cur||!SIG.size)return '–';let b=1e9;for(const x of SIG.values()){const d=dist(cur,x);if(d<b)b=d}return fmt(b)+' entfernt'})()],
   ['Fahrtrichtung',heading==null?'noch unbekannt (erst losfahren)':Math.round(heading)+'°'],
   ['Navigation',R?`aktiv, ${(R.onRoute||[]).length} Ampeln auf der Route`:'aus (Ampeln werden per Fahrtrichtung erkannt)'],
   ['Diese Fahrt',`${drive.pass} Ampeln passiert, ${drive.stops} Stopps`]];
@@ -449,7 +458,7 @@ $('go').onclick=()=>{if(!('geolocation' in navigator)){$('startInfo').textConten
  Object.assign(drive,{pass:0,green:0,stops:0,halted:true});renderStats()};
 $('stop').onclick=()=>{endNav(true);if(watch!=null)navigator.geolocation.clearWatch(watch);watch=null;try{wake&&wake.release()}catch(e){}closeSheets();$('start').style.display='';
  $('startInfo').textContent=`Letzte Fahrt: ${drive.pass} Ampeln, ${drive.green} bei Grün, ${drive.stops} Stopps.`};
-drawSignals();drawReps();renderLearn();
+drawSignals();drawReps();renderLearn();loadFile();
 if(location.hostname=='gw.test')window.__gw={OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr};
 $('startInfo').textContent=Object.keys(OBS).length?`Bisher gelernt: ${Object.keys(OBS).length} Ampel-Richtungen.`:'';
 
