@@ -16,13 +16,13 @@ html,body{margin:0;height:100%;color:var(--ink);font:16px/1.45 Rubik,system-ui,s
 html{background:var(--card)}body{background:var(--bg)}
 .ios-short .panel{padding-bottom:6px}.ios-short .panel{box-shadow:none}
 #app{position:fixed;top:0;left:0;right:0;height:100%;height:var(--apph,100%);display:flex;flex-direction:column}
-.scrim{position:absolute;left:0;right:0;top:0;height:calc(env(safe-area-inset-top) + 70px);background:linear-gradient(var(--sky,#17212b) 35%,transparent);pointer-events:none;z-index:450}
+.scrim{position:absolute;left:0;right:0;top:0;height:calc(env(safe-area-inset-top) + 24px);background:linear-gradient(color-mix(in srgb,var(--sky,#17212b) 70%,transparent),transparent);pointer-events:none;z-index:450}
 #mapwrap{flex:1;min-height:120px;position:relative;overflow:hidden;background:var(--line)}
 #map{position:absolute;inset:0;background:var(--line)}
 .attr{position:absolute;right:4px;bottom:2px;z-index:400;font-size:11px;background:#ffffffcc;color:#333;padding:0 4px;border-radius:4px}
 .attr a{color:inherit}
 .car{width:44px;height:44px}.car svg{width:44px;height:44px;display:block;filter:drop-shadow(0 2px 3px #0006)}
-.top{align-items:center;position:absolute;top:calc(env(safe-area-inset-top) + 10px);left:10px;right:10px;display:flex;gap:8px;z-index:500;pointer-events:none}
+.top{align-items:center;position:absolute;top:calc(env(safe-area-inset-top) + 18px);left:10px;right:10px;display:flex;gap:8px;z-index:500;pointer-events:none}
 .pill{pointer-events:auto;background:var(--card);color:var(--ink);border-radius:20px;height:40px;padding:0 12px 0 9px;display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;box-shadow:0 4px 14px -6px #0007;white-space:nowrap}
 .pill svg{width:20px;height:20px;flex:none}.pill:has(.warn){background:var(--amber);color:#152027}
 
@@ -223,7 +223,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='24.11.2026 · 12';
+const APP_VERSION='24.11.2026 · 13';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
