@@ -438,10 +438,23 @@ function stepText(st){const m=st.maneuver||{},mod=MODS[m.modifier]||'',on=st.nam
   case'roundabout turn':return `Im Kreisverkehr ${mod} abbiegen${into}`;
   case'exit roundabout':case'exit rotary':return 'Kreisverkehr verlassen'+on;
   default:return mod?`${mod[0].toUpperCase()+mod.slice(1)}${on}`:'Weiter'+on}}
-function navIcon(st){const m=st.maneuver||{};
- if(m.type=='arrive')return '<circle cx="24" cy="20" r="9" fill="none" stroke="currentColor" stroke-width="5"/><path d="M24 29v13" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>';
- if(/roundabout|rotary/.test(m.type))return '<circle cx="24" cy="26" r="10" fill="none" stroke="currentColor" stroke-width="5"/><path d="M24 16V4M17 10l7-7 7 7" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>';
- const a=ANG[m.modifier]??0;return `<g transform="rotate(${a} 24 24)"><path d="M24 42V8M13 19L24 8l11 11" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></g>`}
+// Abbiegepfeile: Linie mit Knick oder Kurve, Pfeilspitze in Fahrtrichtung (rechts gezeichnet, links gespiegelt)
+const ARR={
+ straight:['M24 43V14',24,7,-90],
+ slight:['M19 43V27Q19 21 24 17L30 12',35,7.5,-40],
+ turn:['M15 43V25Q15 15 25 15H32',39,15,0],
+ sharp:['M14 43V19Q14 9 23 11Q27 12 29 17L32 25',34.5,32,68],
+ uturn:['M13 43V20Q13 8 24 8Q35 8 35 20V27',35,34,90]};
+function arrowSvg(kind,left){const[d,x,y,a]=ARR[kind];
+ const g=`<path d="${d}" fill="none" stroke="currentColor" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M0 0L-10 -8.5L-10 8.5Z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round" transform="translate(${x} ${y}) rotate(${a})"/>`;
+ return left?`<g transform="translate(48 0) scale(-1 1)">${g}</g>`:g}
+function navIcon(st){const m=st.maneuver||{},mod=m.modifier||'straight',left=/left/.test(mod);
+ if(m.type=='arrive')return '<path d="M24 44s-12-12.5-12-22a12 12 0 0 1 24 0c0 9.5-12 22-12 22z" fill="currentColor"/><circle cx="24" cy="22" r="5" fill="var(--blue,#33ccff)"/>';
+ if(/roundabout|rotary/.test(m.type)){const ex=Math.min(6,m.exit||1);return `<circle cx="24" cy="27" r="9" fill="none" stroke="currentColor" stroke-width="4.5"/><path d="M24 44V36" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>`+
+  `<g transform="rotate(${left?-40:40} 24 27)"><path d="M24 18V8" stroke="currentColor" stroke-width="5" stroke-linecap="round"/><path d="M0 0L-9 -7.5L-9 7.5Z" fill="currentColor" transform="translate(24 3) rotate(-90)"/></g><text x="24" y="31" text-anchor="middle" font-size="11" font-weight="800" fill="currentColor" font-family="Rubik,sans-serif">${ex}</text>`}
+ if(mod=='uturn')return arrowSvg('uturn',true);
+ const kind=/sharp/.test(mod)?'sharp':/slight/.test(mod)?'slight':/left|right/.test(mod)?'turn':'straight';
+ return arrowSvg(kind,left)}
 // lokale Projektion in Meter
 let REF=null;const P=(lat,lon)=>[(lon-REF.lon)*Math.cos(REF.lat*RAD)*111320,(lat-REF.lat)*110540];
 function projSeg(px,py,ax,ay,bx,by){const dx=bx-ax,dy=by-ay,l2=dx*dx+dy*dy;let u=l2?((px-ax)*dx+(py-ay)*dy)/l2:0;u=Math.max(0,Math.min(1,u));const x=ax+u*dx,y=ay+u*dy;return{u,d:Math.hypot(px-x,py-y)}}
