@@ -100,6 +100,9 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:16px/1
 .ibtn.navbtn svg.dir{width:26px;height:26px}
 .app-nav .ibtn.navbtn{padding:0 8px}.app-nav .ibtn.navbtn span{display:none}
 .ibtn+.ibtn{margin-left:0}
+.fs-on #fsBtn{display:none!important}
+.fsstep{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line)}.fsstep .n{width:30px;height:30px;border-radius:50%;background:var(--blue);color:var(--onblue);font-weight:800;display:grid;place-items:center;flex:none}
+.fsstep svg.ic{width:26px;height:26px;vertical-align:-7px;margin:0 3px;color:var(--blue)}
 input[type=search]{width:100%;font:inherit;font-size:17px;border:1px solid var(--line);border-radius:14px;padding:12px 14px;background:var(--bg);color:var(--ink)}
 .res{display:grid;gap:2px;margin-top:10px}
 .res button{font:inherit;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:12px 4px;color:var(--ink);cursor:pointer;min-height:48px}
@@ -135,7 +138,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
   <div class="prog"><i id="navProg"></i></div>
   <div class="more"><div id="navSteps"></div><div class="acts"><button class="btn" id="navOv">Übersicht</button><button class="btn" id="navX">Beenden</button></div></div></div>
  <div id="blitz"><div class="lim" id="bLim">–</div><div><b id="bT">Blitzer</b><span id="bD"></span></div></div>
- <div class="top"><span class="pill"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="var(--blue)" stroke-width="2.2"/><circle cx="12" cy="12" r="3.5" fill="var(--blue)"/></svg><span id="gps">GPS aus</span></span><span class="pill"><svg viewBox="0 0 24 24"><rect x="7.5" y="2.5" width="9" height="19" rx="3" fill="#1d2329" stroke="currentColor" stroke-width="1.2" stroke-opacity=".35"/><circle cx="12" cy="7" r="1.9" fill="#ff4d4f"/><circle cx="12" cy="12" r="1.9" fill="#ffc72c"/><circle cx="12" cy="17" r="1.9" fill="#1fbf5f"/></svg><span id="sigs">–</span></span><button class="ibtn navbtn" id="searchBtn" aria-label="Navigation starten: Ziel eingeben" style="margin-left:auto"><svg viewBox="0 0 24 24" class="dir"><rect x="4.2" y="4.2" width="15.6" height="15.6" rx="3" transform="rotate(45 12 12)" fill="#33ccff" stroke="none"/><path d="M9.2 15.5v-2.6a2 2 0 0 1 2-2h4.3" fill="none" stroke="#0b1a26" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.6 8.6l2.6 2.3-2.6 2.3" fill="none" stroke="#0b1a26" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Wohin?</span></button><button class="ibtn" id="setBtn" aria-label="Einstellungen"><svg viewBox="0 0 24 24"><path d="M19.46 10.09 L22.06 10.34 L22.06 13.66 L19.46 13.91 L18.63 15.92 L20.29 17.94 L17.94 20.29 L15.92 18.63 L13.91 19.46 L13.66 22.06 L10.34 22.06 L10.09 19.46 L8.08 18.63 L6.06 20.29 L3.71 17.94 L5.37 15.92 L4.54 13.91 L1.94 13.66 L1.94 10.34 L4.54 10.09 L5.37 8.08 L3.71 6.06 L6.06 3.71 L8.08 5.37 L10.09 4.54 L10.34 1.94 L13.66 1.94 L13.91 4.54 L15.92 5.37 L17.94 3.71 L20.29 6.06 L18.63 8.08Z" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/><circle cx="12" cy="12" r="3.4" fill="var(--card)" stroke="none"/></svg></button></div>
+ <div class="top"><span class="pill"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="var(--blue)" stroke-width="2.2"/><circle cx="12" cy="12" r="3.5" fill="var(--blue)"/></svg><span id="gps">GPS aus</span></span><span class="pill"><svg viewBox="0 0 24 24"><rect x="7.5" y="2.5" width="9" height="19" rx="3" fill="#1d2329" stroke="currentColor" stroke-width="1.2" stroke-opacity=".35"/><circle cx="12" cy="7" r="1.9" fill="#ff4d4f"/><circle cx="12" cy="12" r="1.9" fill="#ffc72c"/><circle cx="12" cy="17" r="1.9" fill="#1fbf5f"/></svg><span id="sigs">–</span></span><button class="ibtn" id="fsBtn" aria-label="Vollbild" style="margin-left:auto"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="ibtn navbtn" id="searchBtn" aria-label="Navigation starten: Ziel eingeben"><svg viewBox="0 0 24 24" class="dir"><rect x="4.2" y="4.2" width="15.6" height="15.6" rx="3" transform="rotate(45 12 12)" fill="#33ccff" stroke="none"/><path d="M9.2 15.5v-2.6a2 2 0 0 1 2-2h4.3" fill="none" stroke="#0b1a26" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.6 8.6l2.6 2.3-2.6 2.3" fill="none" stroke="#0b1a26" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Wohin?</span></button><button class="ibtn" id="setBtn" aria-label="Einstellungen"><svg viewBox="0 0 24 24"><path d="M19.46 10.09 L22.06 10.34 L22.06 13.66 L19.46 13.91 L18.63 15.92 L20.29 17.94 L17.94 20.29 L15.92 18.63 L13.91 19.46 L13.66 22.06 L10.34 22.06 L10.09 19.46 L8.08 18.63 L6.06 20.29 L3.71 17.94 L5.37 15.92 L4.54 13.91 L1.94 13.66 L1.94 10.34 L4.54 10.09 L5.37 8.08 L3.71 6.06 L6.06 3.71 L8.08 5.37 L10.09 4.54 L10.34 1.94 L13.66 1.94 L13.91 4.54 L15.92 5.37 L17.94 3.71 L20.29 6.06 L18.63 8.08Z" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/><circle cx="12" cy="12" r="3.4" fill="var(--card)" stroke="none"/></svg></button></div>
  <div class="alert" id="alert"><div class="dot" id="aDot">!</div><div class="tx"><b id="aT"></b><span id="aD"></span></div><button class="btn pri" id="aYes">Noch da</button><button class="btn" id="aNo">Weg</button></div>
  <div class="panel">
   <div class="pilot" id="pilot">
@@ -168,6 +171,13 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 
 <div class="sheet" id="workSheet"><h2 id="wkT">Baustelle</h2><p class="small" id="wkS"></p><div id="wkD" style="font-size:15px;line-height:1.45"></div><p class="small" id="wkSrc" style="margin-top:10px"></p><button class="btn big" data-close style="margin-top:8px">Schließen</button></div>
 
+<div class="sheet" id="fsSheet"><h2>Vollbild ohne Leisten</h2>
+ <p class="small">Auf dem iPhone erlaubt Safari keiner Webseite, seine Leisten selbst auszublenden. Als App vom Home-Bildschirm läuft Grünwelle dagegen immer im Vollbild.</p>
+ <div class="fsstep"><span class="n">1</span><div>In Safari auf <svg class="ic" viewBox="0 0 24 24"><path d="M12 3v12M7.5 7.5L12 3l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 10H6a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1h-2" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg> <b>Teilen</b> tippen (unten, im Querformat oben).</div></div>
+ <div class="fsstep"><span class="n">2</span><div>Etwas nach unten scrollen, <svg class="ic" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="4" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M12 8v8M8 12h8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg> <b>Zum Home-Bildschirm</b> wählen und <b>Hinzufügen</b> tippen.</div></div>
+ <div class="fsstep"><span class="n">3</span><div>Grünwelle ab jetzt über das neue Symbol starten. Vorher unter Einstellungen → <b>Exportieren</b> die gelernten Ampeln sichern und in der App wieder <b>importieren</b>, weil iOS die Daten der Home-Bildschirm-App getrennt speichert.</div></div>
+ <button class="btn pri big" data-close style="margin-top:12px">Verstanden</button></div>
+
 <div class="sheet" id="setSheet"><h2>Einstellungen</h2>
  <h3>Ansagen</h3><div class="row"><button class="chip" data-audio="ton">Signaltöne</button><button class="chip" data-audio="sprache">Sprache</button><button class="chip" data-audio="aus">Aus</button></div>
  <p class="small" id="audioInfo"></p>
@@ -183,6 +193,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
  <p class="small" id="dataInfo"></p>
  <div class="row"><button class="btn" id="exp">Exportieren</button><button class="btn" id="copy">Kopieren</button><label class="btn" style="display:inline-flex;align-items:center">Importieren<input type="file" id="imp" accept=".json,application/json" hidden></label></div>
  <h3>Ampeln</h3><div class="row"><button class="btn" id="reload">Ampeln neu laden</button><button class="btn" id="wipe">Alle Daten löschen</button></div>
+ <h3>Vollbild</h3><div class="row"><button class="btn" id="fsSet"><svg width="20" height="20" style="vertical-align:-4px;margin-right:6px" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Vollbild ohne Leisten</button></div><p class="small" id="fsInfo"></p>
  <h3>Fahrt</h3><div class="row"><button class="btn" id="stop">Fahrt beenden</button></div>
  <h3>Diagnose</h3><div id="diag" class="small" style="line-height:1.5"></div>
  <p class="small" style="margin-top:14px">Karte, Ampelstandorte und Routen: © OpenStreetMap-Mitwirkende. Suche: Photon (komoot). Routing: OSRM über FOSSGIS. Alle gelernten Daten und Meldungen bleiben nur auf diesem Gerät.</p>
@@ -699,6 +710,15 @@ $('imp').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const j=J
 $('reload').onclick=()=>{if(cur)loadSignals(cur,true);else toast('Erst Fahrt starten')};
 $('wipe').onclick=()=>{if($('wipe').dataset.sure){OBS={};REPS=[];saveObs();saveReps();fitCache.clear();drawReps();renderLearn();LEARNED=new Set();updateSigs();toast('Gelöscht');delete $('wipe').dataset.sure;$('wipe').textContent='Alle Daten löschen'}
  else{$('wipe').dataset.sure=1;$('wipe').textContent='Wirklich löschen?';setTimeout(()=>{delete $('wipe').dataset.sure;$('wipe').textContent='Alle Daten löschen'},4000)}};
+// ---------- Vollbild ----------
+const isStandalone=()=>navigator.standalone===true||matchMedia('(display-mode: fullscreen)').matches||matchMedia('(display-mode: standalone)').matches;
+const canFS=()=>!!(document.documentElement.requestFullscreen&&document.fullscreenEnabled);
+function fsState(){const st=isStandalone(),on=st||!!document.fullscreenElement;document.body.classList.toggle('fs-on',on);
+ $('fsInfo').textContent=st?'Läuft bereits als App im Vollbild.':document.fullscreenElement?'Vollbild ist aktiv.':canFS()?'Schaltet die Browser-Leisten direkt aus.':'Läuft in Safari. Zeigt, wie du Grünwelle als Vollbild-App auf den Home-Bildschirm legst.'}
+async function goFS(){if(isStandalone())return;
+ if(canFS()){try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen({navigationUI:'hide'});fsState();return}catch(e){}}
+ closeSheets();$('fsSheet').classList.add('on')}
+$('fsBtn').onclick=goFS;$('fsSet').onclick=goFS;document.addEventListener('fullscreenchange',fsState);
 async function keepAwake(){try{if('wakeLock' in navigator)wake=await navigator.wakeLock.request('screen')}catch(e){}}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState=='visible'&&watch!=null)keepAwake()});
 $('go').onclick=()=>{if(!('geolocation' in navigator)){$('startInfo').textContent='Dieses Gerät bietet kein GPS im Browser.';return}
@@ -709,7 +729,7 @@ $('go').onclick=()=>{if(!('geolocation' in navigator)){$('startInfo').textConten
  Object.assign(drive,{pass:0,green:0,stops:0,halted:true});renderStats()};
 $('stop').onclick=()=>{endNav(true);if(watch!=null)navigator.geolocation.clearWatch(watch);watch=null;try{wake&&wake.release()}catch(e){}closeSheets();$('start').style.display='';
  $('startInfo').textContent=`Letzte Fahrt: ${drive.pass} Ampeln, ${drive.green} bei Grün, ${drive.stops} Stopps.`};
-drawSignals();drawReps();renderLearn();loadFile();setBlitz();loadWorks();
+fsState();drawSignals();drawReps();renderLearn();loadFile();setBlitz();loadWorks();
 if(location.hostname=='gw.test')window.__gw={OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr,map};
 $('startInfo').textContent=Object.keys(OBS).length?`Bisher gelernt: ${Object.keys(OBS).length} Ampel-Richtungen.`:'';
 
