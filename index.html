@@ -2,7 +2,7 @@
 <html lang="de"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="theme-color" content="#0d1215">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="theme-color" id="themeColor" content="#1d2935">
 <title>Grünwelle Live</title>
 <link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-title" content="Grünwelle">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
@@ -223,7 +223,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='24.11.2026 · 11';
+const APP_VERSION='24.11.2026 · 12';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -284,7 +284,8 @@ function styleMap(){if(!map.getStyle())return;const T=THEMES[isNight()?'night':'
  P('route-case','line-color',T.rcase);$('map').style.background=T.bg;document.documentElement.style.setProperty('--sky',T.bg);
  try{map.setSky({'sky-color':T.bg,'horizon-color':T.bg,'fog-color':T.bg,'sky-horizon-blend':1,'horizon-fog-blend':1,'fog-ground-blend':0.85,'atmosphere-blend':0})}catch(e){}
  for(const l of map.getStyle().layers){if(l.type==='symbol'&&(l['source-layer']==='poi'||/poi/.test(l.id))&&!/transit|station|bus|rail/.test(l.id)){try{map.setLayoutProperty(l.id,'visibility','none')}catch(e){}}}}
-function applyTheme(){const n=isNight();document.documentElement.dataset.ui=set.theme==='auto'?'':(n?'night':'day');if(mapReady||map.isStyleLoaded())styleMap()}
+function applyTheme(){const n=isNight();document.documentElement.dataset.ui=set.theme==='auto'?'':(n?'night':'day');
+ const tc=n?'#1d2935':'#ffffff';$('themeColor').setAttribute('content',tc);document.documentElement.style.backgroundColor=tc;if(mapReady||map.isStyleLoaded())styleMap()}
 try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',applyTheme)}catch(e){}
 // ---------- Kartensymbole (SVG, doppelte Auflösung) ----------
 const AMPEL=(dim,ring)=>`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="104" viewBox="0 0 32 52">${ring?'<rect x="1" y="1" width="30" height="42" rx="9" fill="#33ccff"/>':''}<rect x="5" y="4" width="22" height="36" rx="6" fill="#1d2329" stroke="#fff" stroke-width="2"/><circle cx="16" cy="12" r="4.2" fill="#ff4d4f" opacity="${dim}"/><circle cx="16" cy="22" r="4.2" fill="#ffc72c" opacity="${dim}"/><circle cx="16" cy="32" r="4.2" fill="#1fbf5f" opacity="${dim}"/><path d="M16 40v11" stroke="#1d2329" stroke-width="3"/><path d="M16 40v11" stroke="#fff" stroke-width="1" opacity=".6"/></svg>`;
