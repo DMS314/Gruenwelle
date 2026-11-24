@@ -13,7 +13,8 @@
 :root[data-ui=day]{color-scheme:light}:root[data-ui=night]{color-scheme:dark}
 *{box-sizing:border-box;min-width:0}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:16px/1.45 Rubik,system-ui,sans-serif;overflow:hidden}
-#app{position:fixed;inset:0;display:flex;flex-direction:column}
+#app{position:fixed;top:0;left:0;right:0;height:100vh;height:var(--apph,100lvh);display:flex;flex-direction:column}
+.scrim{position:absolute;left:0;right:0;top:0;height:calc(env(safe-area-inset-top) + 70px);background:linear-gradient(var(--sky,#17212b) 35%,transparent);pointer-events:none;z-index:450}
 #mapwrap{flex:1;min-height:120px;position:relative;overflow:hidden;background:var(--line)}
 #map{position:absolute;inset:0;background:var(--line)}
 .attr{position:absolute;right:4px;bottom:2px;z-index:400;font-size:11px;background:#ffffffcc;color:#333;padding:0 4px;border-radius:4px}
@@ -128,7 +129,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 }
 </style></head><body>
 <div id="app">
- <div id="mapwrap"><div id="map"></div><div class="attr"><a href="https://openfreemap.org">OpenFreeMap</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a></div></div>
+ <div id="mapwrap"><div id="map"></div><div class="scrim"></div><div class="attr"><a href="https://openfreemap.org">OpenFreeMap</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a></div></div>
  <div id="nav"><div class="head" id="navHead" role="button" aria-expanded="false" aria-label="Weitere Abbiegungen anzeigen">
   <div class="ni"><svg viewBox="0 0 48 48" id="navIco"></svg></div>
   <div class="tx"><b id="navD">–</b><span id="navT">–</span></div>
@@ -220,7 +221,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='24.11.2026 · 7';
+const APP_VERSION='24.11.2026 · 8';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -278,7 +279,9 @@ function styleMap(){if(!map.getStyle())return;const T=THEMES[isNight()?'night':'
   else if(l.type==='line'&&sl==='transportation'&&!(l.paint&&l.paint['line-dasharray'])&&!/rail|path|track|pier|ferry|aerialway|cable|transit|footway|cycleway|steps/.test(f))
    P(id,'line-color',/casing|outline/.test(id)?T.casing:/motorway/.test(f)?T.motor:/trunk|primary/.test(f)?T.major:T.road);
   else if(l.type==='symbol'&&l.layout&&l.layout['text-field']){P(id,'text-color',T.text);P(id,'text-halo-color',T.halo)}}
- P('route-case','line-color',T.rcase);$('map').style.background=T.bg}
+ P('route-case','line-color',T.rcase);$('map').style.background=T.bg;document.documentElement.style.setProperty('--sky',T.bg);
+ try{map.setSky({'sky-color':T.bg,'horizon-color':T.bg,'fog-color':T.bg,'sky-horizon-blend':1,'horizon-fog-blend':1,'fog-ground-blend':0.85,'atmosphere-blend':0})}catch(e){}
+ for(const l of map.getStyle().layers){if(l.type==='symbol'&&(l['source-layer']==='poi'||/poi/.test(l.id))&&!/transit|station|bus|rail/.test(l.id)){try{map.setLayoutProperty(l.id,'visibility','none')}catch(e){}}}}
 function applyTheme(){const n=isNight();document.documentElement.dataset.ui=set.theme==='auto'?'':(n?'night':'day');if(mapReady||map.isStyleLoaded())styleMap()}
 try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',applyTheme)}catch(e){}
 // ---------- Kartensymbole (SVG, doppelte Auflösung) ----------
@@ -713,6 +716,10 @@ $('wipe').onclick=()=>{if($('wipe').dataset.sure){OBS={};REPS=[];saveObs();saveR
  else{$('wipe').dataset.sure=1;$('wipe').textContent='Wirklich löschen?';setTimeout(()=>{delete $('wipe').dataset.sure;$('wipe').textContent='Alle Daten löschen'},4000)}};
 // ---------- Vollbild ----------
 const isStandalone=()=>navigator.standalone===true||matchMedia('(display-mode: fullscreen)').matches||matchMedia('(display-mode: standalone)').matches;
+// iOS meldet als Home-Bildschirm-App teils eine zu kleine Fensterhöhe: dann die Bildschirmhöhe nehmen
+function fitApp(){let h=innerHeight;if(isStandalone()){const land=innerWidth>innerHeight,sh=land?Math.min(screen.width,screen.height):Math.max(screen.width,screen.height);if(sh>h&&sh-h<160)h=sh}
+ document.documentElement.style.setProperty('--apph',h+'px');try{map.resize()}catch(e){}}
+window.addEventListener('resize',fitApp);window.addEventListener('orientationchange',()=>setTimeout(fitApp,300));
 const canFS=()=>!!(document.documentElement.requestFullscreen&&document.fullscreenEnabled);
 function fsState(){const st=isStandalone(),on=st||!!document.fullscreenElement;document.body.classList.toggle('fs-on',on);
  $('fsInfo').textContent=st?'Läuft bereits als App im Vollbild.':document.fullscreenElement?'Vollbild ist aktiv.':canFS()?'Schaltet die Browser-Leisten direkt aus.':'Läuft in Safari. Zeigt, wie du Grünwelle als Vollbild-App auf den Home-Bildschirm legst.'}
@@ -730,7 +737,7 @@ $('go').onclick=()=>{if(!('geolocation' in navigator)){$('startInfo').textConten
  Object.assign(drive,{pass:0,green:0,stops:0,halted:true});renderStats()};
 $('stop').onclick=()=>{endNav(true);if(watch!=null)navigator.geolocation.clearWatch(watch);watch=null;try{wake&&wake.release()}catch(e){}closeSheets();$('start').style.display='';
  $('startInfo').textContent=`Letzte Fahrt: ${drive.pass} Ampeln, ${drive.green} bei Grün, ${drive.stops} Stopps.`};
-fsState();drawSignals();drawReps();renderLearn();loadFile();setBlitz();loadWorks();
+fitApp();setTimeout(fitApp,500);fsState();drawSignals();drawReps();renderLearn();loadFile();setBlitz();loadWorks();
 if(location.hostname=='gw.test')window.__gw={OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr,map};
 $('startInfo').textContent=(Object.keys(OBS).length?`Bisher gelernt: ${Object.keys(OBS).length} Ampel-Richtungen. `:'')+'Version '+APP_VERSION;
 
