@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="de"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="theme-color" content="#0d1215">
+<title>Grünwelle Live</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:light dark;--bg:light-dark(#eef2f5,#0d1215);--ink:light-dark(#152027,#e8eef2);--mute:light-dark(#5b6a74,#94a3ad);--card:light-dark(#fff,#172026);--line:light-dark(#dbe2e7,#26323a);
+--blue:#22a7e8;--green:#1fbf5f;--red:#ff4d4f;--amber:#ffb020;--grey:#8a949b}
+*{box-sizing:border-box;min-width:0}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:16px/1.45 Rubik,system-ui,sans-serif;overflow:hidden}
+#app{position:fixed;inset:0;display:flex;flex-direction:column}
+#map{flex:1;min-height:120px;background:var(--line)}
+.top{align-items:flex-start;position:absolute;top:calc(env(safe-area-inset-top) + 10px);left:10px;right:10px;display:flex;gap:8px;z-index:500;pointer-events:none}
+.pill{pointer-events:auto;background:var(--card);border-radius:20px;padding:6px 12px;font-size:13px;box-shadow:0 4px 14px -6px #0007;white-space:nowrap}
+.pill.warn{background:var(--amber);color:#152027}
+.ibtn{pointer-events:auto;margin-left:auto;width:44px;height:44px;border-radius:50%;border:0;background:var(--card);color:var(--ink);font:inherit;font-size:20px;box-shadow:0 4px 14px -6px #0007;cursor:pointer}
+.panel{background:var(--card);padding:12px 16px calc(env(safe-area-inset-bottom) + 12px);box-shadow:0 -8px 24px -12px #0006;z-index:600}
+.pilot{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;border-radius:16px;padding:4px;transition:background .3s}
+.sig{background:#111;border-radius:12px;padding:6px;display:grid;gap:5px;position:relative}
+.sig i{width:18px;height:18px;border-radius:50%;background:#333;display:block}
+.sig i.r.on{background:var(--red);box-shadow:0 0 10px var(--red)}.sig i.y.on{background:var(--amber)}.sig i.g.on{background:var(--green);box-shadow:0 0 10px var(--green)}
+.sig.est{outline:2px dashed var(--amber);outline-offset:2px}.sig b{position:absolute;inset:0;display:none;place-items:center;color:#fff;font-size:22px}.sig.unk b{display:grid}
+.cd{font-size:clamp(22px,6vw,28px);font-weight:700;line-height:1.1}.hint{font-size:15px;line-height:1.3}.src{font-size:13px;color:var(--mute);line-height:1.3;margin-top:2px}
+.spd{text-align:center;border:3px solid var(--line);border-radius:50%;width:74px;height:74px;display:grid;place-content:center;line-height:1}
+.spd b{font-size:28px}.spd small{font-size:13px;color:var(--mute)}
+.tape{margin:10px 0 0;height:16px;border-radius:8px;background:var(--line);position:relative}
+.band{position:absolute;top:0;bottom:0;border-radius:8px;width:0;background:repeating-linear-gradient(45deg,var(--green) 0 6px,color-mix(in srgb,var(--green) 55%,transparent) 6px 12px);transition:left .4s,width .4s}
+.ndl{position:absolute;top:-5px;width:4px;height:26px;border-radius:2px;background:var(--ink);margin-left:-2px}
+.tl{display:flex;justify-content:space-between;font-size:12px;color:var(--mute);margin-top:2px}
+.foot{display:flex;align-items:center;gap:10px;margin-top:8px}
+.stats{flex:1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.stats div{line-height:1.15}.stats b{font-size:18px;display:block}.stats span{font-size:12px;color:var(--mute)}
+.rep{width:56px;height:56px;border-radius:50%;background:var(--amber);border:0;cursor:pointer;font-size:30px;font-weight:700;color:#152027;flex:none}
+.alert{position:absolute;left:10px;right:10px;bottom:10px;z-index:550;background:var(--card);border-radius:18px;padding:12px;display:none;gap:10px;align-items:center;box-shadow:0 10px 24px -10px #0008}
+.alert.on{display:flex}.alert .tx{flex:1;font-size:14px;line-height:1.3}.alert b{display:block;font-size:16px}
+.dot{width:38px;height:38px;border-radius:50%;flex:none;display:grid;place-items:center;color:#fff;font-weight:800}
+.btn{font:inherit;font-weight:500;border:0;border-radius:14px;min-height:46px;padding:0 16px;cursor:pointer;background:var(--line);color:var(--ink)}
+.btn.pri{background:var(--blue);color:#fff}.btn.big{width:100%;font-size:18px;min-height:56px}
+.btn:focus-visible,.chip:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.chip{font:inherit;font-size:15px;border:1px solid var(--line);background:none;color:var(--ink);border-radius:22px;min-height:44px;padding:0 16px;cursor:pointer}
+.chip[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.sheet{position:fixed;left:0;right:0;bottom:0;max-height:88vh;overflow:auto;background:var(--card);border-radius:24px 24px 0 0;padding:18px 18px calc(env(safe-area-inset-bottom) + 18px);transform:translateY(105%);transition:transform .25s;box-shadow:0 -10px 30px -10px #0008;z-index:900}
+.sheet.on{transform:none}.sheet h2{margin:0 0 8px;font-size:20px}.sheet h3{font-size:14px;color:var(--mute);font-weight:500;margin:16px 0 6px}
+.types{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:10px 0}
+.types button{font:inherit;font-size:14px;background:none;border:1px solid var(--line);border-radius:16px;padding:12px 4px;cursor:pointer;color:var(--ink);display:grid;justify-items:center;gap:6px}
+.start{position:fixed;inset:0;z-index:1000;background:var(--bg);overflow:auto;padding:calc(env(safe-area-inset-top) + 24px) 20px calc(env(safe-area-inset-bottom) + 24px)}
+.start .in{max-width:520px;margin:0 auto}
+.start h1{font-size:34px;line-height:1.05;margin:0 0 8px;font-weight:800}
+.start p{margin:0 0 12px;color:var(--mute)}.start ul{padding-left:20px;margin:0 0 14px}.start li{margin:4px 0}
+.safe{background:color-mix(in srgb,var(--amber) 18%,transparent);border-radius:14px;padding:12px 14px;margin:14px 0;font-size:15px}
+.toast{position:fixed;top:calc(env(safe-area-inset-top) + 64px);left:50%;transform:translateX(-50%);background:#152027;color:#fff;padding:8px 14px;border-radius:20px;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:1100;white-space:nowrap}
+.toast.on{opacity:1}
+.small{font-size:13px;color:var(--mute)}
+textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--line);border-radius:12px;padding:8px;background:var(--bg);color:var(--ink)}
+</style></head><body>
+<div id="app">
+ <div id="map"></div>
+ <div class="top"><span class="pill" id="gps">GPS aus</span><span class="pill" id="sigs">Ampeln: –</span><button class="ibtn" id="setBtn" aria-label="Einstellungen">⚙</button></div>
+ <div class="alert" id="alert"><div class="dot" id="aDot">!</div><div class="tx"><b id="aT"></b><span id="aD"></span></div><button class="btn pri" id="aYes">Noch da</button><button class="btn" id="aNo">Weg</button></div>
+ <div class="panel">
+  <div class="pilot" id="pilot">
+   <div class="sig unk" id="sig" aria-hidden="true"><i class="r"></i><i class="y"></i><i class="g"></i><b>?</b></div>
+   <div><div class="cd" id="cd">Bereit</div><div class="hint" id="hint">Fahrt starten, um GPS zu nutzen</div><div class="src" id="src"></div></div>
+   <div class="spd"><b id="spd">0</b><small>km/h</small></div>
+  </div>
+  <div class="tape"><div class="band" id="band"></div><div class="ndl" id="ndl"></div></div>
+  <div class="tl"><span>0</span><span id="tMax">60 km/h</span></div>
+  <div class="foot">
+   <div class="stats"><div><b id="sPass">0</b><span>Ampeln</span></div><div><b id="sGreen">0</b><span>bei Grün</span></div><div><b id="sStops">0</b><span>Stopps</span></div><div><b id="sLearn">0</b><span>gelernt</span></div></div>
+   <button class="rep" id="repBtn" aria-label="Melden">+</button>
+  </div>
+ </div>
+</div>
+
+<div class="sheet" id="repSheet"><h2>Was siehst du?</h2><p class="small">Nur melden, wenn du sicher stehst oder Beifahrer bist.</p><div class="types" id="types"></div><button class="btn big" data-close>Abbrechen</button></div>
+
+<div class="sheet" id="setSheet"><h2>Einstellungen</h2>
+ <h3>Fahrzeug</h3><div class="row"><button class="chip" data-mode="auto">Auto</button><button class="chip" data-mode="rad">Rad</button></div>
+ <h3>Tempolimit für Empfehlungen</h3><div class="row" id="limits"></div>
+ <h3>Gelernte Daten</h3>
+ <p class="small" id="dataInfo"></p>
+ <div class="row"><button class="btn" id="exp">Exportieren</button><button class="btn" id="copy">Kopieren</button><label class="btn" style="display:inline-flex;align-items:center">Importieren<input type="file" id="imp" accept=".json,application/json" hidden></label></div>
+ <h3>Ampeln</h3><div class="row"><button class="btn" id="reload">Ampeln neu laden</button><button class="btn" id="wipe">Alle Daten löschen</button></div>
+ <h3>Fahrt</h3><div class="row"><button class="btn" id="stop">Fahrt beenden</button></div>
+ <p class="small" style="margin-top:14px">Karte und Ampelstandorte: © OpenStreetMap-Mitwirkende. Alle gelernten Daten und Meldungen bleiben nur auf diesem Gerät.</p>
+ <button class="btn big" data-close style="margin-top:8px">Schließen</button></div>
+
+<div class="start" id="start"><div class="in">
+ <h1>Grünwelle Live</h1>
+ <p>Ampel-Assistent mit echtem GPS und echten Ampelstandorten aus OpenStreetMap. Die Schaltzeiten lernt die App aus deinen Fahrten: Wo du anhältst, wann du losfährst und wo du bei Grün durchkommst.</p>
+ <ul>
+  <li>Erste Fahrten: Die App sammelt nur. Nach etwa 3 Halten an derselben Ampel kommt eine Schätzung.</li>
+  <li>Fahr dieselbe Strecke mehrmals, z. B. deinen Arbeitsweg. Ampeln schalten morgens oft anders als abends.</li>
+  <li>Alle Zeiten sind Schätzungen. Die echte Ampel hat immer Vorrang.</li>
+ </ul>
+ <div class="safe"><b>Sicherheit:</b> Handy fest in die Halterung, alles vor der Fahrt einstellen, während der Fahrt nicht tippen. Am besten testet ein Beifahrer. Die Empfehlung ist nie ein Grund, schneller als erlaubt oder unaufmerksam zu fahren.</div>
+ <h3 style="margin:0 0 6px;font-size:15px;color:var(--mute);font-weight:500">Fahrzeug</h3>
+ <div class="row" style="margin-bottom:10px"><button class="chip" data-mode="auto">Auto</button><button class="chip" data-mode="rad">Rad</button></div>
+ <button class="btn pri big" id="go">Fahrt starten</button>
+ <p class="small" style="margin-top:10px" id="startInfo"></p>
+</div></div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script>
+{
+const $=id=>document.getElementById(id);
+const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+// ---------- Geometrie ----------
+const RAD=Math.PI/180,ER=6371000;
+const dist=(a,b)=>{const dLa=(b.lat-a.lat)*RAD,dLo=(b.lon-a.lon)*RAD,x=Math.sin(dLa/2)**2+Math.cos(a.lat*RAD)*Math.cos(b.lat*RAD)*Math.sin(dLo/2)**2;return 2*ER*Math.asin(Math.sqrt(x))};
+const bearing=(a,b)=>{const y=Math.sin((b.lon-a.lon)*RAD)*Math.cos(b.lat*RAD),x=Math.cos(a.lat*RAD)*Math.sin(b.lat*RAD)-Math.sin(a.lat*RAD)*Math.cos(b.lat*RAD)*Math.cos((b.lon-a.lon)*RAD);return(Math.atan2(y,x)/RAD+360)%360};
+const adiff=(a,b)=>((a-b+540)%360)-180;
+const mod=(a,b)=>((a%b)+b)%b;
+// ---------- Einstellungen & Speicher ----------
+const MODES={auto:{vmin:15,limits:[30,50,60,70],def:50},rad:{vmin:8,limits:[20,25,30],def:25}};
+const set=Object.assign({mode:'auto',limit:50},LS.get('gw_set',{}));
+let OBS=LS.get('gw_obs',{});            // key -> {g:[], p:[], r:[[a,b]]}  Zeiten in Sekunden
+let REPS=LS.get('gw_reps',[]);
+const SIG=new Map((LS.get('gw_sig',[])).map(s=>[s.id,s]));
+let sigCenter=LS.get('gw_sigc',null);
+const saveObs=()=>LS.set('gw_obs',OBS),saveSet=()=>LS.set('gw_set',set),saveReps=()=>LS.set('gw_reps',REPS);
+// ---------- Karte ----------
+const map=L.map('map',{zoomControl:false,attributionControl:true}).setView([51.3397,12.3731],15);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+const sigLayer=L.layerGroup().addTo(map),repLayer=L.layerGroup().addTo(map);
+const me=L.circleMarker([0,0],{radius:9,color:'#fff',weight:3,fillColor:'#22a7e8',fillOpacity:1}).addTo(map);
+let follow=true;map.on('dragstart',()=>{follow=false;setTimeout(()=>follow=true,15000)});
+const sigMarkers=new Map();
+const drawSignals=()=>{for(const s of SIG.values()){if(sigMarkers.has(s.id))continue;const m=L.circleMarker([s.lat,s.lon],{radius:6,color:'#fff',weight:2,fillColor:'#8a949b',fillOpacity:1});m.addTo(sigLayer);sigMarkers.set(s.id,m)}
+ $('sigs').textContent='Ampeln: '+SIG.size};
+const TYPES={pol:{n:'Polizei',c:'#2f6fe0',h:2},unf:{n:'Unfall',c:'#e5484d',h:3},stau:{n:'Stau',c:'#d9480f',h:1},gef:{n:'Gefahr',c:'#f08c00',h:3},bau:{n:'Baustelle',c:'#e8590c',h:24*14}};
+const drawReps=()=>{repLayer.clearLayers();const now=Date.now();REPS=REPS.filter(r=>now-r.t<TYPES[r.type].h*3600e3);
+ for(const r of REPS)L.circleMarker([r.lat,r.lon],{radius:10,color:'#fff',weight:3,fillColor:TYPES[r.type].c,fillOpacity:1}).bindTooltip(TYPES[r.type].n).addTo(repLayer)};
+$('types').innerHTML=Object.entries(TYPES).map(([k,t])=>`<button data-t="${k}"><span class="dot" style="background:${t.c}">!</span>${t.n}</button>`).join('');
+// ---------- Ampeln laden (Overpass) ----------
+const OVERPASS=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter'];
+let loading=false;
+async function loadSignals(p,force){
+ if(loading)return;if(!force&&sigCenter&&dist(sigCenter,p)<1500&&SIG.size)return;loading=true;$('sigs').textContent='Ampeln laden …';
+ const q=`[out:json][timeout:25];node["highway"="traffic_signals"](around:3000,${p.lat.toFixed(5)},${p.lon.toFixed(5)});out body;`;
+ for(const url of OVERPASS){try{const r=await fetch(url,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}});
+   if(!r.ok)throw new Error(r.status);const j=await r.json();
+   for(const e of j.elements||[])if(e.type=='node'&&isFinite(e.lat))SIG.set(e.id,{id:e.id,lat:+e.lat,lon:+e.lon});
+   if(SIG.size>4000){const arr=[...SIG.values()].sort((a,b)=>dist(a,p)-dist(b,p)).slice(0,4000);SIG.clear();arr.forEach(s=>SIG.set(s.id,s));sigMarkers.forEach(m=>sigLayer.removeLayer(m));sigMarkers.clear()}
+   sigCenter={lat:p.lat,lon:p.lon};LS.set('gw_sig',[...SIG.values()]);LS.set('gw_sigc',sigCenter);loading=false;drawSignals();return}catch(e){}}
+ loading=false;$('sigs').textContent='Ampeln: Laden fehlgeschlagen';setTimeout(()=>{if(cur)loadSignals(cur,true)},30000)}
+// ---------- Lernmodell ----------
+const sector=h=>Math.round(mod(h,360)/45)%8;
+const band=ts=>{const h=new Date(ts*1000).getHours();return h<6?0:h<10?1:h<15?2:h<19?3:h<23?4:0};
+const fitCache=new Map();
+function fit(key,now){
+ const o=OBS[key];if(!o)return{n:0};
+ const n=o.g.length+o.p.length;const ck=key+':'+n+':'+band(now);if(fitCache.has(ck))return fitCache.get(ck);
+ const b=band(now),sel=a=>{const f=a.filter(x=>band(Array.isArray(x)?x[0]:x)==b);return f.length>=3?f:a};
+ const g=sel(o.g),p=sel(o.p),r=sel(o.r);
+ let res={n,ok:false};
+ if(g.length>=3){let best=null;
+  for(let C=40;C<=140;C++){let sx=0,sy=0;for(const t of g){const a=mod(t,C)/C*2*Math.PI;sx+=Math.cos(a);sy+=Math.sin(a)}
+   const R=Math.hypot(sx,sy)/g.length;if(R<0.6)continue;const g0=mod(Math.atan2(sy,sx)/(2*Math.PI)*C,C);
+   const rel=p.map(t=>mod(t-g0,C)).sort((a,b)=>a-b);let G=rel.length>=2?rel[Math.floor(rel.length*0.9)]+2:20;G=Math.max(12,Math.min(C-15,G));
+   let bad=0,chk=0;for(const[a,z]of r){let k=0,n=0;for(let x=a+0.5;x<z;x+=1){n++;if(mod(x-g0,C)<G-1.5)k++}if(n){chk++;bad+=k/n}}for(const x of rel){chk++;if(x>G+3)bad++}
+   const cons=chk?1-bad/chk:0.8,score=R*cons-C*0.0008;if(!best||score>best.score)best={C,g0,G,score,R,cons}}
+  if(best){const conf=Math.max(0,Math.min(0.97,best.score*Math.min(1,g.length/6)));res={n,ok:conf>0.35,conf,C:best.C,g0:best.g0,G:best.G}}}
+ fitCache.set(ck,res);if(fitCache.size>300)fitCache.clear();return res}
+const phaseOf=(m,t)=>{const ph=mod(t-m.g0,m.C);const st=ph<m.G?'g':ph<m.G+3?'y':'r';return{st,left:st=='g'?m.G-ph:m.C-ph}};
+function advice(m,d,t){const lim=set.limit/3.6,vmin=MODES[set.mode].vmin/3.6,mg=1.5+(1-m.conf)*6,ph=mod(t-m.g0,m.C);
+ for(let k=0;k<4;k++){const a=k*m.C-ph+mg,b=k*m.C-ph+m.G-mg;if(b<=1)continue;const hi=Math.min(lim,a<=0?lim:d/a),lo=Math.max(vmin,d/b);if(lo<=hi)return{lo,hi}}return null}
+// ---------- Fahrt-Logik ----------
+let cur=null,prev=null,v=0,heading=null,lastMove=null,watch=null,wake=null;
+let tgt=null,appr=null;const drive={pass:0,green:0,stops:0,halted:true};
+function findTarget(p){if(heading==null)return null;let best=null;
+ for(const s of SIG.values()){const d=dist(p,s);if(d>450||d<2)continue;const df=Math.abs(adiff(bearing(p,s),heading));const lat=d*Math.sin(df*RAD);
+  if(df>(d<40?60:35)||lat>25)continue;const along=d*Math.cos(df*RAD);if(!best||along<best.along)best={s,along,d}}
+ return best}
+function finishAppr(t){const a=appr;appr=null;if(!a||a.minD>40)return;
+ const o=OBS[a.key]||(OBS[a.key]={g:[],p:[],r:[]});if(a.stopT&&!a.departT)a.departT=t-2;
+ drive.pass++;
+ if(a.stopT&&a.departT&&a.stopD<60){const gs=a.departT-1-Math.max(0,(a.stopD-12)/7)*2;o.g.push(+gs.toFixed(1));o.r.push([+a.stopT.toFixed(1),+(gs-0.5).toFixed(1)])}
+ if(!a.stopT){drive.green++;o.p.push(+t.toFixed(1))}else if(a.departT)o.p.push(+t.toFixed(1));
+ for(const k of['g','p','r'])if(o[k].length>200)o[k]=o[k].slice(-200);
+ saveObs();renderLearn()}
+function onFix(pos){
+ const c=pos.coords,t=pos.timestamp/1000,p={lat:c.latitude,lon:c.longitude,acc:c.accuracy,t};
+ let gv=v;if(prev){const dt=t-prev.t;if(dt>0){const dd=dist(prev,p);gv=c.speed!=null&&c.speed>=0?c.speed:dd/dt;v=v*0.4+gv*0.6}}
+ const hv=c.heading!=null&&!isNaN(c.heading)&&c.heading>=0&&v>2;if(hv)heading=c.heading;
+ if(!lastMove)lastMove=p;else if(dist(lastMove,p)>8){if(!hv)heading=bearing(lastMove,p);lastMove=p}
+ prev=p;cur=p;
+ $('gps').textContent='GPS ±'+Math.round(c.accuracy)+' m';$('gps').classList.toggle('warn',c.accuracy>30);
+ me.setLatLng([p.lat,p.lon]);if(follow)map.setView([p.lat,p.lon],Math.max(map.getZoom(),16),{animate:false});
+ loadSignals(p);
+ if(v<0.8&&!drive.halted){drive.halted=true;drive.stops++}if(v>3)drive.halted=false;
+ // Annäherung an Ampel
+ const f=findTarget(p);
+ if(appr){const s=SIG.get(appr.id),d=s?dist(p,s):1e9,behind=s?Math.abs(adiff(bearing(p,s),heading??0))>100:true;
+  appr.minD=Math.min(appr.minD,d);
+  if(appr.minD<40&&(behind||d>appr.minD+10))finishAppr(t);
+  else if(d>500||(f&&f.s.id!==appr.id&&appr.minD>40))appr=null}
+ if(f&&(!appr||appr.id!==f.s.id)&&!(appr&&appr.minD<40))appr={id:f.s.id,key:f.s.id+'_'+sector(heading),minD:f.d,stopT:0,stopD:0,departT:0};
+ if(appr){const s=SIG.get(appr.id),d=dist(p,s);
+  if(v<1&&d<80&&!appr.stopT){appr.stopT=t;appr.stopD=d;appr.sp=p}
+  if(appr.stopT&&!appr.departT&&(gv>1.5||dist(appr.sp,p)>4))appr.departT=t;
+  if(appr.stopT&&appr.departT&&v<1&&d>15&&t-appr.departT>3){appr.stopT=t;appr.stopD=d;appr.sp=p;appr.departT=0}}
+ tgt=appr?{s:SIG.get(appr.id),key:appr.key}:null;
+ checkAlerts(p);render()}
+// ---------- Anzeige ----------
+const fmt=m=>m<1000?Math.max(10,Math.round(m/10)*10)+' m':(m/1000).toFixed(1).replace('.',',')+' km';
+let lastTgt=null;
+function render(){
+ const now=Date.now()/1000,kmh=Math.round(v*3.6),max=Math.max(set.limit+10,30);
+ $('spd').textContent=kmh;$('tMax').textContent=max+' km/h';$('ndl').style.left=Math.min(100,kmh/max*100)+'%';
+ const sig=$('sig'),lamps=sig.querySelectorAll('i');
+ if(lastTgt&&sigMarkers.get(lastTgt))sigMarkers.get(lastTgt).setStyle({radius:6,color:'#fff'});
+ if(!cur){return}
+ if(!tgt||!tgt.s){sig.className='sig';lamps.forEach(e=>e.classList.remove('on'));$('cd').textContent='Keine Ampel voraus';$('hint').textContent=heading==null?'Richtung wird ermittelt, bitte losfahren':'Gute Fahrt';$('src').textContent='';$('band').style.width='0';lastTgt=null;return}
+ const d=dist(cur,tgt.s),m=fit(tgt.key,now);lastTgt=tgt.s.id;const mk=sigMarkers.get(tgt.s.id);if(mk)mk.setStyle({radius:10,color:'#22a7e8'});
+ if(!m.ok){sig.className='sig unk';lamps.forEach(e=>e.classList.remove('on'));$('cd').textContent='Ampel in '+fmt(d);
+  $('hint').textContent='Noch keine Schaltzeiten · vorausschauend fahren';$('src').textContent=m.n?`Lernt noch: ${m.n} Beobachtung${m.n==1?'':'en'}`:'Erste Fahrt hier, App lernt mit';$('band').style.width='0';return}
+ const ph=phaseOf(m,now),lf=Math.max(1,Math.round(ph.left));sig.className='sig est';lamps.forEach(e=>e.classList.toggle('on',e.classList.contains(ph.st)));
+ $('cd').textContent='ca. '+(ph.st=='g'?`Grün noch ${lf} s`:`Grün in ${lf} s`);
+ const a=advice(m,d,now);
+ $('src').textContent=`Geschätzt aus deinen Fahrten · ${Math.round(m.conf*100)} % · Umlauf ${m.C} s`;
+ if(a){const lo=Math.round(a.lo*3.6),hi=Math.round(a.hi*3.6);$('hint').textContent=`Ampel in ${fmt(d)} · ${lo==hi?lo:lo+'–'+hi} km/h für Grün`;
+  $('band').style.left=lo/max*100+'%';$('band').style.width=Math.max(2,(hi-lo)/max*100)+'%'}
+ else{$('hint').textContent=`Ampel in ${fmt(d)} · ausrollen lassen`;$('band').style.width='0'}
+ renderStats()}
+const renderStats=()=>{$('sPass').textContent=drive.pass;$('sGreen').textContent=drive.green;$('sStops').textContent=drive.stops};
+const renderLearn=()=>{const now=Date.now()/1000;let n=0;for(const k in OBS)if(fit(k,now).ok)n++;$('sLearn').textContent=n;
+ const obsN=Object.values(OBS).reduce((s,o)=>s+o.g.length+o.p.length,0);$('dataInfo').textContent=`${Object.keys(OBS).length} Ampel-Richtungen beobachtet, ${obsN} Beobachtungen, ${n} mit Schätzung. ${REPS.length} eigene Meldungen.`;
+ for(const k in OBS){const id=+k.split('_')[0],mk=sigMarkers.get(id);if(mk&&fit(k,now).ok)mk.setStyle({fillColor:'#ffb020'})}renderStats()};
+setInterval(()=>{if(cur)render()},500);
+// ---------- Meldungen ----------
+let curAlert=null;const answered=new Set();
+function checkAlerts(p){if(heading==null)return;let best=null;
+ for(const r of REPS){if(answered.has(r.id))continue;const d=dist(p,r);if(d>350)continue;const df=Math.abs(adiff(bearing(p,r),heading));if(df>40&&d>30)continue;if(!best||d<best.d)best={r,d}}
+ if(best){curAlert=best.r;const T=TYPES[best.r.type];$('aDot').style.background=T.c;$('aT').textContent=T.n+' gemeldet';$('aD').textContent=`in ${fmt(best.d)} · ${Math.round((Date.now()-best.r.t)/60000)} Min alt · noch da?`;$('alert').classList.add('on')}
+ else{curAlert=null;$('alert').classList.remove('on')}}
+$('aYes').onclick=()=>{if(!curAlert)return;answered.add(curAlert.id);curAlert.t=Date.now();saveReps();toast('Bestätigt');$('alert').classList.remove('on')};
+$('aNo').onclick=()=>{if(!curAlert)return;REPS=REPS.filter(r=>r.id!==curAlert.id);saveReps();drawReps();toast('Meldung entfernt');$('alert').classList.remove('on')};
+$('types').onclick=e=>{const b=e.target.closest('button');if(!b||!cur)return;const r={id:Date.now(),type:b.dataset.t,lat:cur.lat,lon:cur.lon,t:Date.now()};REPS.push(r);answered.add(r.id);saveReps();drawReps();closeSheets();toast(TYPES[r.type].n+' gespeichert')};
+// ---------- Bedienung ----------
+let tt;const toast=m=>{const e=$('toast');e.textContent=m;e.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>e.classList.remove('on'),2200)};
+const closeSheets=()=>document.querySelectorAll('.sheet').forEach(s=>s.classList.remove('on'));
+document.querySelectorAll('[data-close]').forEach(b=>b.onclick=closeSheets);
+$('repBtn').onclick=()=>{if(!cur){toast('Erst Fahrt starten');return}$('repSheet').classList.add('on')};
+$('setBtn').onclick=()=>{renderLearn();$('setSheet').classList.add('on')};
+const renderSet=()=>{document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mode==set.mode));
+ $('limits').innerHTML=MODES[set.mode].limits.map(l=>`<button class="chip" data-lim="${l}" aria-pressed="${l==set.limit}">${l} km/h</button>`).join('')};
+document.addEventListener('click',e=>{const m=e.target.closest('[data-mode]');if(m){set.mode=m.dataset.mode;set.limit=MODES[set.mode].def;saveSet();renderSet();render()}
+ const l=e.target.closest('[data-lim]');if(l){set.limit=+l.dataset.lim;saveSet();renderSet();render()}});
+renderSet();
+const exportText=()=>JSON.stringify({version:1,exported:new Date().toISOString(),obs:OBS,reports:REPS});
+$('exp').onclick=()=>{const blob=new Blob([exportText()],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='gruenwelle-daten.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000)};
+$('copy').onclick=async()=>{try{await navigator.clipboard.writeText(exportText());toast('Daten kopiert')}catch(e){toast('Kopieren nicht erlaubt')}};
+$('imp').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const j=JSON.parse(await f.text());
+ for(const k in j.obs||{}){const o=OBS[k]||(OBS[k]={g:[],p:[],r:[]}),n=j.obs[k];for(const x of['g','p','r'])if(Array.isArray(n[x]))o[x]=[...new Map([...o[x],...n[x]].map(v=>[JSON.stringify(v),v])).values()].slice(-200)}
+ for(const r of j.reports||[])if(TYPES[r.type]&&!REPS.some(x=>x.id===r.id))REPS.push(r);
+ saveObs();saveReps();fitCache.clear();drawReps();renderLearn();toast('Daten importiert')}catch(err){toast('Datei nicht lesbar')}};
+$('reload').onclick=()=>{if(cur)loadSignals(cur,true);else toast('Erst Fahrt starten')};
+$('wipe').onclick=()=>{if($('wipe').dataset.sure){OBS={};REPS=[];saveObs();saveReps();fitCache.clear();drawReps();renderLearn();sigMarkers.forEach(m=>m.setStyle({fillColor:'#8a949b'}));toast('Gelöscht');delete $('wipe').dataset.sure;$('wipe').textContent='Alle Daten löschen'}
+ else{$('wipe').dataset.sure=1;$('wipe').textContent='Wirklich löschen?';setTimeout(()=>{delete $('wipe').dataset.sure;$('wipe').textContent='Alle Daten löschen'},4000)}};
+async function keepAwake(){try{if('wakeLock' in navigator)wake=await navigator.wakeLock.request('screen')}catch(e){}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState=='visible'&&watch!=null)keepAwake()});
+$('go').onclick=()=>{if(!('geolocation' in navigator)){$('startInfo').textContent='Dieses Gerät bietet kein GPS im Browser.';return}
+ if(location.protocol!=='https:'&&location.hostname!=='localhost'){$('startInfo').textContent='GPS braucht eine https-Adresse. Bitte die App über https öffnen.'}
+ watch=navigator.geolocation.watchPosition(onFix,err=>{$('gps').textContent=err.code==1?'GPS nicht erlaubt':'GPS-Fehler';$('gps').classList.add('warn');
+  if(err.code==1){$('cd').textContent='GPS nicht erlaubt';$('hint').textContent='In iOS: Einstellungen › Datenschutz › Ortungsdienste › Safari-Websites erlauben'}},{enableHighAccuracy:true,maximumAge:0,timeout:15000});
+ keepAwake();$('start').style.display='none';$('cd').textContent='Suche GPS …';$('hint').textContent='Einen Moment';
+ Object.assign(drive,{pass:0,green:0,stops:0,halted:true});renderStats()};
+$('stop').onclick=()=>{if(watch!=null)navigator.geolocation.clearWatch(watch);watch=null;try{wake&&wake.release()}catch(e){}closeSheets();$('start').style.display='';
+ $('startInfo').textContent=`Letzte Fahrt: ${drive.pass} Ampeln, ${drive.green} bei Grün, ${drive.stops} Stopps.`};
+drawSignals();drawReps();renderLearn();
+$('startInfo').textContent=Object.keys(OBS).length?`Bisher gelernt: ${Object.keys(OBS).length} Ampel-Richtungen.`:'';
+
+}
+</script></body></html>
