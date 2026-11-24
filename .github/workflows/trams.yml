@@ -1,0 +1,40 @@
+name: Straßenbahn-Fahrplan Leipzig
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/trams.yml
+      - tools/build_trams.py
+  schedule:
+    - cron: '41 2 * * 1,4'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: trams
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      BBOX: 12.15,51.20,12.62,51.48
+    steps:
+      - uses: actions/checkout@v4
+      - name: Nahverkehrs-Fahrplan laden (gtfs.de, DELFI, CC BY 4.0)
+        run: curl -fL --retry 3 --retry-delay 20 -o /tmp/nv.zip https://download.gtfs.de/germany/nv_free/latest.zip && ls -lh /tmp/nv.zip
+      - name: Straßenbahn-Fahrplan bauen
+        run: python3 tools/build_trams.py /tmp/nv.zip trams "$BBOX"
+      - name: Committen, wenn sich etwas geändert hat
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A trams
+          if git diff --cached --quiet; then echo "Keine Änderung"; exit 0; fi
+          git commit -m "Straßenbahn-Fahrplan Leipzig aktualisiert"
+          git pull --rebase -X theirs || true
+          git push
