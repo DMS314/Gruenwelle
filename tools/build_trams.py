@@ -148,6 +148,8 @@ line_ids = {}
 lines = []
 for tid, lst in per_trip.items():
     lst.sort()
+    if not any(sid in inbox for _, sid, _ in lst[:-1]):
+        continue  # Fahrt hält nicht im Gebiet
     rid, mask, head = trips[tid]
     short, col = routes[rid]
     if not head:
@@ -206,4 +208,4 @@ with open(os.path.join(tmp, 'stops.json'), 'w', encoding='utf-8') as f:
 shutil.rmtree(dst, ignore_errors=True)
 os.replace(tmp, dst)
 tot = sum(len(v) for v in deps.values())
-print(f'{len(out_stops)} Haltestellen, {len(lines)} Linien ({", ".join(l[0] for l in lines)}), {tot} Abfahrtszeilen')
+print(f'{len(out_stops)} Haltestellen, {len(lines)} Linien im Gebiet ({", ".join(l[0] for l in lines)}), {tot} Abfahrtszeilen')

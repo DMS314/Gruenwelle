@@ -93,6 +93,17 @@ html{background:var(--card)}body{background:var(--bg)}
 #blitz.on{display:flex}.nav-on #blitz{top:calc(env(safe-area-inset-top) + var(--navh,64px) + 66px)}.nav-on.nav-open #blitz{display:none}#blitz.fast{background:#e53935;color:#fff}
 #blitz .lim{width:44px;height:44px;border-radius:50%;border:5px solid #e53935;background:#fff;color:#1d2329;display:grid;place-items:center;font-weight:800;font-size:17px;flex:none}
 #blitz b{font-size:18px;display:block}#blitz span{font-size:14px}
+#wx{position:absolute;left:10px;top:calc(env(safe-area-inset-top) + 66px);z-index:554;display:none;align-items:center;gap:6px;max-width:calc(100% - 20px);border:0;border-radius:18px;height:34px;padding:0 12px 0 8px;font:inherit;font-size:13px;font-weight:700;box-shadow:0 4px 14px -6px #0007;cursor:pointer;white-space:nowrap;overflow:hidden;background:#ffd43b;color:#1d2329}
+#wx.on{display:inline-flex}#wx svg{width:20px;height:20px;flex:none}#wx span{overflow:hidden;text-overflow:ellipsis}
+#wx[data-s=moderate]{background:#ff922b}#wx[data-s=severe]{background:#e03131;color:#fff}#wx[data-s=extreme]{background:#9c36b5;color:#fff}
+#blitz.on~#wx{display:none!important}.nav-on #wx{top:calc(env(safe-area-inset-top) + var(--navh,64px) + 66px)}.nav-on.nav-open #wx{display:none}
+.wxa{border-left:6px solid #ffd43b;padding:6px 0 6px 12px;margin:12px 0}.wxa[data-s=moderate]{border-color:#ff922b}.wxa[data-s=severe]{border-color:#e03131}.wxa[data-s=extreme]{border-color:#9c36b5}
+.wxa b{display:block;font-size:16px}.wxa .t{font-size:13px;color:var(--mute);margin:2px 0 6px}.wxa p{margin:4px 0;font-size:15px;line-height:1.4}
+.dep{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid var(--line);font-size:15px}
+.lb{min-width:34px;height:26px;border-radius:7px;display:inline-grid;place-items:center;font-weight:800;font-size:14px;padding:0 6px;flex:none}
+.dep .h{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dep em{font-style:normal;font-weight:700;white-space:nowrap}.dep small{color:var(--mute);font-size:13px;margin-left:6px}
+.tlines{display:flex;flex-wrap:wrap;gap:5px;margin:4px 0 6px}
+.src.trh{display:none;color:var(--blue);font-weight:600}.src.trh.on{display:block}
 #nav.off{border:2px solid var(--amber)}#nav.off .ni{background:var(--amber)}
 .app-nav .top .pill{display:none}.app-nav .top{top:calc(env(safe-area-inset-top) + var(--navh,64px) + 18px)}
 .eta{display:none;flex:1;min-width:0;align-items:baseline;gap:8px;font-size:13px;color:var(--mute);white-space:nowrap;overflow:hidden}.eta span{overflow:hidden;text-overflow:ellipsis}.app-nav .stats{display:none}
@@ -131,6 +142,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
  #blitz{left:calc(env(safe-area-inset-left) + 10px);right:auto;width:var(--col);top:calc(env(safe-area-inset-top) + 10px)}
  .nav-on #blitz{top:calc(env(safe-area-inset-top) + var(--navh,64px) + 18px)}
  .alert{left:auto;right:calc(env(safe-area-inset-right) + 10px);width:min(360px,44vw)}
+ #wx,.nav-on #wx{left:auto;right:calc(env(safe-area-inset-right) + 10px);top:calc(env(safe-area-inset-top) + 10px);max-width:min(300px,38vw)}
  .attr{right:calc(env(safe-area-inset-right) + 4px)}
 }
 </style></head><body>
@@ -145,12 +157,13 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
   <div class="prog"><i id="navProg"></i></div>
   <div class="more"><div id="navSteps"></div><div class="acts"><button class="btn" id="navOv">Übersicht</button><button class="btn" id="navX">Beenden</button></div></div></div>
  <div id="blitz"><div class="lim" id="bLim">–</div><div><b id="bT">Blitzer</b><span id="bD"></span></div></div>
+ <button id="wx" aria-label="Wetterwarnung anzeigen"><svg viewBox="0 0 24 24"><path d="M12 2.5L1.8 20.5h20.4z" fill="currentColor" opacity=".9"/><path d="M11 9h2v6h-2zm0 7.5h2v2h-2z" fill="var(--wxi,#fff)"/></svg><span id="wxT"></span></button>
  <div class="top"><span class="pill"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="var(--blue)" stroke-width="2.2"/><circle cx="12" cy="12" r="3.5" fill="var(--blue)"/></svg><span id="gps">GPS aus</span></span><span class="pill"><svg viewBox="0 0 24 24"><rect x="7.5" y="2.5" width="9" height="19" rx="3" fill="#1d2329" stroke="currentColor" stroke-width="1.2" stroke-opacity=".35"/><circle cx="12" cy="7" r="1.9" fill="#ff4d4f"/><circle cx="12" cy="12" r="1.9" fill="#ffc72c"/><circle cx="12" cy="17" r="1.9" fill="#1fbf5f"/></svg><span id="sigs">–</span></span><button class="ibtn" id="fsBtn" aria-label="Vollbild"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="ibtn navbtn" id="searchBtn" aria-label="Navigation starten: Ziel eingeben"><svg viewBox="0 0 24 24" class="dir"><rect x="4.2" y="4.2" width="15.6" height="15.6" rx="3" transform="rotate(45 12 12)" fill="#33ccff" stroke="none"/><path d="M9.2 15.5v-2.6a2 2 0 0 1 2-2h4.3" fill="none" stroke="#0b1a26" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.6 8.6l2.6 2.3-2.6 2.3" fill="none" stroke="#0b1a26" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Wohin?</span></button><button class="ibtn" id="setBtn" aria-label="Einstellungen"><svg viewBox="0 0 24 24"><path d="M19.46 10.09 L22.06 10.34 L22.06 13.66 L19.46 13.91 L18.63 15.92 L20.29 17.94 L17.94 20.29 L15.92 18.63 L13.91 19.46 L13.66 22.06 L10.34 22.06 L10.09 19.46 L8.08 18.63 L6.06 20.29 L3.71 17.94 L5.37 15.92 L4.54 13.91 L1.94 13.66 L1.94 10.34 L4.54 10.09 L5.37 8.08 L3.71 6.06 L6.06 3.71 L8.08 5.37 L10.09 4.54 L10.34 1.94 L13.66 1.94 L13.91 4.54 L15.92 5.37 L17.94 3.71 L20.29 6.06 L18.63 8.08Z" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/><circle cx="12" cy="12" r="3.4" fill="var(--card)" stroke="none"/></svg></button></div>
  <div class="alert" id="alert"><div class="dot" id="aDot">!</div><div class="tx"><b id="aT"></b><span id="aD"></span></div><button class="btn pri" id="aYes">Noch da</button><button class="btn" id="aNo">Weg</button></div>
  <div class="panel">
   <div class="pilot" id="pilot">
    <div class="sig unk" id="sig" aria-hidden="true"><i class="r"></i><i class="y"></i><i class="g"></i><b>?</b></div>
-   <div><div class="cd" id="cd">Bereit</div><div class="hint" id="hint">Fahrt starten, um GPS zu nutzen</div><div class="src" id="src"></div></div>
+   <div><div class="cd" id="cd">Bereit</div><div class="hint" id="hint">Fahrt starten, um GPS zu nutzen</div><div class="src" id="src"></div><div class="src trh" id="trH"></div></div>
    <div class="spd"><b id="spd">0</b><small>km/h</small></div>
   </div>
   <div class="tape"><div class="band" id="band"></div><div class="ndl" id="ndl"></div></div>
@@ -178,6 +191,10 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 
 <div class="sheet" id="workSheet"><h2 id="wkT">Baustelle</h2><p class="small" id="wkS"></p><div id="wkD" style="font-size:15px;line-height:1.45"></div><p class="small" id="wkSrc" style="margin-top:10px"></p><button class="btn big" data-close style="margin-top:8px">Schließen</button></div>
 
+<div class="sheet" id="tramSheet"><h2 id="trN">Haltestelle</h2><div class="tlines" id="trL"></div><div id="trD"></div><p class="small" id="trS" style="margin-top:10px"></p><button class="btn big" data-close style="margin-top:8px">Schließen</button></div>
+
+<div class="sheet" id="wxSheet"><h2>Wetterwarnungen</h2><p class="small" id="wxLoc"></p><div id="wxL"></div><p class="small">Amtliche Warnungen des Deutschen Wetterdienstes für deinen aktuellen Ort, abgerufen über Bright Sky. Alle 10 Minuten aktualisiert.</p><button class="btn big" data-close style="margin-top:8px">Schließen</button></div>
+
 <div class="sheet" id="fsSheet"><h2>Vollbild ohne Leisten</h2>
  <p class="small">Auf dem iPhone erlaubt Safari keiner Webseite, seine Leisten selbst auszublenden. Als App vom Home-Bildschirm läuft Grünwelle dagegen immer im Vollbild.</p>
  <div class="fsstep"><span class="n">1</span><div>In Safari auf <svg class="ic" viewBox="0 0 24 24"><path d="M12 3v12M7.5 7.5L12 3l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 10H6a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1h-2" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg> <b>Teilen</b> tippen (unten, im Querformat oben).</div></div>
@@ -191,6 +208,10 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
  <h3>Karte</h3><div class="row"><button class="chip" data-ori="3d">3D</button><button class="chip" data-ori="fahrt">2D Fahrtrichtung</button><button class="chip" data-ori="nord">2D Norden</button></div>
  <h3>Baustellen</h3><div class="row"><button class="chip" data-works="1">Anzeigen</button><button class="chip" data-works="0">Ausblenden</button></div>
  <p class="small">Autobahn-Baustellen der Autobahn GmbH und Straßenbaustellen aus OpenStreetMap, täglich aktualisiert. Antippen zeigt Details.</p>
+ <h3>Straßenbahn</h3><div class="row"><button class="chip" data-tram="1">Anzeigen</button><button class="chip" data-tram="0">Ausblenden</button></div>
+ <p class="small">Haltestellen der LVB auf der Karte, Antippen zeigt die nächsten Abfahrten nach Fahrplan (ohne Echtzeit-Verspätungen). Fährt eine Bahn gerade an einer Ampel vor dir ab, weist die App darauf hin: Leipziger Ampeln schalten oft für die Bahn um.</p>
+ <h3>Wetterwarnungen</h3><div class="row"><button class="chip" data-wx="1">An</button><button class="chip" data-wx="0">Aus</button></div>
+ <p class="small">Amtliche Warnungen des Deutschen Wetterdienstes (z. B. Glätte, Sturm, Gewitter, Nebel) für deinen Standort. Neue Warnungen ab Stufe orange werden angesagt.</p>
  <h3>Feste Blitzer</h3><div class="row"><button class="chip" data-blitz="0">Aus</button><button class="chip" data-blitz="1">An</button></div>
  <p class="small">Zeigt feste Blitzer aus OpenStreetMap und warnt beim Annähern: immer auf dem Bildschirm, mit Ton nur, wenn du schneller als erlaubt fährst. <b>In Deutschland ist die Nutzung während der Fahrt für Fahrer verboten (§ 23 Abs. 1c StVO, Bußgeld und Punkt), auch über das Handy des Beifahrers.</b> Einschalten auf eigene Verantwortung, z. B. zur Planung vor der Fahrt.</p>
  <h3>Farben</h3><div class="row"><button class="chip" data-theme="auto">Automatisch</button><button class="chip" data-theme="day">Tag</button><button class="chip" data-theme="night">Nacht</button></div>
@@ -205,7 +226,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
  <h3>Vollbild</h3><div class="row"><button class="btn" id="fsSet"><svg width="20" height="20" style="vertical-align:-4px;margin-right:6px" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Vollbild ohne Leisten</button></div><p class="small" id="fsInfo"></p>
  <h3>Fahrt</h3><div class="row"><button class="btn" id="stop">Fahrt beenden</button></div>
  <h3>Diagnose</h3><div id="diag" class="small" style="line-height:1.5"></div>
- <p class="small" style="margin-top:14px">Karte, Ampelstandorte und Routen: © OpenStreetMap-Mitwirkende. Suche: Photon (komoot). Routing: OSRM über FOSSGIS. Alle gelernten Daten und Meldungen bleiben nur auf diesem Gerät.</p>
+ <p class="small" style="margin-top:14px">Karte, Ampelstandorte und Routen: © OpenStreetMap-Mitwirkende. Suche: Photon (komoot). Routing: OSRM über FOSSGIS. Straßenbahn-Fahrplan: DELFI e.V. über gtfs.de, CC BY 4.0. Wetterwarnungen: Deutscher Wetterdienst über Bright Sky. Gelernte Daten und Meldungen verlassen das Gerät nur, wenn „Daten mit allen teilen“ an ist.</p>
  <button class="btn big" data-close style="margin-top:8px">Schließen</button></div>
 
 <div class="start" id="start"><div class="in">
@@ -230,7 +251,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='24.11.2026 · 16';
+const APP_VERSION='24.11.2026 · 17';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -240,7 +261,7 @@ const adiff=(a,b)=>((a-b+540)%360)-180;
 const mod=(a,b)=>((a%b)+b)%b;
 // ---------- Einstellungen & Speicher ----------
 const MODES={auto:{vmin:15,limits:[30,50,60,70],def:50},rad:{vmin:8,limits:[20,25,30],def:25}};
-const set=Object.assign({mode:'auto',limit:50,audio:'ton',ori:'3d',theme:'auto',blitz:0,works:1,share:1},LS.get('gw_set',{}));if(!set.v3d){set.ori='3d';set.v3d=1}
+const set=Object.assign({mode:'auto',limit:50,audio:'ton',ori:'3d',theme:'auto',blitz:0,works:1,share:1,tram:1,wx:1},LS.get('gw_set',{}));if(!set.v3d){set.ori='3d';set.v3d=1}
 let OBS=LS.get('gw_obs',{});            // key -> {g:[], p:[], r:[[a,b]]}  Zeiten in Sekunden
 let REPS=LS.get('gw_reps',[]);
 const SIG=new Map((LS.get('gw_sig',[])).map(s=>[s.id,s]));
@@ -263,6 +284,11 @@ map.on('load',()=>{
  map.addLayer({id:'works',type:'symbol',source:'worksPt',minzoom:11,layout:{'icon-image':'ico-bau','icon-size':['interpolate',['linear'],['zoom'],11,0.4,16,0.7,18,0.9],'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-pitch-alignment':'viewport','icon-rotation-alignment':'viewport'}});
  map.on('click','works',e=>{const f=e.features&&e.features[0];if(f)showWork(f.properties.i)});
  map.on('mouseenter','works',()=>map.getCanvas().style.cursor='pointer');map.on('mouseleave','works',()=>map.getCanvas().style.cursor='');
+ map.addSource('trams',{type:'geojson',data:EMPTY});
+ map.addLayer({id:'trams',type:'symbol',source:'trams',minzoom:14,layout:{'icon-image':'ico-tram','icon-size':['interpolate',['linear'],['zoom'],14,0.45,16,0.7,18,0.9],'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-pitch-alignment':'viewport','icon-rotation-alignment':'viewport',
+  'text-field':['step',['zoom'],'',16,['get','n']],'text-size':11,'text-offset':[0,1.5],'text-anchor':'top','text-optional':true,'text-font':['Noto Sans Regular']},paint:{'text-color':'#0b5fa0','text-halo-color':'#ffffff','text-halo-width':1.5}});
+ map.on('click','trams',e=>{const f=e.features&&e.features[0];if(f)showTram(f.properties.i)});
+ for(const id of['works','trams'])map.on('mouseenter',id,()=>map.getCanvas().style.cursor='pointer');
  for(const id of['sigs','reps','dest'])map.addSource(id,{type:'geojson',data:EMPTY});
  map.addLayer({id:'sigs',type:'symbol',source:'sigs',minzoom:13,layout:{'icon-image':['match',['get','k'],'t','ico-ampel-t','l','ico-ampel-l','ico-ampel-u'],'icon-size':['interpolate',['linear'],['zoom'],13,0.55,16,0.8,18,1],'icon-anchor':'bottom','symbol-sort-key':['match',['get','k'],'t',2,'l',1,0],'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-pitch-alignment':'viewport','icon-rotation-alignment':'viewport'}});
  map.addLayer({id:'reps',type:'symbol',source:'reps',layout:{'icon-image':['get','icon'],'icon-size':['interpolate',['linear'],['zoom'],13,0.55,16,0.8,18,1],'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-pitch-alignment':'viewport','icon-rotation-alignment':'viewport'}});
@@ -271,7 +297,7 @@ map.on('load',()=>{
  map.addLayer({id:'dest',type:'symbol',source:'dest',layout:{'icon-image':'ico-ziel','icon-size':['interpolate',['linear'],['zoom'],12,0.7,17,1],'icon-anchor':'bottom-left','icon-allow-overlap':true,'icon-ignore-placement':true,'icon-pitch-alignment':'viewport','icon-rotation-alignment':'viewport'}});
  loadIcons();
  styleMap();
- mapReady=true;setTimeout(()=>{try{drawCams();drawWorks()}catch(e){}},0);mapQ.splice(0).forEach(f=>{try{f()}catch(e){}});applyView(true)});
+ mapReady=true;setTimeout(()=>{try{drawCams();drawWorks();drawTrams()}catch(e){}},0);mapQ.splice(0).forEach(f=>{try{f()}catch(e){}});applyView(true)});
 // Waze-ähnliche Kartenfarben, Tag und Nacht
 const THEMES={
  day:{bg:'#e9ecef',land:'#e4e7ea',park:'#cdeac3',water:'#a9d8f3',bld:'#dadde1',bld3:'#d3d7dc',road:'#ffffff',major:'#ffe28a',motor:'#f9c04f',casing:'#c4cad0',text:'#3c4852',halo:'#ffffff',rcase:'#127fb0'},
@@ -305,6 +331,7 @@ const ICONS={
  'ico-stau':BADGE('#d9480f','<rect x="3" y="4" width="18" height="4" rx="2"/><rect x="3" y="10" width="13" height="4" rx="2"/><rect x="3" y="16" width="8" height="4" rx="2"/>'),
  'ico-gef':BADGE('#f08c00','<path d="M12 2L1.5 21h21zM11 9h2v6h-2zm0 8h2v2h-2z"/>'),
  'ico-bau':BADGE('#e8590c','<path d="M10 2h4l1.2 4H8.8zM8.2 8h7.6l1.3 4.5H6.9zM6.3 14.5h11.4L19 19H5zM3 20h18v2H3z"/>'),
+ 'ico-tram':`<svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 36 36"><rect x="2" y="2" width="32" height="32" rx="9" fill="#0b74c4" stroke="#fff" stroke-width="3"/><path d="M12.5 7h11M18 7v3.5" stroke="#fff" stroke-width="2" stroke-linecap="round" fill="none"/><rect x="11" y="10.5" width="14" height="15" rx="3.5" fill="#fff"/><rect x="13.2" y="12.8" width="9.6" height="5.4" rx="1.3" fill="#0b74c4"/><circle cx="14.6" cy="21.6" r="1.4" fill="#0b74c4"/><circle cx="21.4" cy="21.6" r="1.4" fill="#0b74c4"/><path d="M13.5 25.5l-2.3 3.5M22.5 25.5l2.3 3.5" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>`,
  'ico-ziel':`<svg xmlns="http://www.w3.org/2000/svg" width="72" height="88" viewBox="0 0 36 44"><path d="M5 42V4" stroke="#1d2329" stroke-width="3.5" stroke-linecap="round"/><path d="M6 4h26l-6 8 6 8H6z" fill="#fff" stroke="#1d2329" stroke-width="2"/><path d="M6 4h6.5v4H6zm13 0h6.5v4H19zM12.5 8H19v4h-6.5zm13 0H32l-3 4h-3.5zM6 12h6.5v4H6zm13 0h6.5v4H19zM12.5 16H19v4h-6.5zm13 0H29l3 4h-6.5z" fill="#1d2329"/></svg>`};
 function loadIcons(){for(const[name,svg]of Object.entries(ICONS)){if(map.hasImage(name))continue;const img=new Image();
  img.onload=()=>{try{if(!map.hasImage(name))map.addImage(name,img,{pixelRatio:2})}catch(e){}};img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg)}}
@@ -377,6 +404,75 @@ function checkCams(p){const a=camAhead(p),el=$('blitz');
  el.classList.add('on');el.classList.toggle('fast',fast);
  const w=camWarned.get(a.c.id)||0;if(fast&&Date.now()-w>300000){camWarned.set(a.c.id,Date.now());announce('blitz',`Achtung Blitzer. Erlaubt sind ${lim}.`,0)}
  if(camWarned.size>200)camWarned=new Map()}
+// ---------- Straßenbahn-Fahrplan (GTFS über GitHub Action) ----------
+let TRAM=null,tramState='lädt …',tramOpen=null,tramT=null;const TDEP=new Map(),TLOAD=new Map();
+const LPAL=['#0b74c4','#e03131','#2b8a3e','#f08c00','#7048e8','#c2255c','#0c8599','#5c940d','#d9480f','#1864ab','#a61e4d','#495057'];
+function lineCol(li){const L=TRAM&&TRAM.lines[li];if(!L)return['#0b74c4','#fff'];let c=L[1]?'#'+L[1]:LPAL[(parseInt(L[0])||[...L[0]].reduce((a,ch)=>a+ch.charCodeAt(0),0))%LPAL.length];
+ const n=parseInt(c.slice(1),16),y=(((n>>16)&255)*299+((n>>8)&255)*587+(n&255)*114)/1000;return[c,y>160?'#1d2329':'#fff']}
+const lineBadge=li=>{const[c,f]=lineCol(li);return`<span class="lb" style="background:${c};color:${f}">${esc(TRAM.lines[li][0])}</span>`};
+async function loadTrams(){if(!set.tram){tramState='ausgeblendet';drawTrams();return}if(TRAM){drawTrams();return}
+ try{const r=await tfetch('trams/stops.json',{cache:'no-cache'},30000);if(!r.ok)throw new Error(r.status);const j=await r.json();
+  const[y,m,d]=j.start.split('-').map(Number);TRAM={lines:j.lines,days:j.days,y,m,d,upd:j.updated,src:j.source,stops:j.stops.map(([i,n,lat,lon,l])=>({i,n,lat,lon,l}))};
+  const age=tramDay(new Date(Date.now()));tramState=`${TRAM.stops.length} Haltestellen, ${TRAM.lines.length} Linien, Stand ${j.updated}`+(age>=TRAM.days?' · Fahrplan veraltet':'')}
+ catch(e){TRAM=null;tramState='Fahrplan noch nicht verfügbar'}drawTrams()}
+function drawTrams(){src('trams',set.tram&&TRAM?{type:'FeatureCollection',features:TRAM.stops.map(s=>({type:'Feature',geometry:{type:'Point',coordinates:[s.lon,s.lat]},properties:{i:s.i,n:s.n}}))}:EMPTY)}
+const tramDay=dt=>Math.round((new Date(dt.getFullYear(),dt.getMonth(),dt.getDate())-new Date(TRAM.y,TRAM.m-1,TRAM.d))/864e5);
+function tramDeps(i){if(TDEP.has(i))return Promise.resolve(TDEP.get(i));if(TLOAD.has(i))return TLOAD.get(i);
+ const pr=tfetch(`trams/d/${i}.json`,{},20000).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}).then(j=>{TDEP.set(i,j);if(TDEP.size>60)TDEP.delete(TDEP.keys().next().value);return j}).finally(()=>TLOAD.delete(i));
+ TLOAD.set(i,pr);return pr}
+// nächste Abfahrten: [{t (ms), li, h}]
+function nextDeps(j,nowMs,fromS,toS){const now=new Date(nowMs),di=tramDay(now),out=[];
+ for(const dd of[di-1,di]){if(dd<0||dd>=TRAM.days)continue;
+  for(const[m,li,hi,mask]of j.d){if(!(mask>>dd&1))continue;const t=new Date(TRAM.y,TRAM.m-1,TRAM.d+dd,0,m).getTime(),rel=(t-nowMs)/1000;
+   if(rel>=fromS&&rel<=toS)out.push({t,li,h:j.h[hi]})}}
+ return out.sort((a,b)=>a.t-b.t)}
+async function showTram(i){const s=TRAM&&TRAM.stops[i];if(!s)return;closeSheets();tramOpen=i;
+ $('trN').textContent=s.n;$('trL').innerHTML=s.l.map(lineBadge).join('');$('trD').innerHTML='<p class="small">Abfahrten werden geladen …</p>';$('trS').textContent='';$('tramSheet').classList.add('on');
+ try{await tramDeps(i)}catch(e){$('trD').innerHTML='<p class="small">Fahrplan für diese Haltestelle nicht verfügbar.</p>';return}renderTram();clearInterval(tramT);tramT=setInterval(()=>{if(!$('tramSheet').classList.contains('on')){clearInterval(tramT);tramOpen=null;return}renderTram()},15000)}
+function renderTram(){const j=TDEP.get(tramOpen);if(!j)return;const now=Date.now();
+ if(tramDay(new Date(now))>=TRAM.days){$('trD').innerHTML='<p class="small">Der Fahrplan ist veraltet und wird bald automatisch erneuert.</p>';return}
+ const L=nextDeps(j,now,-30,4*3600).slice(0,14);
+ $('trD').innerHTML=L.length?L.map(x=>{const min=Math.round((x.t-now)/60000),hh=new Date(x.t).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+  return`<div class="dep">${lineBadge(x.li)}<span class="h">${esc(x.h)}</span><em>${min<=0?'jetzt':min<60?'in '+min+' min':hh}</em>${min>0&&min<60?`<small>${hh}</small>`:''}</div>`}).join(''):'<p class="small">In den nächsten 4 Stunden keine Abfahrten.</p>';
+ $('trS').textContent=`Planmäßige Zeiten, keine Echtzeit-Verspätungen. ${TRAM.src}, Stand ${TRAM.upd}.`}
+// Straßenbahn an der Ampel voraus: fährt in Kürze an einer Haltestelle in der Nähe ab?
+const TRAMNEAR=new Map();
+function tramNear(s){if(!set.tram||!TRAM||!s)return null;let near=TRAMNEAR.get(s.id);
+ if(!near){near=TRAM.stops.filter(t=>Math.abs(t.lat-s.lat)<0.0015&&dist(t,s)<130);TRAMNEAR.set(s.id,near);if(TRAMNEAR.size>300)TRAMNEAR.delete(TRAMNEAR.keys().next().value)}
+ if(!near.length)return null;const now=Date.now();let best=null;
+ for(const t of near){const j=TDEP.get(t.i);if(!j){tramDeps(t.i).catch(()=>{});continue}
+  for(const x of nextDeps(j,now,-40,150)){const dt=(x.t-now)/1000;if(!best||Math.abs(dt)<Math.abs(best.dt))best={dt,li:x.li,h:x.h,stop:t.n}}}
+ return best}
+function tramHint(){const el=$('trH'),b=tgt&&tgt.s?tramNear(tgt.s):null;
+ if(!b){el.classList.remove('on');return}
+ const L=TRAM.lines[b.li][0],w=b.dt<=10?"fährt ab":`in ca. ${b.dt<60?Math.max(10,Math.round(b.dt/10)*10)+' s':Math.round(b.dt/60)+' min'}`;
+ el.textContent=`Bahn ${L} → ${b.h} ${w} · Ampel kann umschalten`;el.classList.add('on')}
+// ---------- Wetterwarnungen (DWD über Bright Sky) ----------
+const WX={list:[],at:0,pos:null,state:'aus',seen:new Set(LS.get('gw_wxseen',[])),loc:''};
+const WXRANK={minor:1,moderate:2,severe:3,extreme:4},WXNAME={minor:'Wetterwarnung',moderate:'Markantes Wetter',severe:'Unwetterwarnung',extreme:'Extremes Unwetter'};
+async function fetchWx(p,force){if(!set.wx){WX.list=[];WX.state='aus';drawWx();return}if(!p)return;
+ if(!force&&WX.pos&&Date.now()-WX.at<600000&&dist(WX.pos,p)<8000)return;WX.at=Date.now();WX.pos={lat:p.lat,lon:p.lon};
+ try{const r=await tfetch(`https://api.brightsky.dev/alerts?lat=${p.lat.toFixed(3)}&lon=${p.lon.toFixed(3)}&tz=Europe/Berlin`,{},15000);if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();
+  const now=Date.now();WX.loc=j.location?(j.location.name||''):'';
+  WX.list=(j.alerts||[]).filter(a=>a.status!=='test'&&(!a.expires||Date.parse(a.expires)>now)&&Date.parse(a.onset)<now+12*3600e3)
+   .sort((a,b)=>(WXRANK[b.severity]||0)-(WXRANK[a.severity]||0)||Date.parse(a.onset)-Date.parse(b.onset));
+  WX.state=`${WX.list.length?WX.list.length+' aktiv':'keine Warnung'}${WX.loc?' für '+WX.loc:''} · ${hm()}`;
+  const top=WX.list.find(a=>(WXRANK[a.severity]||0)>=2&&!WX.seen.has(a.alert_id));
+  for(const a of WX.list)WX.seen.add(a.alert_id);if(WX.seen.size>80)WX.seen=new Set([...WX.seen].slice(-80));LS.set('gw_wxseen',[...WX.seen]);
+  if(top){toast(top.headline_de||top.event_de||'Wetterwarnung');announce('wx',`${WXNAME[top.severity]||'Wetterwarnung'}: ${top.event_de||top.headline_de}.`,0)}}
+ catch(e){WX.at=Date.now()-480000;WX.state='nicht erreichbar ('+(e.name==='AbortError'?'Zeitüberschreitung':e.message)+'), neuer Versuch in 2 min'}
+ drawWx()}
+const wxTime=a=>{const o=Date.parse(a.onset),x=a.expires?Date.parse(a.expires):0,f=t=>{const d=new Date(t),td=new Date(Date.now());const same=d.toDateString()===td.toDateString(),tm=d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});return same?tm:d.toLocaleDateString('de-DE',{weekday:'short'})+' '+tm};
+ return o>Date.now()?`ab ${f(o)}${x?' bis '+f(x):''}`:x?`bis ${f(x)}`:'gilt jetzt'};
+function drawWx(){const el=$('wx'),a=WX.list[0];if(!set.wx||!a){el.classList.remove('on');return}
+ el.dataset.s=a.severity||'minor';el.style.setProperty('--wxi',a.severity==='severe'||a.severity==='extreme'?'#e03131':'#1d2329');
+ if(a.severity==='extreme')el.style.setProperty('--wxi','#9c36b5');
+ $('wxT').textContent=`${a.event_de||'Wetterwarnung'} · ${wxTime(a)}${WX.list.length>1?' · +'+(WX.list.length-1):''}`;el.classList.add('on');
+ if($('wxSheet').classList.contains('on'))renderWxSheet()}
+function renderWxSheet(){$('wxLoc').textContent=WX.loc?'Für '+WX.loc:'';
+ $('wxL').innerHTML=WX.list.length?WX.list.map(a=>`<div class="wxa" data-s="${esc(a.severity)}"><b>${esc(a.headline_de||a.event_de)}</b><div class="t">${esc(WXNAME[a.severity]||'')} · ${esc(wxTime(a))}</div><p>${esc(a.description_de||'')}</p>${a.instruction_de?`<p><i>${esc(a.instruction_de)}</i></p>`:''}</div>`).join(''):'<p>Zurzeit keine Warnungen.</p>'}
+$('wx').onclick=()=>{closeSheets();renderWxSheet();$('wxSheet').classList.add('on')};
+setInterval(()=>{if(cur&&set.wx)fetchWx(cur)},60000);
 async function loadFile(){try{const r=await tfetch('signals.json',{cache:'no-cache'},30000);if(!r.ok)throw new Error(r.status);const j=await r.json();
  for(const[id,lat,lon]of j.nodes||[])if(!SIG.has(id))SIG.set(id,{id,lat,lon,f:1});else SIG.get(id).f=1;
  FILEBOX=j.bbox;fileState=`${(j.nodes||[]).length} Ampeln, Stand ${j.updated}`;drawSignals()}catch(e){fileState='nicht verfügbar, nutze Online-Abruf'}
@@ -455,7 +551,7 @@ function onFix(pos){
   if(appr.stopT&&!appr.departT&&(gv>1.5||dist(appr.sp,p)>4))appr.departT=t;
   if(appr.stopT&&appr.departT&&v<1&&d>15&&t-appr.departT>3){appr.stopT=t;appr.stopD=d;appr.sp=p;appr.departT=0}}
  tgt=appr?{s:SIG.get(appr.id),key:appr.key,rs:appr.rs}:null;
- checkAlerts(p);checkCams(p);render()}
+ checkAlerts(p);checkCams(p);render();if(set.wx)fetchWx(p)}
 // ---------- Anzeige ----------
 const fmt=m=>m<1000?Math.max(10,Math.round(m/10)*10)+' m':(m/1000).toFixed(1).replace('.',',')+' km';
 let lastTgt=null;
@@ -484,6 +580,7 @@ const renderLearn=()=>{const now=Date.now()/1000;let n=0;const ks=new Set([...Ob
  const obsN=Object.values(OBS).reduce((s,o)=>s+o.g.length+o.p.length,0);$('dataInfo').textContent=`${Object.keys(OBS).length} Ampel-Richtungen beobachtet, ${obsN} Beobachtungen, ${n} mit Schätzung. ${REPS.length} eigene Meldungen.`;
  const L2=new Set();for(const k of ks)if(fit(k,now).ok)L2.add(+k.split('_')[0]);if(L2.size!==LEARNED.size||[...L2].some(x=>!LEARNED.has(x))){LEARNED=L2;updateSigs()}renderStats()};
 setInterval(()=>{if(cur)render()},500);
+const render0=render;render=function(){render0();try{tramHint()}catch(e){}};
 
 // ---------- Navigation ----------
 let NAV=null;
@@ -499,7 +596,7 @@ function beep(seq,pan){if(!actx)audioInit();if(!actx)return;const t0=actx.curren
   g.gain.setValueAtTime(0,t0+st);g.gain.linearRampToValueAtTime(0.35,t0+st+0.02);g.gain.exponentialRampToValueAtTime(0.001,t0+st+du);
   let last=g;if(actx.createStereoPanner){const p=actx.createStereoPanner();p.pan.value=pan||0;g.connect(p);last=p}
   o.connect(g);last.connect(actx.destination);o.start(t0+st);o.stop(t0+st+du+0.05)})}
-const TONES={lane:[[660,0,.12],[660,.16,.12]],blitz:[[1480,0,.12],[1050,.16,.12],[1480,.32,.12],[1050,.48,.16]],far:[[880,0,.18]],near:[[880,0,.14],[1175,.18,.22]],arrive:[[784,0,.16],[988,.18,.16],[1319,.36,.3]],reroute:[[523,0,.18],[392,.22,.28]],start:[[659,0,.14],[880,.16,.2]],test:[[880,0,.14],[1175,.18,.22]]};
+const TONES={wx:[[740,0,.2],[740,.3,.2],[740,.6,.2]],lane:[[660,0,.12],[660,.16,.12]],blitz:[[1480,0,.12],[1050,.16,.12],[1480,.32,.12],[1050,.48,.16]],far:[[880,0,.18]],near:[[880,0,.14],[1175,.18,.22]],arrive:[[784,0,.16],[988,.18,.16],[1319,.36,.3]],reroute:[[523,0,.18],[392,.22,.28]],start:[[659,0,.14],[880,.16,.2]],test:[[880,0,.14],[1175,.18,.22]]};
 function announce(kind,text,pan){if(set.audio==='aus')return;if(set.audio==='ton'){beep(TONES[kind]||TONES.far,pan);return}say(text)}
 const panOf=st=>{const m=(st&&st.st.maneuver.modifier)||'';return /left/.test(m)?-0.8:/right/.test(m)?0.8:0};
 function say(text){if(set.audio!=='sprache'||!('speechSynthesis' in window))return;try{const u=new SpeechSynthesisUtterance(text);u.lang='de-DE';voices=voices||pickVoice();if(voices)u.voice=voices;u.rate=1.05;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){}}
@@ -676,7 +773,7 @@ $('res').onclick=e=>{const b=e.target.closest('[data-r]');if(!b)return;const d=R
 // ---------- Diagnose ----------
 function renderDiag(){const now=Date.now()/1000,R=NAV;
  const rows=[['App-Version',APP_VERSION],['GPS',DIAG.acc==null?'noch kein Signal':`±${Math.round(DIAG.acc)} m, ${DIAG.fixes} Positionen in dieser Sitzung`],
-  ['Karte',mapReady?(mapErr?'geladen, Hinweis: '+mapErr:'3D-Karte geladen'):(mapErr||'lädt …')],['Ampel-Datei Leipzig',fileState],['Feste Blitzer',camState],['Gemeinsame Daten',set.share?`an · ${SHARE.up} hochgeladen, ${PEND.length} wartend · ${SHARE.down} Beobachtungen von allen geladen${SHARE.last?' um '+SHARE.last:''}${SHARE.err?' · Fehler: '+SHARE.err:''}`:'aus'],['Baustellen',workState],['Ampeln geladen',`${SIG.size} gesamt · Online-Abruf: ${DIAG.load}`],
+  ['Karte',mapReady?(mapErr?'geladen, Hinweis: '+mapErr:'3D-Karte geladen'):(mapErr||'lädt …')],['Ampel-Datei Leipzig',fileState],['Feste Blitzer',camState],['Gemeinsame Daten',set.share?`an · ${SHARE.up} hochgeladen, ${PEND.length} wartend · ${SHARE.down} Beobachtungen von allen geladen${SHARE.last?' um '+SHARE.last:''}${SHARE.err?' · Fehler: '+SHARE.err:''}`:'aus'],['Baustellen',workState],['Straßenbahn-Fahrplan',tramState],['Wetterwarnungen',WX.state],['Ampeln geladen',`${SIG.size} gesamt · Online-Abruf: ${DIAG.load}`],
   ['Nächste Ampel',(()=>{if(!cur||!SIG.size)return '–';let b=1e9;for(const x of SIG.values()){const d=dist(cur,x);if(d<b)b=d}return fmt(b)+' entfernt'})()],
   ['Fahrtrichtung',heading==null?'noch unbekannt (erst losfahren)':Math.round(heading)+'°'],
   ['Navigation',R?`aktiv, ${(R.onRoute||[]).length} Ampeln auf der Route`:'aus (Ampeln werden per Fahrtrichtung erkannt)'],
@@ -738,12 +835,16 @@ const renderSet=()=>{document.querySelectorAll('[data-mode]').forEach(b=>b.setAt
  document.querySelectorAll('[data-share]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.share==set.share));
  document.querySelectorAll('[data-works]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.works==set.works));
  document.querySelectorAll('[data-blitz]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.blitz==set.blitz));
+ document.querySelectorAll('[data-tram]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.tram==set.tram));
+ document.querySelectorAll('[data-wx]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.wx==set.wx));
  $('audioInfo').textContent={ton:'Kurze Töne über dem Radio, das Radio läuft weiter. Links abbiegen klingt von links, rechts von rechts.',sprache:'Gesprochene Hinweise. Achtung: iOS hält dabei das Radio oder die Musik an und startet sie danach nicht wieder.',aus:'Keine Ansagen, nur Anzeige.'}[set.audio];
  $('limits').innerHTML=MODES[set.mode].limits.map(l=>`<button class="chip" data-lim="${l}" aria-pressed="${l==set.limit}">${l} km/h</button>`).join('')};
 document.addEventListener('click',e=>{const m=e.target.closest('[data-mode]');if(m){set.mode=m.dataset.mode;set.limit=MODES[set.mode].def;saveSet();renderSet();render()}
  const au=e.target.closest('[data-audio]');if(au){set.audio=au.dataset.audio;saveSet();renderSet();unlockSpeech();announce('test','Sprachansagen an',0)}
  const sh=e.target.closest('[data-share]');if(sh){set.share=+sh.dataset.share;saveSet();renderSet();drawReps();if(set.share){syncShared(true);fetchReports(true)}}
  const wk=e.target.closest('[data-works]');if(wk){set.works=+wk.dataset.works;saveSet();renderSet();loadWorks()}
+ const tr=e.target.closest('[data-tram]');if(tr){set.tram=+tr.dataset.tram;saveSet();renderSet();loadTrams();if(!set.tram)$('trH').classList.remove('on')}
+ const wq=e.target.closest('[data-wx]');if(wq){set.wx=+wq.dataset.wx;saveSet();renderSet();fetchWx(cur,true);drawWx()}
  const bz=e.target.closest('[data-blitz]');if(bz){set.blitz=+bz.dataset.blitz;saveSet();renderSet();setBlitz()}
  const th=e.target.closest('[data-theme]');if(th){set.theme=th.dataset.theme;saveSet();renderSet();applyTheme()}
  const or=e.target.closest('[data-ori]');if(or){set.ori=or.dataset.ori;saveSet();renderSet();applyView(true)}
@@ -799,7 +900,7 @@ async function checkUpdate(){try{const r=await fetch('./?v='+Date.now(),{cache:'
  const m=t.match(/APP_VERSION='([^']+)'/);if(m&&m[1]!==APP_VERSION){if(cur&&(NAV||v>3)){toast('Neue Version verfügbar, wird nach der Fahrt geladen');return}
   let n=0;try{n=+sessionStorage.getItem('gw_upd')||0}catch(e){}if(n>2)return;try{sessionStorage.setItem('gw_upd',n+1)}catch(e){}
   location.replace(location.pathname+'?v='+encodeURIComponent(m[1]))}}catch(e){}}
-setTimeout(checkUpdate,1500);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});drawSignals();drawReps();renderLearn();loadFile();setBlitz();loadWorks();
+setTimeout(checkUpdate,1500);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});drawSignals();drawReps();renderLearn();loadFile();setBlitz();loadWorks();loadTrams();
 if(location.hostname=='gw.test')window.__gw={OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr,map};
 $('startInfo').textContent=(Object.keys(OBS).length?`Bisher gelernt: ${Object.keys(OBS).length} Ampel-Richtungen. `:'')+'Version '+APP_VERSION;
 
