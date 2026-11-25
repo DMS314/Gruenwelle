@@ -26,7 +26,9 @@ jobs:
             for m in r['members']:
               if m['role']=='device':inrel[m['ref']]+=1
           import math
-          N={e['id']:e for e in E if e['type']=='node'}
+          N={}
+          for e in E:
+            if e['type']=='node' and (e['id'] not in N or e.get('tags')):N[e['id']]=e
           def brg(a,b):
             y=math.sin(math.radians(b['lon']-a['lon']))*math.cos(math.radians(b['lat']));x=math.cos(math.radians(a['lat']))*math.sin(math.radians(b['lat']))-math.sin(math.radians(a['lat']))*math.cos(math.radians(b['lat']))*math.cos(math.radians(b['lon']-a['lon']))
             return (math.degrees(math.atan2(y,x))+360)%360
