@@ -314,7 +314,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='25.11.2026 · 22';
+const APP_VERSION='25.11.2026 · 23';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -1340,9 +1340,9 @@ function simEnd(keepNav){if(!SIM.on)return;clearTimeout(SIM.tm);SIM.on=false;SIM
  if(SIM.hadWatch)startWatch();else if(SIM.fromStart){cur=null;SM.on=false;try{me.remove()}catch(e){}meOn=false;closeSheets();$('start').style.display='';$('startInfo').textContent='Simulation beendet.'}
  toast('Simulation beendet')}
 function simUI(){$('simP').textContent=SIM.paused?'▶':'❚❚';$('simF').textContent=SIM.mul+'×';
- $('simT').textContent=SIM.done?'Ziel erreicht':SIM.stop&&SIM.stop.wait?'Rot · '+Math.max(0,Math.ceil((SIM.stop.until-Date.now())/1000))+' s':`Simulation · ${Math.round(SIM.v*3.6)} km/h`}
+ $('simT').textContent=SIM.done?'Ziel erreicht':SIM.stop&&SIM.stop.wait?'Rot · '+Math.max(0,Math.ceil(SIM.stop.until-SIM.t))+' s':`Simulation · ${Math.round(SIM.v*3.6)} km/h`}
 $('simP').onclick=()=>{SIM.paused=!SIM.paused;simUI()};
-$('simF').onclick=()=>{SIM.mul=SIM.mul===1?2:SIM.mul===2?4:1;simUI()};
+$('simF').onclick=()=>{SIM.mul=SIM.mul===1?2:SIM.mul===2?4:1;simUI();if(SIM.on&&!SIM.paused){clearTimeout(SIM.tm);SIM.tm=setTimeout(simTick,1000/SIM.mul)}};
 $('simX').onclick=()=>simEnd(false);
 // erlaubtes Tempo an Stelle s: aus der Fahrzeit des Abschnitts, vor Abbiegungen und roten Ampeln abbremsen
 function simTarget(R,s){let st=R.steps[0];for(const x of R.steps){if(x.s<=s+1)st=x;else break}
@@ -1352,21 +1352,22 @@ function simTarget(R,s){let st=R.steps[0];for(const x of R.steps){if(x.s<=s+1)st
   const vt=ty==='arrive'?0:/sharp|uturn/.test(md)?4:/left|right/.test(md)&&!/slight/.test(md)?(ty==='roundabout'||ty==='rotary'?6:6.5):9;
   if(/slight|straight/.test(md)&&ty!=='arrive'&&ty!=='roundabout')continue;lim=Math.min(lim,Math.sqrt(vt*vt+2*1.6*Math.max(0,x.s-s-6)))}
  return lim}
-function simStart(R){simEnter();SIM.R=R;SIM.s=0;SIM.v=0;SIM.done=false;SIM.stop=null;SIM.lights=new Map();SIM.paused=false;
+function simStart(R){simEnter();SIM.R=R;SIM.s=0;SIM.v=0;SIM.done=false;SIM.stop=null;SIM.lights=new Map();SIM.paused=false;SIM.t=0;
  const a=routeAt(R,0),b=routeAt(R,15);simFix(a.lat,a.lon,0,bearing(a,b));simUI();clearTimeout(SIM.tm);SIM.tm=setTimeout(simTick,1000)}
-function simTick(){if(!SIM.on)return;SIM.tm=setTimeout(simTick,1000/SIM.mul);const R=NAV||SIM.R;if(!R||SIM.paused){simUI();return}SIM.R=R;
+// Jede Runde = 1 s Simulationszeit (SIM.t); bei 2×/4× laufen die Runden schneller. Fahrt und Rotphasen nutzen dieselbe Uhr.
+function simTick(){if(!SIM.on)return;SIM.tm=setTimeout(simTick,1000/SIM.mul);const R=NAV||SIM.R;if(!R||SIM.paused){simUI();return}SIM.R=R;SIM.t=(SIM.t||0)+1;
  if(R!==SIM.lastR){SIM.lastR=R;SIM.s=R.s||0}
  const dt=1;let tv=simTarget(R,SIM.s),stopAt=null,stopL=null;
  // Ampeln: Halt bei Rot (zufällig, ca. jede zweite)
  for(const o of(R.onRoute||[])){const dd=o.s-6-SIM.s;if(dd<-3||dd>250)continue;const k=o.sig.id;
   if(!SIM.lights.has(k))SIM.lights.set(k,Math.random()<0.5?{red:true,wait:false,until:0}:{red:false});
   const L=SIM.lights.get(k);if(!L.red)continue;
-  if(L.wait){if(Date.now()>=L.until){L.red=false;L.wait=false;SIM.stop=null}else{tv=0;SIM.stop=L}}
+  if(L.wait){if(SIM.t>=L.until){L.red=false;L.wait=false;SIM.stop=null}else{tv=0;SIM.stop=L}}
   else{tv=Math.min(tv,Math.sqrt(2*1.5*Math.max(0,dd-SIM.v*1.0)));stopAt=SIM.s+Math.max(0,dd);stopL=L}
   break}
  const acc=tv>SIM.v?2.2:-4.5;SIM.v=Math.max(0,tv>SIM.v?Math.min(tv,SIM.v+acc*dt):Math.max(tv,SIM.v+acc*dt));
- const step=SIM.v*dt*SIM.mul;SIM.s=Math.min(R.total,SIM.s+step);
- if(stopAt!=null&&SIM.s>=stopAt-0.5){SIM.s=stopAt;SIM.v=0;stopL.wait=true;stopL.until=Date.now()+(12+Math.random()*28)*1000/SIM.mul;SIM.stop=stopL}
+ const step=SIM.v*dt;SIM.s=Math.min(R.total,SIM.s+step);
+ if(stopAt!=null&&SIM.s>=stopAt-0.5){SIM.s=stopAt;SIM.v=0;stopL.wait=true;stopL.until=SIM.t+12+Math.random()*28;SIM.stop=stopL}
  const p=routeAt(R,SIM.s),a=routeAt(R,SIM.s-3),b=routeAt(R,Math.min(R.total,SIM.s+10));
  simFix(p.lat,p.lon,SIM.v*SIM.mul,bearing(a,b));
  if(SIM.s>=R.total-1&&SIM.v<0.5){SIM.done=true;SIM.paused=true}
