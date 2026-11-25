@@ -26,6 +26,7 @@ und Waze (Navigation, Meldungen der Nutzer). Teststadt Leipzig. Für viele Nutze
 - Navigation: Suche Photon (Nähe zuerst: bbox ±30 km + Rest „Weiter entfernt“), Route OSRM über FOSSGIS, Neuberechnung, Ton- oder Sprachansagen (Ton Standard wegen iOS-Radio-Bug).
 - Spurassistent: OSRM `intersections[].lanes`; Fahrstreifenzahl entlang der Route über Overpass (`fetchLaneProfile`); keine Empfehlung vor einer Engstelle oder über eine Ampelkreuzung mit unbekannten Spuren hinweg (`laneDrop`, `crossBefore`), rechts bevorzugt wenn danach eine Spur endet. Spurfenster gleitet bei Empfehlung über die Abbiegeanzeige (`laneMove`).
 - Darstellung: Pfeil und Kamera pro Bild geglättet (`smoothFrame`, `SM`), auf der Route entlang; `map.redraw()` im selben Bild gegen Zittern. Abbiegeanzeige füllt sich auf den letzten 500 m (`--np`).
+- Tempolimit: OSM `maxspeed` (auch `:forward/:backward`, `:conditional` mit einfachen Zeitfenstern, `zone:maxspeed` wie `DE:30`/`DE:urban`) über Overpass im Umkreis 900 m, Mittelpunkt 250 m voraus (`loadVL`, neu ab 450 m Abstand). Abgleich mit Position + Richtung bzw. Route (`matchVL`, bleibt am bisherigen Weg). Schild neben dem Tacho, Tacho rot ab Limit + 4 km/h. `effLim()` ersetzt `set.limit` für Empfehlung und Skala (Rad: nie über Einstellung), Blitzer nutzt es als Ersatz. Schalter `set.vlim`.
 - Weitere Funktionen: Blitzer (aus, wie Waze), Baustellen, Straßenbahn-Abfahrten + Hinweis „Bahn fährt ab, Ampel kann umschalten“, DWD-Wetterwarnungen (Bright Sky `/alerts`), gespeicherte Orte (`gw_fav`, Karte antippen / Fahrzeug antippen / „Wohin?“), Meldungen löschen, Simulation (`SIM`, lernt und teilt nichts), Querformat nur Navi + Ampel, Vollbild-Hinweis.
 - Speicher auf dem Gerät: `gw_set, gw_obs, gw_reps, gw_sig, gw_sigc, gw_log, gw_recent, gw_pend, gw_fav, gw_hide, gw_wxseen`.
 
@@ -43,5 +44,6 @@ Publishable Key steht in `index.html` (`SB`). Supabase-Hinweis „anon kann SECU
 
 ## Offen / zurückgestellt
 - Rechtliches vor Veröffentlichung: Impressum, Datenschutzerklärung, Teilen als Opt-in beim ersten Start, Schrift und MapLibre selbst hosten, Markenprüfung „Grünwelle“. Vom Nutzer erstmal zurückgestellt.
-- Ideen: Autobahn-Sperrungen, echte Tempolimits (OSRM maxspeed), Park+Ride-Belegung, Unfallatlas, Ratenbegrenzung in Supabase, Anfrage an die Stadt Leipzig nach Ampeldaten.
-- Unbestätigt: unterer Rand auf dem iPhone im Hochformat (Home-Bildschirm-App ggf. neu hinzufügen), Zittern des Pfeils nach Version 25.11.2026 · 8, Spurassistent an der Permoser Kreuzung (Theodor-Heuss-Straße, danach einspurig).
+- Ideen: Autobahn-Sperrungen, Ton bei Tempoüberschreitung, Park+Ride-Belegung, Unfallatlas, Ratenbegrenzung in Supabase, Anfrage an die Stadt Leipzig nach Ampeldaten.
+- Bestätigt: unterer Rand im Hochformat, kein Zittern mehr (ab 25.11.2026 · 8).
+- Unbestätigt: Tempolimit-Anzeige im Auto (ab 25.11.2026 · 10), Spurassistent an der Permoser Kreuzung (Theodor-Heuss-Straße, danach einspurig).

@@ -36,6 +36,12 @@ html{background:var(--card)}body{background:var(--bg)}
 .cd{font-size:20px;font-weight:700;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.hint{font-size:14px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.src{font-size:12px;color:var(--mute);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .spd{text-align:center;border:3px solid var(--line);border-radius:50%;width:56px;height:56px;display:grid;place-content:center;line-height:1}
 .spd b{font-size:21px}.spd small{font-size:11px;color:var(--mute)}
+.spdw{display:flex;align-items:center;gap:6px}
+.vlim{display:none;width:46px;height:46px;border-radius:50%;border:5px solid #e53935;background:#fff;color:#1d2329;place-items:center;font-weight:800;font-size:18px;letter-spacing:-.5px;box-sizing:border-box;flex:none;box-shadow:0 0 0 1.5px #fff,0 2px 6px -2px #0008}
+.vlim.on{display:grid}.vlim.w3{font-size:15px}
+.vlim.none{border:2px solid #9aa3aa;background:#fff repeating-linear-gradient(135deg,transparent 0 5px,#4b5359 5px 7px);background-size:100% 100%}
+.vlim.none b{display:none}
+.spdw.over .spd{border-color:var(--red)}.spdw.over .spd b{color:var(--red)}
 .tape{margin:8px 0 0;height:10px;border-radius:5px;background:var(--line);position:relative}
 .band{position:absolute;top:0;bottom:0;border-radius:5px;width:0;background:repeating-linear-gradient(45deg,var(--green) 0 6px,color-mix(in srgb,var(--green) 55%,transparent) 6px 12px);transition:left .4s,width .4s}
 .ndl{position:absolute;top:-4px;width:4px;height:18px;border-radius:2px;background:var(--ink);margin-left:-2px}
@@ -182,7 +188,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
   <div class="pilot" id="pilot">
    <div class="sig unk" id="sig" aria-hidden="true"><i class="r"></i><i class="y"></i><i class="g"></i><b>?</b></div>
    <div><div class="cd" id="cd">Bereit</div><div class="hint" id="hint">Fahrt starten, um GPS zu nutzen</div><div class="src" id="src"></div><div class="src trh" id="trH"></div></div>
-   <div class="spd"><b id="spd">0</b><small>km/h</small></div>
+   <div class="spdw" id="spdW"><div class="vlim" id="vlim" role="img" aria-label="Tempolimit"><b id="vlimN"></b></div><div class="spd"><b id="spd">0</b><small>km/h</small></div></div>
   </div>
   <div class="tape"><div class="band" id="band"></div><div class="ndl" id="ndl"></div></div>
   <div class="tl"><span>0</span><span id="tMax">60 km/h</span></div>
@@ -244,7 +250,10 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
  <p class="small">Zeigt feste Blitzer aus OpenStreetMap und warnt beim Annähern: immer auf dem Bildschirm, mit Ton nur, wenn du schneller als erlaubt fährst. <b>In Deutschland ist die Nutzung während der Fahrt für Fahrer verboten (§ 23 Abs. 1c StVO, Bußgeld und Punkt), auch über das Handy des Beifahrers.</b> Einschalten auf eigene Verantwortung, z. B. zur Planung vor der Fahrt.</p>
  <h3>Farben</h3><div class="row"><button class="chip" data-theme="auto">Automatisch</button><button class="chip" data-theme="day">Tag</button><button class="chip" data-theme="night">Nacht</button></div>
  <h3>Fahrzeug</h3><div class="row"><button class="chip" data-mode="auto">Auto</button><button class="chip" data-mode="rad">Rad</button></div>
- <h3>Tempolimit für Empfehlungen</h3><div class="row" id="limits"></div>
+ <h3>Tempolimit anzeigen</h3><div class="row"><button class="chip" data-vlim="1">An</button><button class="chip" data-vlim="0">Aus</button></div>
+ <p class="small">Zeigt das erlaubte Tempo der Straße aus OpenStreetMap neben deiner Geschwindigkeit, auch zeitlich begrenzte Limits (z. B. 30 vor Schulen). Fährst du mehr als 3 km/h schneller, wird deine Geschwindigkeit rot. Die Daten können fehlen oder veraltet sein, es gelten immer die Schilder.</p>
+ <h3>Tempolimit, wenn unbekannt</h3><div class="row" id="limits"></div>
+ <p class="small">Für Tempo-Empfehlungen an Ampeln. Ist das Limit der Straße bekannt, gilt dieses.</p>
  <h3>Daten mit allen teilen</h3><div class="row"><button class="chip" data-share="1">An</button><button class="chip" data-share="0">Aus</button></div>
  <p class="small">Geteilt werden nur anonyme Ampel-Ereignisse (Ampel, Richtung, Uhrzeit von Halt, Losfahren oder Durchfahrt bei Grün) und deine Meldungen. Keine Fahrtstrecken, kein Konto, keine Geräte-Kennung. Server: Supabase, Rechenzentrum Frankfurt. Daten älter als 60 Tage werden gelöscht. Bei „Aus“ lernt die App nur auf diesem Gerät und zeigt nur eigene Meldungen.</p>
  <h3>Meine Meldungen</h3><div id="myReps"></div><div class="row" style="margin-top:6px"><button class="btn" id="delAllReps">Alle eigenen löschen</button></div>
@@ -284,7 +293,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='25.11.2026 · 9';
+const APP_VERSION='25.11.2026 · 10';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -294,7 +303,7 @@ const adiff=(a,b)=>((a-b+540)%360)-180;
 const mod=(a,b)=>((a%b)+b)%b;
 // ---------- Einstellungen & Speicher ----------
 const MODES={auto:{vmin:15,limits:[30,50,60,70],def:50},rad:{vmin:8,limits:[20,25,30],def:25}};
-const set=Object.assign({mode:'auto',limit:50,audio:'ton',ori:'3d',theme:'auto',blitz:0,works:1,share:1,tram:1,wx:1},LS.get('gw_set',{}));if(!set.v3d){set.ori='3d';set.v3d=1}
+const set=Object.assign({mode:'auto',limit:50,vlim:1,audio:'ton',ori:'3d',theme:'auto',blitz:0,works:1,share:1,tram:1,wx:1},LS.get('gw_set',{}));if(!set.v3d){set.ori='3d';set.v3d=1}
 let OBS=LS.get('gw_obs',{});            // key -> {g:[], p:[], r:[[a,b]]}  Zeiten in Sekunden
 let REPS=LS.get('gw_reps',[]);
 const SIG=new Map((LS.get('gw_sig',[])).map(s=>[s.id,s]));
@@ -471,8 +480,8 @@ function camAhead(p){if(!set.blitz||!CAMS||heading==null)return null;let best=nu
   if(!best||d<best.d)best={c,d}}return best}
 function checkCams(p){const a=camAhead(p),el=$('blitz');
  if(!a){el.classList.remove('on');camCur=null;return}
- const lim=a.c.max||set.limit,kmh=Math.round(v*3.6),fast=kmh>lim+3;camCur=a.c.id;
- $('bLim').textContent=lim;$('bT').textContent=a.d>15?'Blitzer in '+fmt(a.d):'Blitzer';$('bD').textContent=(a.c.max?`Erlaubt ${lim} km/h`:`Limit unbekannt, geprüft mit ${lim} km/h`)+(fast?` · du fährst ${kmh}`:'');
+ const lim=a.c.max||roadLim()||set.limit,kmh=Math.round(v*3.6),fast=kmh>lim+3;camCur=a.c.id;
+ $('bLim').textContent=lim;$('bT').textContent=a.d>15?'Blitzer in '+fmt(a.d):'Blitzer';$('bD').textContent=(a.c.max||roadLim()?`Erlaubt ${lim} km/h`:`Limit unbekannt, geprüft mit ${lim} km/h`)+(fast?` · du fährst ${kmh}`:'');
  el.classList.add('on');el.classList.toggle('fast',fast);
  const w=camWarned.get(a.c.id)||0;if(fast&&Date.now()-w>300000){camWarned.set(a.c.id,Date.now());announce('blitz',`Achtung Blitzer. Erlaubt sind ${lim}.`,0)}
  if(camWarned.size>200)camWarned=new Map()}
@@ -583,7 +592,7 @@ function fit(key,now){
   if(best){const conf=Math.max(0,Math.min(0.97,best.score*Math.min(1,g.length/6)));res={n,ok:conf>0.35,conf,C:best.C,g0:best.g0,G:best.G}}}
  fitCache.set(ck,res);if(fitCache.size>300)fitCache.clear();return res}
 const phaseOf=(m,t)=>{const ph=mod(t-m.g0,m.C);const st=ph<m.G?'g':ph<m.G+3?'y':'r';return{st,left:st=='g'?m.G-ph:m.C-ph}};
-function advice(m,d,t){const lim=set.limit/3.6,vmin=MODES[set.mode].vmin/3.6,mg=1.5+(1-m.conf)*6,ph=mod(t-m.g0,m.C);
+function advice(m,d,t){const lim=effLim()/3.6,vmin=MODES[set.mode].vmin/3.6,mg=1.5+(1-m.conf)*6,ph=mod(t-m.g0,m.C);
  for(let k=0;k<4;k++){const a=k*m.C-ph+mg,b=k*m.C-ph+m.G-mg;if(b<=1)continue;const hi=Math.min(lim,a<=0?lim:d/a),lo=Math.max(vmin,d/b);if(lo<=hi)return{lo,hi}}return null}
 // ---------- Fahrt-Logik ----------
 let cur=null,prev=null,v=0,heading=null,lastMove=null,watch=null,wake=null;
@@ -610,7 +619,7 @@ function onFix(pos){
  prev=p;cur=p;SM.fixT=performance.now();DIAG.fixes++;DIAG.acc=c.accuracy;
  $('gps').textContent='±'+Math.round(c.accuracy)+' m';$('gps').classList.toggle('warn',c.accuracy>30);
  applyView();
- loadSignals(p);if(NAV)updateNav(p);if(set.share){syncShared();fetchReports()}
+ loadSignals(p);if(NAV)updateNav(p);updateVL(p);if(set.share){syncShared();fetchReports()}
  if(v<0.8&&!drive.halted){drive.halted=true;drive.stops++}if(v>3)drive.halted=false;
  // Annäherung an Ampel
  const f=findTarget(p);
@@ -629,7 +638,7 @@ function onFix(pos){
 const fmt=m=>m<1000?Math.max(10,Math.round(m/10)*10)+' m':(m/1000).toFixed(1).replace('.',',')+' km';
 let lastTgt=null;
 function render(){
- const now=Date.now()/1000,kmh=Math.round(v*3.6),max=Math.max(set.limit+10,30);
+ const now=Date.now()/1000,kmh=Math.round(v*3.6),max=Math.max(effLim()+10,30);
  $('spd').textContent=kmh;$('tMax').textContent=max+' km/h';$('ndl').style.left=Math.min(100,kmh/max*100)+'%';
  const sig=$('sig'),lamps=sig.querySelectorAll('i');
  if(!cur){return}
@@ -654,6 +663,65 @@ const renderLearn=()=>{const now=Date.now()/1000;let n=0;const ks=new Set([...Ob
  const L2=new Set();for(const k of ks)if(fit(k,now).ok)L2.add(+k.split('_')[0]);if(L2.size!==LEARNED.size||[...L2].some(x=>!LEARNED.has(x))){LEARNED=L2;updateSigs()}renderStats()};
 setInterval(()=>{if(cur)render()},500);
 const render0=render;render=function(){render0();try{tramHint()}catch(e){}};
+
+// ---------- Tempolimit aus OpenStreetMap (maxspeed) ----------
+// Straßen im Umkreis von 900 m werden per Overpass geladen und lokal mit Position und Fahrtrichtung abgeglichen.
+const VL={c:null,segs:[],busy:false,tryT:0,cur:null,way:null,lost:0,state:'noch nicht geladen'};
+const VLZONE={'de:urban':50,'de:rural':100,'de:zone30':30,'de:zone:30':30,'de:zone20':20,'de:zone:20':20,'de:zone10':10,'de:zone:10':10,'de:living_street':7,'de:bicycle_road':30,'de:motorway':'none'};
+function msVal(x){if(x==null)return null;x=String(x).trim().toLowerCase();if(x==='none')return'none';if(x==='walk')return 7;
+ if(VLZONE[x]!=null)return VLZONE[x];{const z=x.match(/^[a-z]{2}:(?:zone:?)?(\d+)$/);if(z&&+z[1]>0)return +z[1]}const m=x.match(/^(\d+)\s*(mph)?$/);if(m&&+m[1]>0)return m[2]?Math.round(+m[1]*1.609):+m[1];return null}
+const VLDAYS=['su','mo','tu','we','th','fr','sa'];
+// Einfache Zeitbedingung wie „Mo-Fr 07:00-17:00“; true/false, null wenn nicht verstanden (z. B. „wet“)
+function condOk(c,d){c=c.trim().toLowerCase();
+ const m=c.match(/^((?:mo|tu|we|th|fr|sa|su|ph)(?:\s*[-,]\s*(?:mo|tu|we|th|fr|sa|su|ph))*)?\s*((?:\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}\s*,?\s*)*)$/);
+ if(!m||(!m[1]&&!m[2].trim()))return null;const wd=d.getDay();
+ if(m[1]){let ok=false;for(const part of m[1].split(',')){const[a,b]=part.split('-').map(x=>x.trim());if(a==='ph')continue;const ia=VLDAYS.indexOf(a),ib=b?VLDAYS.indexOf(b):ia;if(ia<0||ib<0)continue;
+   for(let k=ia,n=0;n<7;k=(k+1)%7,n++){if(k===wd)ok=true;if(k===ib)break}}if(!ok)return false}
+ const t=m[2].trim();if(!t)return true;const mins=d.getHours()*60+d.getMinutes();
+ for(const r of t.split(',')){const q=r.match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/);if(!q)continue;const a=+q[1]*60+ +q[2],b=+q[3]*60+ +q[4];if(a<=b?mins>=a&&mins<b:mins>=a||mins<b)return true}
+ return false}
+function condMs(s,d){if(!s)return null;let out=null;
+ for(const m of String(s).matchAll(/([^;@]+?)\s*@\s*(\([^)]*\)|[^;]+)/g)){const val=msVal(m[1]);if(val==null)continue;
+  let any=false;for(const p of m[2].replace(/^\s*\(|\)\s*$/g,'').split(';'))if(condOk(p,d))any=true;if(any)out=val}
+ return out}
+function wayLimit(tg,fwd,d){const k=fwd?'forward':'backward';
+ const c=condMs(tg['maxspeed:'+k+':conditional'],d)??condMs(tg['maxspeed:conditional'],d);if(c!=null)return{v:c,cond:1};
+ let x=msVal(tg['maxspeed:'+k])??msVal(tg.maxspeed);if(x!=null)return{v:x};
+ for(const z of['zone:maxspeed','maxspeed:type','source:maxspeed']){x=msVal(tg[z]);if(x!=null)return{v:x,imp:1}}
+ if(tg.highway==='living_street')return{v:7,imp:1};if(tg.highway==='motorway')return{v:'none',imp:1};
+ return null}
+const offsetPt=(p,b,d)=>({lat:p.lat+d*Math.cos(b*RAD)/110540,lon:p.lon+d*Math.sin(b*RAD)/(111320*Math.cos(p.lat*RAD))});
+async function loadVL(c){if(VL.busy||Date.now()-VL.tryT<20000)return;VL.busy=true;VL.tryT=Date.now();
+ const q=`[out:json][timeout:25];way(around:900,${c.lat.toFixed(5)},${c.lon.toFixed(5)})[highway~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street)(_link)?$"];out tags geom;`;
+ let j=null;for(const u of OVERPASS){try{const r=await tfetch(u,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}},25000);if(!r.ok)throw 0;j=await r.json();break}catch(e){}}
+ if(j){const c0={lat:c.lat,lon:c.lon},kx=111320*Math.cos(c0.lat*RAD),ky=110540,segs=[];let n=0;
+  for(const w of j.elements||[]){if(!w.geometry||w.geometry.length<2)continue;const tg=w.tags||{};if(wayLimit(tg,true,new Date())||tg['maxspeed:backward']||tg['maxspeed:conditional'])n++;
+   const g=w.geometry.map(q=>[(q.lon-c0.lon)*kx,(q.lat-c0.lat)*ky]);for(let i=0;i<g.length-1;i++)segs.push([g[i],g[i+1],tg,w.id])}
+  VL.c=c0;VL.kx=kx;VL.ky=ky;VL.segs=segs;VL.state=`ok um ${hm()}, ${(j.elements||[]).length} Straßen, ${n} mit Limit`}
+ else VL.state=`fehlgeschlagen um ${hm()}, neuer Versuch in 20 s`;
+ VL.busy=false}
+function matchVL(p,brg){if(!VL.c||!VL.segs.length)return null;const px=(p.lon-VL.c.lon)*VL.kx,py=(p.lat-VL.c.lat)*VL.ky;let best=null;
+ for(const sg of VL.segs){const[A,B]=sg;if(Math.max(A[0],B[0])<px-22||Math.min(A[0],B[0])>px+22||Math.max(A[1],B[1])<py-22||Math.min(A[1],B[1])>py+22)continue;
+  const pr=projSeg(px,py,A[0],A[1],B[0],B[1]);if(pr.d>20)continue;let fwd=true,cost=pr.d;
+  if(brg!=null){const sb=(Math.atan2(B[0]-A[0],B[1]-A[1])*180/Math.PI+360)%360,df=Math.abs(adiff(brg,sb));if(df>45&&df<135)continue;fwd=df<=45}
+  if(sg[3]===VL.way)cost-=5;   // am bisherigen Weg bleiben, gegen Flackern an Kreuzungen
+  if(!best||cost<best.cost)best={cost,tg:sg[2],fwd,id:sg[3]}}
+ return best}
+function updateVL(p){const R=NAV,on=R&&!(R.offN>0);let q=p,brg=heading,ahead=null;
+ if(on){q=routeAt(R,R.s);brg=bearing(routeAt(R,Math.max(0,R.s-8)),routeAt(R,R.s+8));ahead=routeAt(R,R.s+250)}
+ else if(heading!=null&&v>3)ahead=offsetPt(p,heading,250);
+ const A=ahead||p;if(!VL.c||dist(A,VL.c)>450)loadVL(A);
+ const m=matchVL(q,brg);
+ if(m){VL.way=m.id;VL.cur=wayLimit(m.tg,m.fwd,new Date());VL.lost=0}else if(++VL.lost>4){VL.cur=null;VL.way=null}
+ renderVL()}
+// Limit für Empfehlungen: bekanntes Straßenlimit, sonst Einstellung (beim Rad nie über der Einstellung)
+function effLim(){const x=VL.cur&&VL.cur.v;if(x==='none')return set.mode==='rad'?set.limit:130;if(typeof x==='number')return set.mode==='rad'?Math.min(set.limit,x):x;return set.limit}
+const roadLim=()=>VL.cur&&typeof VL.cur.v==='number'?VL.cur.v:0;
+function renderVL(){const el=$('vlim'),x=set.vlim&&cur&&VL.cur?VL.cur.v:null,kmh=Math.round(v*3.6);
+ el.classList.toggle('on',x!=null);el.classList.toggle('none',x==='none');
+ if(typeof x==='number'){$('vlimN').textContent=x;el.classList.toggle('w3',x>=100);el.setAttribute('aria-label',`Tempolimit ${x} km/h${VL.cur.cond?' (zeitlich begrenzt)':''}`)}
+ else if(x==='none')el.setAttribute('aria-label','Kein Tempolimit');
+ $('spdW').classList.toggle('over',typeof x==='number'&&kmh>x+3)}
 
 // ---------- Navigation ----------
 let NAV=null;
@@ -961,7 +1029,7 @@ $('res').onclick=e=>{const fr=e.target.closest('[data-fren]');if(fr){renameFav(f
 // ---------- Diagnose ----------
 function renderDiag(){const now=Date.now()/1000,R=NAV;
  const rows=[['App-Version',APP_VERSION+(SIM.on?' · SIMULATION aktiv':'')],['GPS',DIAG.acc==null?'noch kein Signal':`±${Math.round(DIAG.acc)} m, ${DIAG.fixes} Positionen in dieser Sitzung`],
-  ['Karte',mapReady?(mapErr?'geladen, Hinweis: '+mapErr:'3D-Karte geladen'):(mapErr||'lädt …')],['Ampel-Datei Leipzig',fileState],['Feste Blitzer',camState],['Gemeinsame Daten',set.share?`an · ${SHARE.up} hochgeladen, ${PEND.length} wartend · ${SHARE.down} Beobachtungen von allen geladen${SHARE.last?' um '+SHARE.last:''}${SHARE.err?' · Fehler: '+SHARE.err:''}`:'aus'],['Baustellen',workState],['Straßenbahn-Fahrplan',tramState],['Fahrstreifen der Route',NAV?(NAV.lpState||'lädt …'):'nur während der Navigation'],['Wetterwarnungen',WX.state],['Ampeln geladen',`${SIG.size} gesamt · Online-Abruf: ${DIAG.load}`],
+  ['Karte',mapReady?(mapErr?'geladen, Hinweis: '+mapErr:'3D-Karte geladen'):(mapErr||'lädt …')],['Ampel-Datei Leipzig',fileState],['Feste Blitzer',camState],['Gemeinsame Daten',set.share?`an · ${SHARE.up} hochgeladen, ${PEND.length} wartend · ${SHARE.down} Beobachtungen von allen geladen${SHARE.last?' um '+SHARE.last:''}${SHARE.err?' · Fehler: '+SHARE.err:''}`:'aus'],['Baustellen',workState],['Straßenbahn-Fahrplan',tramState],['Fahrstreifen der Route',NAV?(NAV.lpState||'lädt …'):'nur während der Navigation'],['Wetterwarnungen',WX.state],['Tempolimits',set.vlim?VL.state+(VL.cur?` · jetzt ${VL.cur.v==='none'?'ohne Limit':VL.cur.v+' km/h'}${VL.cur.cond?' (zeitlich)':''}${VL.cur.imp?' (aus Zone)':''}`:' · jetzt unbekannt'):'aus'],['Ampeln geladen',`${SIG.size} gesamt · Online-Abruf: ${DIAG.load}`],
   ['Nächste Ampel',(()=>{if(!cur||!SIG.size)return '–';let b=1e9;for(const x of SIG.values()){const d=dist(cur,x);if(d<b)b=d}return fmt(b)+' entfernt'})()],
   ['Fahrtrichtung',heading==null?'noch unbekannt (erst losfahren)':Math.round(heading)+'°'],
   ['Navigation',R?`aktiv, ${(R.onRoute||[]).length} Ampeln auf der Route`:'aus (Ampeln werden per Fahrtrichtung erkannt)'],
@@ -1045,6 +1113,7 @@ const renderSet=()=>{document.querySelectorAll('[data-mode]').forEach(b=>b.setAt
  document.querySelectorAll('[data-blitz]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.blitz==set.blitz));
  document.querySelectorAll('[data-tram]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.tram==set.tram));
  document.querySelectorAll('[data-wx]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.wx==set.wx));
+ document.querySelectorAll('[data-vlim]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.vlim==set.vlim));
  $('audioInfo').textContent={ton:'Kurze Töne über dem Radio, das Radio läuft weiter. Links abbiegen klingt von links, rechts von rechts.',sprache:'Gesprochene Hinweise. Achtung: iOS hält dabei das Radio oder die Musik an und startet sie danach nicht wieder.',aus:'Keine Ansagen, nur Anzeige.'}[set.audio];
  $('limits').innerHTML=MODES[set.mode].limits.map(l=>`<button class="chip" data-lim="${l}" aria-pressed="${l==set.limit}">${l} km/h</button>`).join('')};
 document.addEventListener('click',e=>{const m=e.target.closest('[data-mode]');if(m){set.mode=m.dataset.mode;set.limit=MODES[set.mode].def;saveSet();renderSet();render()}
@@ -1053,6 +1122,7 @@ document.addEventListener('click',e=>{const m=e.target.closest('[data-mode]');if
  const wk=e.target.closest('[data-works]');if(wk){set.works=+wk.dataset.works;saveSet();renderSet();loadWorks()}
  const tr=e.target.closest('[data-tram]');if(tr){set.tram=+tr.dataset.tram;saveSet();renderSet();loadTrams();if(!set.tram)$('trH').classList.remove('on')}
  const wq=e.target.closest('[data-wx]');if(wq){set.wx=+wq.dataset.wx;saveSet();renderSet();fetchWx(cur,true);drawWx()}
+ const vq=e.target.closest('[data-vlim]');if(vq){set.vlim=+vq.dataset.vlim;saveSet();renderSet();renderVL()}
  const bz=e.target.closest('[data-blitz]');if(bz){set.blitz=+bz.dataset.blitz;saveSet();renderSet();setBlitz()}
  const th=e.target.closest('[data-theme]');if(th){set.theme=th.dataset.theme;saveSet();renderSet();applyTheme()}
  const or=e.target.closest('[data-ori]');if(or){set.ori=or.dataset.ori;saveSet();renderSet();applyView(true)}
@@ -1165,7 +1235,7 @@ async function checkUpdate(){try{const r=await fetch('./?v='+Date.now(),{cache:'
   let n=0;try{n=+sessionStorage.getItem('gw_upd')||0}catch(e){}if(n>2)return;try{sessionStorage.setItem('gw_upd',n+1)}catch(e){}
   location.replace(location.pathname+'?v='+encodeURIComponent(m[1]))}}catch(e){}}
 setTimeout(checkUpdate,1500);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});drawSignals();drawReps();renderLearn();loadFile();setBlitz();loadWorks();loadTrams();
-if(location.hostname=='gw.test')window.__gw={OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr,map,SIM};
+if(location.hostname=='gw.test')window.__gw={VL,condMs,wayLimit,OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr,map,SIM};
 $('startInfo').textContent=(Object.keys(OBS).length?`Bisher gelernt: ${Object.keys(OBS).length} Ampel-Richtungen. `:'')+'Version '+APP_VERSION;
 
 }
