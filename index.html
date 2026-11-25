@@ -96,6 +96,10 @@ html{background:var(--card)}body{background:var(--bg)}
 #blitz.on{display:flex}.nav-on #blitz{top:calc(env(safe-area-inset-top) + var(--navh,64px) + 66px)}.nav-on.nav-open #blitz{display:none}#blitz.fast{background:#e53935;color:#fff}
 #blitz .lim{width:44px;height:44px;border-radius:50%;border:5px solid #e53935;background:#fff;color:#1d2329;display:grid;place-items:center;font-weight:800;font-size:17px;flex:none}
 #blitz b{font-size:18px;display:block}#blitz span{font-size:14px}
+#simBar{position:absolute;right:10px;top:calc(env(safe-area-inset-top) + 66px);z-index:556;display:none;align-items:center;gap:4px;background:#7048e8;color:#fff;border-radius:20px;padding:3px 4px 3px 12px;box-shadow:0 4px 14px -6px #0007;font-size:13px;font-weight:700}
+#simBar.on{display:flex}#simBar button{font:inherit;font-size:13px;font-weight:800;border:0;background:#ffffff26;color:#fff;border-radius:16px;min-width:36px;height:32px;padding:0 9px;cursor:pointer}
+#simBar #simX{background:#fff;color:#7048e8}.nav-on #simBar{top:calc(env(safe-area-inset-top) + var(--navh,64px) + 66px)}.nav-on.nav-open #simBar{display:none}
+body.sim #wx{max-width:calc(100% - 230px)}
 #wx{position:absolute;left:10px;top:calc(env(safe-area-inset-top) + 66px);z-index:554;display:none;align-items:center;gap:6px;max-width:calc(100% - 20px);border:0;border-radius:18px;height:34px;padding:0 12px 0 8px;font:inherit;font-size:13px;font-weight:700;box-shadow:0 4px 14px -6px #0007;cursor:pointer;white-space:nowrap;overflow:hidden;background:#ffd43b;color:#1d2329}
 #wx.on{display:inline-flex}#wx svg{width:20px;height:20px;flex:none}#wx span{overflow:hidden;text-overflow:ellipsis}
 #wx[data-s=moderate]{background:#ff922b}#wx[data-s=severe]{background:#e03131;color:#fff}#wx[data-s=extreme]{background:#9c36b5;color:#fff}
@@ -151,6 +155,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
  #blitz{left:calc(env(safe-area-inset-left) + 10px);right:auto;width:var(--col);top:calc(env(safe-area-inset-top) + 10px)}
  .nav-on #blitz{top:calc(env(safe-area-inset-top) + var(--navh,64px) + 18px)}
  .alert{left:auto;right:calc(env(safe-area-inset-right) + 10px);width:min(360px,44vw)}
+ #simBar,.nav-on #simBar{top:auto;bottom:calc(env(safe-area-inset-bottom) + 10px);right:calc(env(safe-area-inset-right) + 10px)}
  #wx,.nav-on #wx{left:auto;right:calc(env(safe-area-inset-right) + 10px);top:calc(env(safe-area-inset-top) + 10px);max-width:min(300px,38vw)}
  .attr{right:calc(env(safe-area-inset-right) + 4px)}
 }
@@ -166,6 +171,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
   <div class="prog"><i id="navProg"></i></div>
   <div class="more"><div id="navSteps"></div><div class="acts"><button class="btn" id="navOv">Übersicht</button><button class="btn" id="navX">Beenden</button></div></div></div>
  <div id="blitz"><div class="lim" id="bLim">–</div><div><b id="bT">Blitzer</b><span id="bD"></span></div></div>
+ <div id="simBar"><span id="simT">Simulation</span><button id="simP" aria-label="Pause">❚❚</button><button id="simF">1×</button><button id="simX">Ende</button></div>
  <button id="wx" aria-label="Wetterwarnung anzeigen"><svg viewBox="0 0 24 24"><path d="M12 2.5L1.8 20.5h20.4z" fill="currentColor" opacity=".9"/><path d="M11 9h2v6h-2zm0 7.5h2v2h-2z" fill="var(--wxi,#fff)"/></svg><span id="wxT"></span></button>
  <div class="top"><span class="pill"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="var(--blue)" stroke-width="2.2"/><circle cx="12" cy="12" r="3.5" fill="var(--blue)"/></svg><span id="gps">GPS aus</span></span><span class="pill"><svg viewBox="0 0 24 24"><rect x="7.5" y="2.5" width="9" height="19" rx="3" fill="#1d2329" stroke="currentColor" stroke-width="1.2" stroke-opacity=".35"/><circle cx="12" cy="7" r="1.9" fill="#ff4d4f"/><circle cx="12" cy="12" r="1.9" fill="#ffc72c"/><circle cx="12" cy="17" r="1.9" fill="#1fbf5f"/></svg><span id="sigs">–</span></span><button class="ibtn" id="fsBtn" aria-label="Vollbild"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="ibtn navbtn" id="searchBtn" aria-label="Navigation starten: Ziel eingeben"><svg viewBox="0 0 24 24" class="dir"><rect x="4.2" y="4.2" width="15.6" height="15.6" rx="3" transform="rotate(45 12 12)" fill="#33ccff" stroke="none"/><path d="M9.2 15.5v-2.6a2 2 0 0 1 2-2h4.3" fill="none" stroke="#0b1a26" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.6 8.6l2.6 2.3-2.6 2.3" fill="none" stroke="#0b1a26" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Wohin?</span></button><button class="ibtn" id="setBtn" aria-label="Einstellungen"><svg viewBox="0 0 24 24"><path d="M19.46 10.09 L22.06 10.34 L22.06 13.66 L19.46 13.91 L18.63 15.92 L20.29 17.94 L17.94 20.29 L15.92 18.63 L13.91 19.46 L13.66 22.06 L10.34 22.06 L10.09 19.46 L8.08 18.63 L6.06 20.29 L3.71 17.94 L5.37 15.92 L4.54 13.91 L1.94 13.66 L1.94 10.34 L4.54 10.09 L5.37 8.08 L3.71 6.06 L6.06 3.71 L8.08 5.37 L10.09 4.54 L10.34 1.94 L13.66 1.94 L13.91 4.54 L15.92 5.37 L17.94 3.71 L20.29 6.06 L18.63 8.08Z" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/><circle cx="12" cy="12" r="3.4" fill="var(--card)" stroke="none"/></svg></button></div>
  <div class="alert" id="alert"><div class="dot" id="aDot">!</div><div class="tx"><b id="aT"></b><span id="aD"></span></div><button class="btn pri" id="aYes">Noch da</button><button class="btn" id="aNo">Weg</button></div>
@@ -201,7 +207,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <div class="sheet" id="prevSheet"><h2 id="pvName">Route</h2><p class="small" id="pvAddr"></p>
  <div class="kv"><div><b id="pvTime">–</b><span>Fahrzeit</span></div><div><b id="pvDist">–</b><span>Strecke</span></div><div><b id="pvSig">–</b><span>Ampeln auf der Route</span></div></div>
  <p class="small" id="pvLearn"></p>
- <div class="row"><button class="btn pri big" id="pvGo" style="flex:1">Los</button></div>
+ <div class="row"><button class="btn pri big" id="pvGo" style="flex:1">Los</button><button class="btn big" id="pvSim" style="flex:none;width:auto;padding:0 16px">Simulieren</button></div>
  <button class="btn big" id="pvCancel" style="margin-top:8px">Abbrechen</button></div>
 
 <div class="sheet" id="workSheet"><h2 id="wkT">Baustelle</h2><p class="small" id="wkS"></p><div id="wkD" style="font-size:15px;line-height:1.45"></div><p class="small" id="wkSrc" style="margin-top:10px"></p><button class="btn big" data-close style="margin-top:8px">Schließen</button></div>
@@ -240,6 +246,8 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
  <p class="small">Geteilt werden nur anonyme Ampel-Ereignisse (Ampel, Richtung, Uhrzeit von Halt, Losfahren oder Durchfahrt bei Grün) und deine Meldungen. Keine Fahrtstrecken, kein Konto, keine Geräte-Kennung. Server: Supabase, Rechenzentrum Frankfurt. Daten älter als 60 Tage werden gelöscht. Bei „Aus“ lernt die App nur auf diesem Gerät und zeigt nur eigene Meldungen.</p>
  <h3>Meine Meldungen</h3><div id="myReps"></div><div class="row" style="margin-top:6px"><button class="btn" id="delAllReps">Alle eigenen löschen</button></div>
  <p class="small">Meldungen anderer entfernst du, indem du sie auf der Karte antippst und „Nicht mehr da“ wählst.</p>
+ <h3>Testfahrt</h3><div class="row"><button class="btn" id="simRnd" style="flex:1">Testfahrt simulieren</button></div>
+ <p class="small">Fährt eine Route mit erfundener Position ab, um Navigation, Ampelanzeige, Spurassistent und Warnungen zu testen. Ziel über „Wohin?“ wählen und „Simulieren“ tippen, oder hier ein zufälliges Ziel 2 bis 4 km entfernt. Während der Simulation lernt die App nichts und teilt nichts.</p>
  <h3>Gelernte Daten</h3>
  <p class="small" id="dataInfo"></p>
  <div class="row"><button class="btn" id="exp">Exportieren</button><button class="btn" id="copy">Kopieren</button><label class="btn" style="display:inline-flex;align-items:center">Importieren<input type="file" id="imp" accept=".json,application/json" hidden></label></div>
@@ -264,6 +272,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
  <h3 style="margin:0 0 6px;font-size:15px;color:var(--mute);font-weight:500">Fahrzeug</h3>
  <div class="row" style="margin-bottom:10px"><button class="chip" data-mode="auto">Auto</button><button class="chip" data-mode="rad">Rad</button></div>
  <button class="btn pri big" id="go">Fahrt starten</button>
+ <button class="btn big" id="goSim" style="margin-top:8px">Ohne GPS testen (Simulation)</button>
  <p class="small" style="margin-top:10px" id="startInfo"></p>
 </div></div>
 <div class="toast" id="toast"></div>
@@ -272,7 +281,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='25.11.2026 · 6';
+const APP_VERSION='25.11.2026 · 7';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -582,6 +591,7 @@ function findTarget(p){
   if(df>(d<40?60:35)||lat>25)continue;const along=d*Math.cos(df*RAD);if(!best||along<best.along)best={s,along,d}}
  return best}
 function finishAppr(t){const a=appr;appr=null;if(!a)return;if(a.minD>40){logEv({t:Date.now(),id:a.id,miss:1,minD:Math.round(a.minD)});return}
+ if(SIM.on){drive.pass++;if(!a.stopT)drive.green++;return}   // Simulation: nichts lernen
  const o=OBS[a.key]||(OBS[a.key]={g:[],p:[],r:[]});if(a.stopT&&!a.departT)a.departT=t-2;
  drive.pass++;
  if(a.stopT&&a.departT&&a.stopD<60){const gs=a.departT-1-Math.max(0,(a.stopD-12)/7)*2;o.g.push(+gs.toFixed(1));o.r.push([+a.stopT.toFixed(1),+(gs-0.5).toFixed(1)])}
@@ -745,7 +755,7 @@ $('pvGo').onclick=()=>{if(!PREVIEW)return;NAV=PREVIEW;PREVIEW=null;closeSheets()
  const rec=LS.get('gw_recent',[]).filter(x=>x.name!==NAV.dest.name);rec.unshift(NAV.dest);LS.set('gw_recent',rec.slice(0,6));
  appr=null;setTimeout(()=>syncShared(true),500);const first=NAV.steps[1];announce('start','Route gestartet. '+(first?`${inDist(first.s)} ${farText(first)}`:''),0);if(first&&first.s<Math.max(180,v*14))first.said.far=1;if(cur)updateNav(cur);renderNav()};
 $('pvCancel').onclick=()=>{PREVIEW=null;clearRoute();closeSheets();follow=true;applyView(true)};
-function endNav(silent){if(!NAV&&!PREVIEW)return;$('nav').classList.remove('open');document.body.classList.remove('nav-open');NAV=null;PREVIEW=null;clearRoute();laneUp=false;clearTimeout(laneAnim);$('lanes').classList.remove('on','up');
+function endNav(silent){if(SIM.on&&NAV&&!SIM.ending){SIM.ending=true;try{simEnd(true)}finally{SIM.ending=false}}if(!NAV&&!PREVIEW)return;$('nav').classList.remove('open');document.body.classList.remove('nav-open');NAV=null;PREVIEW=null;clearRoute();laneUp=false;clearTimeout(laneAnim);$('lanes').classList.remove('on','up');
  document.getElementById('app').classList.remove('app-nav');document.body.classList.remove('nav-on');$('nav').classList.remove('on');appr=null;if(!silent)toast('Navigation beendet')}
 $('navX').onclick=()=>{$('nav').classList.remove('open');document.body.classList.remove('nav-open');endNav()};
 $('navHead').onclick=()=>{const o=$('nav').classList.toggle('open');document.body.classList.toggle('nav-open',o);$('navHead').setAttribute('aria-expanded',o);renderNav()};
@@ -946,7 +956,7 @@ $('res').onclick=e=>{const fr=e.target.closest('[data-fren]');if(fr){renameFav(f
  const b=e.target.closest('[data-r]');if(!b)return;const d=RES[+b.dataset.r];if(d)preview(d)};
 // ---------- Diagnose ----------
 function renderDiag(){const now=Date.now()/1000,R=NAV;
- const rows=[['App-Version',APP_VERSION],['GPS',DIAG.acc==null?'noch kein Signal':`±${Math.round(DIAG.acc)} m, ${DIAG.fixes} Positionen in dieser Sitzung`],
+ const rows=[['App-Version',APP_VERSION+(SIM.on?' · SIMULATION aktiv':'')],['GPS',DIAG.acc==null?'noch kein Signal':`±${Math.round(DIAG.acc)} m, ${DIAG.fixes} Positionen in dieser Sitzung`],
   ['Karte',mapReady?(mapErr?'geladen, Hinweis: '+mapErr:'3D-Karte geladen'):(mapErr||'lädt …')],['Ampel-Datei Leipzig',fileState],['Feste Blitzer',camState],['Gemeinsame Daten',set.share?`an · ${SHARE.up} hochgeladen, ${PEND.length} wartend · ${SHARE.down} Beobachtungen von allen geladen${SHARE.last?' um '+SHARE.last:''}${SHARE.err?' · Fehler: '+SHARE.err:''}`:'aus'],['Baustellen',workState],['Straßenbahn-Fahrplan',tramState],['Fahrstreifen der Route',NAV?(NAV.lpState||'lädt …'):'nur während der Navigation'],['Wetterwarnungen',WX.state],['Ampeln geladen',`${SIG.size} gesamt · Online-Abruf: ${DIAG.load}`],
   ['Nächste Ampel',(()=>{if(!cur||!SIG.size)return '–';let b=1e9;for(const x of SIG.values()){const d=dist(cur,x);if(d<b)b=d}return fmt(b)+' entfernt'})()],
   ['Fahrtrichtung',heading==null?'noch unbekannt (erst losfahren)':Math.round(heading)+'°'],
@@ -958,7 +968,7 @@ function renderDiag(){const now=Date.now()/1000,R=NAV;
  $('diag').innerHTML=rows.map(([k,v])=>`<div><b>${esc(k)}:</b> ${esc(v)}</div>`).join('')+'<div style="margin-top:8px"><b>Letzte Ampeln:</b></div>'+(lg.length?lg.map(x=>`<div>${esc(x)}</div>`).join(''):'<div>Noch keine Ampel erfasst.</div>')}
 // ---------- Gemeinsame Daten (Supabase) ----------
 const SB={url:'https://mevgfarshklqbszhtabr.supabase.co',key:'sb_publishable_09RKPV31BB101hGl7DsklA_yTGApL25'};
-async function rpc(fn,body){const r=await tfetch(SB.url+'/rest/v1/rpc/'+fn,{method:'POST',headers:{apikey:SB.key,'Content-Type':'application/json'},body:JSON.stringify(body||{})},15000);
+async function rpc(fn,body){if(SIM.on&&/^(add_obs|add_report|vote_report)$/.test(fn))throw new Error('Simulation: nicht geteilt');const r=await tfetch(SB.url+'/rest/v1/rpc/'+fn,{method:'POST',headers:{apikey:SB.key,'Content-Type':'application/json'},body:JSON.stringify(body||{})},15000);
  if(!r.ok)throw new Error(fn+' '+r.status);const tx=await r.text();return tx?JSON.parse(tx):null}
 let SHOBS={},SHREPS=[],PEND=LS.get('gw_pend',[]);const SHARE={up:0,down:0,last:'',err:'',fetchedAt:0,center:null,repAt:0};
 function queueObs(a,t){if(!set.share)return;const[sig,sec]=a.key.split('_').map(Number);const o=OBS[a.key];if(!o)return;
@@ -1082,12 +1092,68 @@ async function keepAwake(){try{if('wakeLock' in navigator)wake=await navigator.w
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState=='visible'&&watch!=null)keepAwake()});
 $('go').onclick=()=>{if(!('geolocation' in navigator)){$('startInfo').textContent='Dieses Gerät bietet kein GPS im Browser.';return}
  if(location.protocol!=='https:'&&location.hostname!=='localhost'){$('startInfo').textContent='GPS braucht eine https-Adresse. Bitte die App über https öffnen.'}
- watch=navigator.geolocation.watchPosition(onFix,err=>{$('gps').textContent=err.code==1?'GPS nicht erlaubt':'GPS-Fehler';$('gps').classList.add('warn');
-  if(err.code==1){$('cd').textContent='GPS nicht erlaubt';$('hint').textContent='In iOS: Einstellungen › Datenschutz › Ortungsdienste › Safari-Websites erlauben'}},{enableHighAccuracy:true,maximumAge:0,timeout:15000});
+startWatch();
  keepAwake();unlockSpeech();$('start').style.display='none';setTimeout(()=>map.resize(),50);$('cd').textContent='Suche GPS …';$('hint').textContent='Einen Moment';
  Object.assign(drive,{pass:0,green:0,stops:0,halted:true});renderStats()};
-$('stop').onclick=()=>{endNav(true);if(watch!=null)navigator.geolocation.clearWatch(watch);watch=null;try{wake&&wake.release()}catch(e){}closeSheets();$('start').style.display='';
+function startWatch(){watch=navigator.geolocation.watchPosition(onFix,err=>{if(SIM.on)return;$('gps').textContent=err.code==1?'GPS nicht erlaubt':'GPS-Fehler';$('gps').classList.add('warn');
+  if(err.code==1){$('cd').textContent='GPS nicht erlaubt';$('hint').textContent='In iOS: Einstellungen › Datenschutz › Ortungsdienste › Safari-Websites erlauben'}},{enableHighAccuracy:true,maximumAge:0,timeout:15000})}
+$('stop').onclick=()=>{if(SIM.on)simEnd(true);endNav(true);if(watch!=null)navigator.geolocation.clearWatch(watch);watch=null;try{wake&&wake.release()}catch(e){}closeSheets();$('start').style.display='';
  $('startInfo').textContent=`Letzte Fahrt: ${drive.pass} Ampeln, ${drive.green} bei Grün, ${drive.stops} Stopps.`};
+// ---------- Simulation: fiktive Fahrt entlang einer Route ----------
+// Erzeugt GPS-Positionen wie das iPhone (1 pro Sekunde): Tempo aus der Route, langsamer in Kurven,
+// an manchen Ampeln ein Halt. Gelernt und geteilt wird dabei nichts.
+const SIM={on:false,R:null,s:0,v:0,mul:1,paused:false,tm:null,hadWatch:false,fromStart:false,stop:null,lights:new Map(),done:false};
+function simEnter(){if(SIM.on)return;SIM.on=true;document.body.classList.add('sim');$('simBar').classList.add('on');
+ SIM.hadWatch=watch!=null;if(watch!=null){navigator.geolocation.clearWatch(watch);watch=null}
+ SIM.fromStart=$('start').style.display!=='none';
+ if(SIM.fromStart){keepAwake();unlockSpeech();$('start').style.display='none';setTimeout(()=>map.resize(),50);Object.assign(drive,{pass:0,green:0,stops:0,halted:true});renderStats()}
+ $('gps').textContent='Simulation';$('gps').classList.remove('warn');simUI()}
+function simFix(lat,lon,sp,h){const n=()=>(Math.random()-0.5)*2.4/111195;
+ onFix({coords:{latitude:lat+n(),longitude:lon+n()*1.6,accuracy:5,speed:sp,heading:sp>1?h:null},timestamp:Date.now()})}
+function simEnd(keepNav){if(!SIM.on)return;clearTimeout(SIM.tm);SIM.on=false;SIM.R=null;document.body.classList.remove('sim');$('simBar').classList.remove('on');
+ if(!keepNav)endNav(true);prev=null;lastMove=null;v=0;
+ if(SIM.hadWatch)startWatch();else if(SIM.fromStart){cur=null;SM.on=false;try{me.remove()}catch(e){}meOn=false;closeSheets();$('start').style.display='';$('startInfo').textContent='Simulation beendet.'}
+ toast('Simulation beendet')}
+function simUI(){$('simP').textContent=SIM.paused?'▶':'❚❚';$('simF').textContent=SIM.mul+'×';
+ $('simT').textContent=SIM.done?'Ziel erreicht':SIM.stop&&SIM.stop.wait?'Rot · '+Math.max(0,Math.ceil((SIM.stop.until-Date.now())/1000))+' s':`Simulation · ${Math.round(SIM.v*3.6)} km/h`}
+$('simP').onclick=()=>{SIM.paused=!SIM.paused;simUI()};
+$('simF').onclick=()=>{SIM.mul=SIM.mul===1?2:SIM.mul===2?4:1;simUI()};
+$('simX').onclick=()=>simEnd(false);
+// erlaubtes Tempo an Stelle s: aus der Fahrzeit des Abschnitts, vor Abbiegungen und roten Ampeln abbremsen
+function simTarget(R,s){let st=R.steps[0];for(const x of R.steps){if(x.s<=s+1)st=x;else break}
+ const d=st.st.distance||0,t=st.st.duration||0;let vmax=t>0?d/t*1.15:13;vmax=Math.max(4,Math.min(vmax,set.mode==='rad'?6:36));
+ let lim=vmax;
+ for(const x of R.steps){if(x.s<=s+1)continue;if(x.s-s>400)break;const ty=x.st.maneuver.type,md=x.st.maneuver.modifier||'';
+  const vt=ty==='arrive'?0:/sharp|uturn/.test(md)?4:/left|right/.test(md)&&!/slight/.test(md)?(ty==='roundabout'||ty==='rotary'?6:6.5):9;
+  if(/slight|straight/.test(md)&&ty!=='arrive'&&ty!=='roundabout')continue;lim=Math.min(lim,Math.sqrt(vt*vt+2*1.6*Math.max(0,x.s-s-6)))}
+ return lim}
+function simStart(R){simEnter();SIM.R=R;SIM.s=0;SIM.v=0;SIM.done=false;SIM.stop=null;SIM.lights=new Map();SIM.paused=false;
+ const a=routeAt(R,0),b=routeAt(R,15);simFix(a.lat,a.lon,0,bearing(a,b));simUI();clearTimeout(SIM.tm);SIM.tm=setTimeout(simTick,1000)}
+function simTick(){if(!SIM.on)return;SIM.tm=setTimeout(simTick,1000/SIM.mul);const R=NAV||SIM.R;if(!R||SIM.paused){simUI();return}SIM.R=R;
+ if(R!==SIM.lastR){SIM.lastR=R;SIM.s=R.s||0}
+ const dt=1;let tv=simTarget(R,SIM.s),stopAt=null,stopL=null;
+ // Ampeln: Halt bei Rot (zufällig, ca. jede zweite)
+ for(const o of(R.onRoute||[])){const dd=o.s-6-SIM.s;if(dd<-3||dd>250)continue;const k=o.sig.id;
+  if(!SIM.lights.has(k))SIM.lights.set(k,Math.random()<0.5?{red:true,wait:false,until:0}:{red:false});
+  const L=SIM.lights.get(k);if(!L.red)continue;
+  if(L.wait){if(Date.now()>=L.until){L.red=false;L.wait=false;SIM.stop=null}else{tv=0;SIM.stop=L}}
+  else{tv=Math.min(tv,Math.sqrt(2*1.5*Math.max(0,dd-SIM.v*1.0)));stopAt=SIM.s+Math.max(0,dd);stopL=L}
+  break}
+ const acc=tv>SIM.v?2.2:-4.5;SIM.v=Math.max(0,tv>SIM.v?Math.min(tv,SIM.v+acc*dt):Math.max(tv,SIM.v+acc*dt));
+ const step=SIM.v*dt*SIM.mul;SIM.s=Math.min(R.total,SIM.s+step);
+ if(stopAt!=null&&SIM.s>=stopAt-0.5){SIM.s=stopAt;SIM.v=0;stopL.wait=true;stopL.until=Date.now()+(12+Math.random()*28)*1000/SIM.mul;SIM.stop=stopL}
+ const p=routeAt(R,SIM.s),a=routeAt(R,SIM.s-3),b=routeAt(R,Math.min(R.total,SIM.s+10));
+ simFix(p.lat,p.lon,SIM.v*SIM.mul,bearing(a,b));
+ if(SIM.s>=R.total-1&&SIM.v<0.5){SIM.done=true;SIM.paused=true}
+ simUI()}
+$('pvSim').onclick=()=>{if(!PREVIEW)return;const R=PREVIEW;$('pvGo').onclick();simStart(R)};
+async function simRandom(){let c=cur;if(!c){const m=map.getCenter();c={lat:m.lat,lon:m.lng}}
+ if(!inBox(c,0)&&!cur)c={lat:51.3397,lon:12.3731};
+ simEnter();if(!cur){simFix(c.lat,c.lon,0,0)}
+ const ang=Math.random()*2*Math.PI,d=2000+Math.random()*2000,dest={name:'Testziel',sub:'Zufälliges Ziel für die Simulation',lat:c.lat+d*Math.cos(ang)/111195,lon:c.lon+d*Math.sin(ang)/(111320*Math.cos(c.lat*RAD))};
+ closeSheets();await preview(dest);if(!PREVIEW){toast('Keine Testroute gefunden');return}}
+$('simRnd').onclick=simRandom;
+$('goSim').onclick=simRandom;
 fitApp();setTimeout(()=>{fitApp();healViewport()},500);fsState();
 // Automatische Aktualisierung: aktuelle index.html ohne Cache holen und bei neuer Version neu laden
 async function checkUpdate(){try{const r=await fetch('./?v='+Date.now(),{cache:'no-store'});if(!r.ok)return;const t=await r.text();
@@ -1095,7 +1161,7 @@ async function checkUpdate(){try{const r=await fetch('./?v='+Date.now(),{cache:'
   let n=0;try{n=+sessionStorage.getItem('gw_upd')||0}catch(e){}if(n>2)return;try{sessionStorage.setItem('gw_upd',n+1)}catch(e){}
   location.replace(location.pathname+'?v='+encodeURIComponent(m[1]))}}catch(e){}}
 setTimeout(checkUpdate,1500);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});drawSignals();drawReps();renderLearn();loadFile();setBlitz();loadWorks();loadTrams();
-if(location.hostname=='gw.test')window.__gw={OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr,map};
+if(location.hostname=='gw.test')window.__gw={OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr,map,SIM};
 $('startInfo').textContent=(Object.keys(OBS).length?`Bisher gelernt: ${Object.keys(OBS).length} Ampel-Richtungen. `:'')+'Version '+APP_VERSION;
 
 }
