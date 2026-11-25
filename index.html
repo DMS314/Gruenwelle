@@ -257,7 +257,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='24.11.2026 · 18';
+const APP_VERSION='25.11.2026 · 1';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -657,7 +657,7 @@ function buildRoute(route,dest){
  R.lanes=[];
  for(const st of steps){const[lon,lat]=st.maneuver.location;const q=snap(R,lat,lon,from);from=q.i;R.steps.push({st,s:q.s,text:stepText(st),said:{}});
   let f2=Math.max(0,from-2);for(const it of(st.intersections||[])){if(!it.lanes||!it.lanes.length||!it.location)continue;const qi=snap(R,it.location[1],it.location[0],f2,f2+400);f2=qi.i;
-   if(qi.d<30)R.lanes.push({s:qi.s,lanes:it.lanes.map(l=>({ind:(l.indications||['none']),ok:!!l.valid})),said:0})}}
+   if(qi.d<30)R.lanes.push({s:qi.s,lanes:it.lanes.map(l=>({ind:(l.indications||['none']),ok:!!l.valid,vi:l.valid_indication||null})),said:0})}}
  R.lanes.sort((a,b)=>a.s-b.s);
  return R}
 async function fetchRoute(a,b){
@@ -726,7 +726,18 @@ function updateNav(p){const R=NAV;if(!R)return;
 // Ziel: so früh wie möglich eine Spurseite wählen, die an der entscheidenden Kreuzung passt
 // und für Folgemanöver günstig liegt, damit möglichst wenige Spurwechsel nötig sind.
 const LANEKIND=i=>/uturn/.test(i)?'uturn':/sharp/.test(i)?'sharp':/slight/.test(i)?'slight':/left|right/.test(i)?'turn':'straight';
-function laneIcon(inds){return inds.map(i=>arrowSvg(i==='none'?'straight':LANEKIND(i),/left|uturn/.test(i))).join('')}
+// Spurpfeile mit gemeinsamem Stamm in der Mitte, damit z. B. „geradeaus + rechts“ als ein Pfeil mit zwei Ästen erscheint
+const LARR={straight:['M24 43V13',24,6,-90],slight:['M24 43V29L34 17',38.5,11.6,-50],turn:['M24 43V27Q24 19 32 19H34',41,19,0],
+ sharp:['M24 43V22Q24 13 31 16Q34 18 35 22V26',35,33,90],uturn:['M24 43V18Q24 9 31.5 9Q39 9 39 18V25',39,32,90]};
+function laneBranch(kind,left,dim){const[d,x,y,a]=LARR[kind];
+ const g=`<g opacity="${dim?0.45:1}"><path d="${d}" fill="none" stroke="currentColor" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M0 0L-8.5 -7L-8.5 7Z" fill="currentColor" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" transform="translate(${x} ${y}) rotate(${a})"/></g>`;
+ return left?`<g transform="translate(48 0) scale(-1 1)">${g}</g>`:g}
+function laneIcon(inds,use){const L=inds.map(i=>({i,k:i==='none'?'straight':LANEKIND(i),l:/left/.test(i)||(i==='uturn')}));
+ return L.sort((a,b)=>(a.i===use)-(b.i===use)).map(x=>laneBranch(x.k,x.l,use&&L.length>1&&x.i!==use)).join('')}
+// Welcher Ast einer Mehrfach-Spur wird auf der Route genutzt?
+function laneUse(l,D,M){if(!l.ok||l.ind.length<2)return null;if(l.vi&&l.ind.includes(l.vi))return l.vi;
+ if(Math.abs(D.s-M.s)>40)return l.ind.includes('straight')?'straight':null;
+ const mod=(M.st.maneuver.modifier||'straight');return l.ind.includes(mod)?mod:null}
 function sideOk(L,side){const n=L.lanes.length,v=L.lanes.map(l=>l.ok);if(side==='left')return v[0];if(side==='right')return v[n-1];return n>=3&&v.slice(1,n-1).some(Boolean)}
 function recLanes(L,side){const n=L.lanes.length,v=L.lanes.map(l=>l.ok),idx=[...Array(n).keys()];let pick=[];
  if(side==='left'){for(const i of idx){if(v[i])pick.push(i);else if(pick.length)break}}
@@ -750,7 +761,7 @@ const SIDETXT={left:'Linke Spur',middle:'Mittlere Spur',right:'Rechte Spur'},SID
 function updateLanes(R){const el=$('lanes'),a=laneAdvice(R);
  if(!a||a.d>Math.max(1000,v*45)){el.classList.remove('on');return}
  const n=a.D.lanes.length,several=a.lanes.length>1&&a.lanes.length<n;
- $('laneBox').innerHTML=a.D.lanes.map((l,i)=>`<div class="l ${a.lanes.includes(i)?'rec':l.ok?'ok':''}"><svg viewBox="0 0 48 48">${laneIcon(l.ind)}</svg></div>`).join('');
+ $('laneBox').innerHTML=a.D.lanes.map((l,i)=>`<div class="l ${a.lanes.includes(i)?'rec':l.ok?'ok':''}"><svg viewBox="0 0 48 48">${laneIcon(l.ind,laneUse(l,a.D,a.M))}</svg></div>`).join('');
  $('laneT').textContent=(several?SIDEPL[a.side]:SIDETXT[a.side])+(a.d>250?' wählen':' halten');
  $('laneS').textContent=`für ${lf(a.M.text)} in ${fmt(Math.max(0,a.M.s-R.s))}`;el.classList.add('on');
  const trig=Math.max(350,v*22);if(!a.D.said&&a.d<=trig){a.D.said=1;announce('lane',`${SIDETXT[a.side]} ${a.d>200?'wählen':'halten'}`,a.side==='left'?-0.8:a.side==='right'?0.8:0)}}
