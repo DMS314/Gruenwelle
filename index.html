@@ -128,8 +128,8 @@ body.sim #wx{max-width:calc(100% - 230px)}
 .app-nav .top .ibtn{width:auto;height:44px;border-radius:14px;padding:0 16px 0 9px;display:flex;align-items:center;gap:10px;box-shadow:none;background:transparent;font-size:15px;font-weight:700;justify-content:flex-start}
 .app-nav .top .ibtn:active{background:var(--line)}
 .app-nav .top .ibtn.navbtn span,.app-nav .top .dl{display:inline}
-.app-nav #drawerTab{display:grid;place-items:center;position:absolute;left:100%;top:8px;width:29px;height:60px;padding:0;border:0;border-radius:0 15px 15px 0;background:var(--card);color:var(--ink);box-shadow:6px 4px 14px -8px #0008;cursor:pointer;font:inherit}
-.app-nav #drawerTab span{writing-mode:vertical-rl;font-size:12.5px;font-weight:800;letter-spacing:.6px;line-height:1}.app-nav .top.open #drawerTab{color:var(--blue)}
+.app-nav #drawerTab{display:grid;place-items:center;position:absolute;left:100%;top:8px;width:29px;height:72px;padding:0;border:0;border-radius:0 15px 15px 0;background:var(--card);color:var(--ink);box-shadow:6px 4px 14px -8px #0008;cursor:pointer;font:inherit}
+.app-nav #drawerTab span{writing-mode:vertical-rl;text-orientation:upright;font-size:12px;font-weight:800;letter-spacing:-1px;line-height:1}.app-nav .top.open #drawerTab{color:var(--blue)}
 .eta{display:none;flex:1;min-width:0;align-items:baseline;gap:8px;font-size:13px;color:var(--mute);white-space:nowrap;overflow:hidden}.eta span{overflow:hidden;text-overflow:ellipsis}.app-nav .stats{display:none}
 .eta b{font-size:18px;color:var(--ink);white-space:nowrap}.app-nav .eta{display:flex}
 .ibtn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round}
@@ -302,7 +302,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='25.11.2026 · 17';
+const APP_VERSION='25.11.2026 · 18';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
