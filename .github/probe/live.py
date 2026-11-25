@@ -4,7 +4,7 @@ from playwright.async_api import async_playwright
 PTS=[(51.3270+i*-0.00012,12.3750+i*-0.00002) for i in range(40)]
 async def main():
  async with async_playwright() as pw:
-  b=await pw.chromium.launch()
+  b=await pw.chromium.launch(args=['--host-resolver-rules=MAP gw.test 127.0.0.1','--unsafely-treat-insecure-origin-as-secure=http://gw.test:8000'])
   ctx=await b.new_context(geolocation={'latitude':PTS[0][0],'longitude':PTS[0][1],'accuracy':5},permissions=['geolocation'])
   pg=await ctx.new_page();errs=[];pg.on('pageerror',lambda e:errs.append(str(e)))
   reqs=[]
@@ -13,7 +13,7 @@ async def main():
   async def resp(r):
    if 'interpreter' in r.url:reqs.append(('HTTP',r.status,r.url[:50]))
   pg.on('response',lambda r:asyncio.ensure_future(resp(r)))
-  await pg.goto('http://localhost:8000/index.html');await pg.wait_for_timeout(2000)
+  await pg.goto('http://gw.test:8000/index.html');await pg.wait_for_timeout(2000)
   await pg.click('#go');t0=time.time()
   for la,lo in PTS:
    await ctx.set_geolocation({'latitude':la,'longitude':lo,'accuracy':5});await pg.wait_for_timeout(1500)
