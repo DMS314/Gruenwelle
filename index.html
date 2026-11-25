@@ -330,7 +330,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='25.11.2026 · 28';
+const APP_VERSION='25.11.2026 · 29';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -492,7 +492,17 @@ const drawReps=()=>{const now=Date.now();REPS=REPS.filter(r=>now-r.t<TYPES[r.typ
 const renderTypes=()=>{$('types').innerHTML=Object.entries(TYPES).filter(([k])=>k!=='mob'||set.blitz).map(([k,t])=>`<button data-t="${k}"><img src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(ICONS['ico-'+k])}" width="40" height="40" alt="">${t.n}</button>`).join('')};renderTypes();
 // ---------- Ampeln laden (Overpass) ----------
 const tfetch=(url,opt={},ms=20000)=>{const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),ms);return fetch(url,{...opt,signal:ac.signal}).finally(()=>clearTimeout(tm))};
-const OVERPASS=['https://overpass-api.de/api/interpreter','https://overpass.private.coffee/api/interpreter','https://overpass.kumi.systems/api/interpreter'];
+const OVERPASS=['https://maps.mail.ru/osm/tools/overpass/api/interpreter','https://overpass.private.coffee/api/interpreter','https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter'];
+// Overpass-Abfrage gestaffelt: zuletzt erfolgreicher Server zuerst, nach je 4 s ohne Antwort zusätzlich der nächste; erste gültige Antwort gewinnt.
+// (11/2026: overpass-api.de, kumi und private.coffee antworteten oft gar nicht, maps.mail.ru in ~7 s)
+let OPbest=LS.get('gw_opbest','');const OPS={ok:0,err:0,last:'',ms:0};
+function overpass(q,ms=30000){const list=[...OVERPASS].sort((a,b)=>(b===OPbest)-(a===OPbest)),t0=Date.now();
+ return new Promise((res,rej)=>{let done=false,left=list.length;const acs=[];
+  list.forEach((u,i)=>setTimeout(async()=>{if(done){left--;return}const ac=new AbortController();acs.push(ac);const tm=setTimeout(()=>ac.abort(),ms);
+   try{const r=await fetch(u,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'},signal:ac.signal});
+    if(!r.ok)throw new Error(r.status);const j=await r.json();if(j.remark&&/runtime error|timed out|rate_limited|out of memory/i.test(j.remark)&&!(j.elements||[]).length)throw new Error(j.remark);
+    if(!done){done=true;OPbest=u;LS.set('gw_opbest',u);OPS.ok++;OPS.ms=Date.now()-t0;OPS.last=u.replace(/^https:\/\/([^/]+).*$/,'$1');for(const a of acs)if(a!==ac)a.abort();res(j)}}
+   catch(e){}finally{clearTimeout(tm);if(--left===0&&!done){OPS.err++;rej(new Error('Overpass nicht erreichbar'))}}},i*4000))})}
 let loading=false;const DIAG={load:'noch nicht geladen',fixes:0,acc:null};let LOG=LS.get('gw_log',[]);
 const hm=()=>new Date(Date.now()).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
 const logEv=e=>{LOG.push(e);if(LOG.length>40)LOG=LOG.slice(-40);LS.set('gw_log',LOG)};
@@ -687,8 +697,7 @@ async function loadSignals(p,force){
  if(fileState==='lädt')return;if(inBox(p)){DIAG.load='nicht nötig, Leipzig-Datei deckt das Gebiet ab';$('sigs').textContent=SIG.size.toLocaleString('de-DE');return}
  if(loading)return;if(!force&&sigCenter&&dist(sigCenter,p)<1500&&SIG.size)return;loading=true;$('sigs').textContent=SIG.size?`${SIG.size.toLocaleString('de-DE')} · lädt …`:'lädt …';
  const a=`(around:4000,${p.lat.toFixed(5)},${p.lon.toFixed(5)})`,q=`[out:json][timeout:20];(node["highway"="traffic_signals"]${a};node["crossing"="traffic_signals"]${a};);out body;`;
- for(const url of OVERPASS){try{const r=await tfetch(url,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}});
-   if(!r.ok)throw new Error(r.status);const j=await r.json();if(j.remark&&!(j.elements||[]).length)throw new Error(j.remark);
+ {try{const j=await overpass(q);if(j.remark&&!(j.elements||[]).length)throw new Error(j.remark);
    for(const e of j.elements||[])if(e.type=='node'&&isFinite(e.lat))SIG.set(e.id,{id:e.id,lat:+e.lat,lon:+e.lon});
    const ops=[...SIG.values()].filter(s=>!s.f);if(ops.length>4000){ops.sort((a,b)=>dist(b,p)-dist(a,p)).slice(0,ops.length-4000).forEach(s=>{SIG.delete(s.id)})}
    DIAG.load=`ok um ${hm()}, ${(j.elements||[]).length} im Umkreis von 4 km`;sigCenter={lat:p.lat,lon:p.lon};LS.set('gw_sig',[...SIG.values()].filter(s=>!s.f));LS.set('gw_sigc',sigCenter);loading=false;drawSignals();return}catch(e){}}
@@ -827,7 +836,7 @@ function vlAdd(els,c,keep){VL.ways=VL.ways||new Map();let n=0;
  return n}
 async function loadVL(c){if(VL.busy||Date.now()-VL.tryT<20000)return;VL.busy=true;VL.tryT=Date.now();
  const q=`[out:json][timeout:25];way(around:1200,${c.lat.toFixed(5)},${c.lon.toFixed(5)})[highway~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|service)(_link)?$"];out tags geom;`;
- let j=null;for(const u of OVERPASS){try{const r=await tfetch(u,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}},25000);if(!r.ok)throw 0;j=await r.json();break}catch(e){}}
+ let j=null;try{j=await overpass(q)}catch(e){}
  if(j){VL.c={lat:c.lat,lon:c.lon};const n=vlAdd(j.elements||[],c,6000);
   VL.state=`ok um ${hm()}, ${VL.ways.size} Straßen im Speicher, ${n} von ${(j.elements||[]).length} neu geladenen mit Limit`}
  else VL.state=`Abfrage fehlgeschlagen um ${hm()}${VL.segs.length?', nutze geladene Straßen':''}, neuer Versuch in 20 s`;
@@ -975,8 +984,8 @@ let routeSigLoading=false;
 async function loadRouteSignals(R){if(routeSigLoading||R.total>60000)return;if(FILEBOX&&R.ll.every(c=>inBox({lat:c[0],lon:c[1]},0.003)))return;routeSigLoading=true;
  const pts=[];let next=0;for(let i=0;i<R.ll.length;i++)if(R.cum[i]>=next||i==R.ll.length-1){pts.push(R.ll[i][0].toFixed(5)+','+R.ll[i][1].toFixed(5));next=R.cum[i]+120}
  const ar=`(around:25,${pts.slice(0,450).join(',')})`,q=`[out:json][timeout:25];(node["highway"="traffic_signals"]${ar};node["crossing"="traffic_signals"]${ar};);out body;`;
- for(const url of OVERPASS){try{const r=await tfetch(url,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}});if(!r.ok)throw 0;const j=await r.json();
-   for(const e of j.elements||[])if(e.type=='node'&&isFinite(e.lat))SIG.set(e.id,{id:e.id,lat:+e.lat,lon:+e.lon});LS.set('gw_sig',[...SIG.values()].filter(s=>!s.f).slice(-4000));break}catch(e){}}
+ {try{const j=await overpass(q);
+   for(const e of j.elements||[])if(e.type=='node'&&isFinite(e.lat))SIG.set(e.id,{id:e.id,lat:+e.lat,lon:+e.lon});LS.set('gw_sig',[...SIG.values()].filter(s=>!s.f).slice(-4000))}catch(e){}}
  routeSigLoading=false;drawSignals()}
 function onSignalsChanged(){const R=NAV||PREVIEW;if(R){computeOnRoute(R);if(R===PREVIEW)renderPreview()}}
 function learnedOn(R){const now=Date.now()/1000;return(R.onRoute||[]).filter(o=>fit(o.sig.id+'_'+sector(o.brg),now).ok).length}
@@ -1076,7 +1085,7 @@ async function fetchLaneProfile(R){R.lpBusy=true;R.lpTry=Date.now();
  try{const s0=Math.max(0,R.s-50),s1=Math.min(R.total,s0+12000),step=Math.max(30,(s1-s0)/380),S=[];for(let x=s0;x<=s1;x+=step)S.push(x);
   const pts=S.map(x=>routeAt(R,x));
   const q=`[out:json][timeout:25];way(around:14,${pts.map(c=>c.lat.toFixed(5)+','+c.lon.toFixed(5)).join(',')})[highway~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|service)(_link)?$"];out tags geom;`;
-  let j=null;for(const u of OVERPASS){try{const r=await tfetch(u,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}},25000);if(!r.ok)throw new Error(r.status);j=await r.json();break}catch(e){}}
+  let j=null;try{j=await overpass(q)}catch(e){}
   if(!j)throw new Error('Overpass');
   try{for(const w of VL.ways?VL.ways.values():[])w.keep=false;vlAdd(j.elements||[],pts[0],20000)}catch(e){}   // Tempolimits entlang der Route gleich mitnehmen
   const lat0=pts[0].lat,kx=111320*Math.cos(lat0*RAD),ky=110540,XY=(la,lo)=>[(lo-pts[0].lon)*kx,(la-lat0)*ky];
@@ -1194,7 +1203,7 @@ $('res').onclick=e=>{const fr=e.target.closest('[data-fren]');if(fr){renameFav(f
 // ---------- Diagnose ----------
 function renderDiag(){const now=Date.now()/1000,R=NAV;
  const rows=[['App-Version',APP_VERSION+(SIM.on?' · SIMULATION aktiv':'')],['GPS',DIAG.acc==null?'noch kein Signal':`±${Math.round(DIAG.acc)} m, ${DIAG.fixes} Positionen in dieser Sitzung`],
-  ['Karte',mapReady?(mapErr?'geladen, Hinweis: '+mapErr:'3D-Karte geladen'):(mapErr||'lädt …')],['Ampel-Datei Leipzig',fileState],['Blitzer',set.blitz?`${camState} · ${mobCams().length} mobile gemeldet`:'aus'],['Ton',audioState()],['Verkehrsmeldungen Autobahn',set.vwd?vwdState:'aus'],['Angekündigte Kontrollen',set.blitz?annState:'aus'],['Gemeinsame Daten',set.share?`an · ${SHARE.up} hochgeladen, ${PEND.length} wartend · ${SHARE.down} Beobachtungen von allen geladen${SHARE.last?' um '+SHARE.last:''}${SHARE.err?' · Fehler: '+SHARE.err:''}`:'aus'],['Baustellen',workState],['Straßenbahn-Fahrplan',tramState],['Fahrstreifen der Route',NAV?(NAV.lpState||'lädt …'):'nur während der Navigation'],['Wetterwarnungen',WX.state],['Tempolimits',set.vlim?VL.state+(VL.cur?` · jetzt ${VL.cur.v==='none'?'ohne Limit':VL.cur.v+' km/h'}${VL.cur.cond?' (zeitlich)':''}${VL.cur.imp===1?' (aus Zone)':VL.cur.imp===2?' (vermutet)':''}`:' · jetzt unbekannt')+(NAV?` · Route ${NAV.lp?'mit':'noch ohne'} Straßendaten`:''):'aus'],['Ampeln geladen',`${SIG.size} gesamt · Online-Abruf: ${DIAG.load}`],
+  ['Karte',mapReady?(mapErr?'geladen, Hinweis: '+mapErr:'3D-Karte geladen'):(mapErr||'lädt …')],['Ampel-Datei Leipzig',fileState],['Blitzer',set.blitz?`${camState} · ${mobCams().length} mobile gemeldet`:'aus'],['Ton',audioState()],['Verkehrsmeldungen Autobahn',set.vwd?vwdState:'aus'],['Angekündigte Kontrollen',set.blitz?annState:'aus'],['Gemeinsame Daten',set.share?`an · ${SHARE.up} hochgeladen, ${PEND.length} wartend · ${SHARE.down} Beobachtungen von allen geladen${SHARE.last?' um '+SHARE.last:''}${SHARE.err?' · Fehler: '+SHARE.err:''}`:'aus'],['Baustellen',workState],['Straßenbahn-Fahrplan',tramState],['Fahrstreifen der Route',NAV?(NAV.lpState||'lädt …'):'nur während der Navigation'],['Wetterwarnungen',WX.state],['Overpass',OPS.ok||OPS.err?`${OPS.ok} ok, ${OPS.err} fehlgeschlagen · zuletzt ${OPS.last||'–'} (${(OPS.ms/1000).toFixed(1)} s)`:'noch keine Abfrage'],['Tempolimits',set.vlim?VL.state+(VL.cur?` · jetzt ${VL.cur.v==='none'?'ohne Limit':VL.cur.v+' km/h'}${VL.cur.cond?' (zeitlich)':''}${VL.cur.imp===1?' (aus Zone)':VL.cur.imp===2?' (vermutet)':''}`:' · jetzt unbekannt')+(NAV?` · Route ${NAV.lp?'mit':'noch ohne'} Straßendaten`:''):'aus'],['Ampeln geladen',`${SIG.size} gesamt · Online-Abruf: ${DIAG.load}`],
   ['Nächste Ampel',(()=>{if(!cur||!SIG.size)return '–';let b=1e9;for(const x of SIG.values()){const d=dist(cur,x);if(d<b)b=d}return fmt(b)+' entfernt'})()],
   ['Fahrtrichtung',heading==null?'noch unbekannt (erst losfahren)':Math.round(heading)+'°'],
   ['Navigation',R?`aktiv, ${(R.onRoute||[]).length} Ampeln auf der Route`:'aus (Ampeln werden per Fahrtrichtung erkannt)'],
