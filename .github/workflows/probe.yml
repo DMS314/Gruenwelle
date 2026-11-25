@@ -1,0 +1,30 @@
+name: Probe Blitzer-Richtungen (temporär)
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/probe.yml]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Richtungsangaben der Blitzer
+        run: |
+          Q='[out:json][timeout:120];node["highway"="speed_camera"](51.20,12.15,51.48,12.62)->.c;.c out body;way(bn.c)[highway];out tags geom;rel(bn.c)[type=enforcement]->.r;.r out body;node(r.r)->.m;.m out skel;'
+          for u in https://overpass-api.de/api/interpreter https://overpass.kumi.systems/api/interpreter; do curl -sS --max-time 180 -o p.json --data-urlencode "data=$Q" "$u" && python3 -c "import json;json.load(open('p.json'))" && break; done
+          python3 - <<'P'
+          import json,collections
+          E=json.load(open('p.json'))['elements']
+          cams=[e for e in E if e['type']=='node' and e.get('tags',{}).get('highway')=='speed_camera']
+          ways=[e for e in E if e['type']=='way'];rels=[e for e in E if e['type']=='relation']
+          onway={n for w in ways for n in w.get('nodes',[])}
+          print('Blitzer',len(cams),'auf Straße',sum(c['id'] in onway for c in cams),'Relationen',len(rels))
+          print('direction-Tags',collections.Counter(c['tags'].get('direction','—') for c in cams))
+          print('andere Richtungstags',[ (c['id'],{k:v for k,v in c['tags'].items() if 'dir' in k or 'side' in k}) for c in cams if any('dir' in k or 'side' in k for k in c['tags']) and 'direction' not in c['tags']][:10])
+          inrel=collections.Counter()
+          for r in rels:
+            roles=collections.Counter(m['role'] for m in r['members']);print('Rel',r['id'],r['tags'].get('enforcement'),dict(roles),r['tags'].get('direction',''))
+            for m in r['members']:
+              if m['role']=='device':inrel[m['ref']]+=1
+          print('Blitzer in Relation',sum(c['id'] in inrel for c in cams))
+          print('Beispiele Tags',[c['tags'] for c in cams[:6]])
+          P
