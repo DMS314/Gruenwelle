@@ -27,11 +27,12 @@ und Waze (Navigation, Meldungen der Nutzer). Teststadt Leipzig. Für viele Nutze
 - Spurassistent: OSRM `intersections[].lanes`; Fahrstreifenzahl entlang der Route über Overpass (`fetchLaneProfile`); keine Empfehlung vor einer Engstelle oder über eine Ampelkreuzung mit unbekannten Spuren hinweg (`laneDrop`, `crossBefore`), rechts bevorzugt wenn danach eine Spur endet. Spurfenster gleitet bei Empfehlung über die Abbiegeanzeige (`laneMove`).
 - Darstellung: Pfeil und Kamera pro Bild geglättet (`smoothFrame`, `SM`), auf der Route entlang; `map.redraw()` im selben Bild gegen Zittern. Abbiegeanzeige füllt sich auf den letzten 500 m (`--np`).
 - Tempolimit: OSM `maxspeed` (auch `:forward/:backward`, `:conditional` mit einfachen Zeitfenstern, `zone:maxspeed` wie `DE:30`/`DE:urban`) über Overpass im Umkreis 900 m, Mittelpunkt 250 m voraus (`loadVL`, neu ab 450 m Abstand). Abgleich mit Position + Richtung bzw. Route (`matchVL`, bleibt am bisherigen Weg). Schild neben dem Tacho, Tacho rot ab Limit + 4 km/h. `effLim()` ersetzt `set.limit` für Empfehlung und Skala (Rad: nie über Einstellung), Blitzer nutzt es als Ersatz. Schalter `set.vlim`.
+- Mobile Blitzer: Meldungstyp `mob` (3 h, Bestätigung verlängert), nur bei Blitzer-Schalter sichtbar/meldbar (`visRep`, `renderTypes`). `mobCams()` speist dieselbe Warnbox wie feste Blitzer (`camAhead`/`checkCams`, Ton nur bei zu schnell). Nach dem Vorbeifahren 20 s „Mobiler Blitzer noch da?“ (`mobAsk`) statt der normalen Meldungswarnung.
 - Weitere Funktionen: Blitzer (aus, wie Waze), Baustellen, Straßenbahn-Abfahrten + Hinweis „Bahn fährt ab, Ampel kann umschalten“, DWD-Wetterwarnungen (Bright Sky `/alerts`), gespeicherte Orte (`gw_fav`, Karte antippen / Fahrzeug antippen / „Wohin?“), Meldungen löschen, Simulation (`SIM`, lernt und teilt nichts), Querformat nur Navi + Ampel, Vollbild-Hinweis.
 - Speicher auf dem Gerät: `gw_set, gw_obs, gw_reps, gw_sig, gw_sigc, gw_log, gw_recent, gw_pend, gw_fav, gw_hide, gw_wxseen`.
 
 ## Supabase (gemeinsame Daten)
-Projekt `mevgfarshklqbszhtabr` (Frankfurt). Tabellen `obs`, `reports` mit RLS ohne Policies, Zugriff nur über SECURITY-DEFINER-Funktionen für `anon`:
+Projekt `mevgfarshklqbszhtabr` (Frankfurt). Tabellen `obs`, `reports` (Typen pol, unf, stau, gef, bau, mob; Check-Constraint + Prüfung in `add_report`) mit RLS ohne Policies, Zugriff nur über SECURITY-DEFINER-Funktionen für `anon`:
 `add_obs(items)`, `get_obs(sigs)`, `add_report(p_type,p_lat,p_lon,p_token)`, `vote_report(p_id,p_still)`,
 `delete_report(p_id,p_token)` (eigene Meldung per Schlüssel-Hash), `get_reports(p_lat,p_lon,p_km)`.
 Publishable Key steht in `index.html` (`SB`). Supabase-Hinweis „anon kann SECURITY DEFINER aufrufen“ ist Absicht.
@@ -46,4 +47,5 @@ Publishable Key steht in `index.html` (`SB`). Supabase-Hinweis „anon kann SECU
 - Rechtliches vor Veröffentlichung: Impressum, Datenschutzerklärung, Teilen als Opt-in beim ersten Start, Schrift und MapLibre selbst hosten, Markenprüfung „Grünwelle“. Vom Nutzer erstmal zurückgestellt.
 - Ideen: Autobahn-Sperrungen, Ton bei Tempoüberschreitung, Park+Ride-Belegung, Unfallatlas, Ratenbegrenzung in Supabase, Anfrage an die Stadt Leipzig nach Ampeldaten.
 - Bestätigt: unterer Rand im Hochformat, kein Zittern mehr (ab 25.11.2026 · 8).
-- Unbestätigt: Tempolimit-Anzeige im Auto (ab 25.11.2026 · 10), Spurassistent an der Permoser Kreuzung (Theodor-Heuss-Straße, danach einspurig).
+- Behoben in 25.11.2026 · 11: Meldungsbox („… noch da?“) lag im Hochformat hinter dem Bedienfeld, jetzt darüber (`--panh`).
+- Unbestätigt: Tempolimit-Anzeige im Auto (ab 25.11.2026 · 10), mobile Blitzer (ab · 11), Spurassistent an der Permoser Kreuzung (Theodor-Heuss-Straße, danach einspurig).
