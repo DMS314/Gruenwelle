@@ -83,23 +83,26 @@ html{background:var(--card)}body{background:var(--bg)}
 #nav .then{font-size:12px;font-weight:600;background:color-mix(in srgb,var(--blue) 22%,transparent);color:var(--ink);border-radius:10px;padding:3px 8px;white-space:nowrap;display:none;align-items:center;gap:4px;flex:none}
 #nav .then svg{width:16px;height:16px}#nav .then.on{display:inline-flex}
 #nav .chev{width:20px;height:20px;flex:none;color:var(--mute);transition:transform .25s}#nav.open .chev{transform:rotate(180deg)}
-#nav .head::before{content:'';position:absolute;left:0;top:0;bottom:0;width:var(--np,0%);z-index:-1;pointer-events:none;
+#nav .main::before{content:'';position:absolute;left:0;top:0;bottom:0;width:var(--np,0%);z-index:-1;pointer-events:none;
  background:linear-gradient(90deg,color-mix(in srgb,var(--blue) 18%,transparent),color-mix(in srgb,var(--blue) 34%,transparent));
  border-right:3px solid color-mix(in srgb,var(--blue) 70%,transparent);transition:width 1s linear,background .4s}
-#nav[data-np="0"] .head::before{border-right-width:0}#nav.npj .head::before{transition:none}
-#nav.near .head::before{background:linear-gradient(90deg,color-mix(in srgb,var(--blue) 30%,transparent),color-mix(in srgb,var(--blue) 50%,transparent))}
+#nav[data-np="0"] .main::before{border-right-width:0}#nav.npj .main::before{transition:none}
+#nav.near .main::before{background:linear-gradient(90deg,color-mix(in srgb,var(--blue) 30%,transparent),color-mix(in srgb,var(--blue) 50%,transparent))}
 #nav .more{display:none;padding:4px 12px 12px;border-top:1px solid color-mix(in srgb,var(--ink) 8%,transparent)}#nav.open .more{display:block}
 #nav .stp{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid color-mix(in srgb,var(--ink) 6%,transparent);font-size:14px}
 #nav .stp svg{width:22px;height:22px;flex:none;color:var(--blue)}#nav .stp em{font-style:normal;margin-left:auto;color:var(--mute);white-space:nowrap;padding-left:8px}
 #nav .stp div{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#nav .lanes{display:none;align-items:center;gap:10px;padding:6px 12px 8px;border-top:1px solid color-mix(in srgb,var(--ink) 8%,transparent)}#nav .lanes.on{display:flex}
-#nav .lanes.up{order:-1;border-top:0;border-bottom:1px solid color-mix(in srgb,var(--ink) 10%,transparent);padding:10px 12px 9px;background:color-mix(in srgb,var(--blue) 14%,transparent)}
-#nav .lanes.up .l{width:34px;height:38px}#nav .lanes.up .l svg{width:28px;height:28px}#nav .lanes.up .lt b{font-size:17px}
-#nav .head,#nav .lanes{position:relative;z-index:1;background-clip:padding-box}#nav .lanes{z-index:2}
-#nav .lanes .ln{display:flex;gap:3px;background:color-mix(in srgb,var(--ink) 8%,transparent);border-radius:10px;padding:3px}
-#nav .lanes .l{width:30px;height:34px;border-radius:7px;display:grid;place-items:center;color:color-mix(in srgb,var(--ink) 35%,transparent)}
-#nav .lanes .l svg{width:24px;height:24px}#nav .lanes .l.ok{color:var(--ink)}#nav .lanes .l.rec{background:var(--blue);color:var(--onblue)}
-#nav .lanes .lt{font-size:13px;line-height:1.25;color:var(--mute);min-width:0}#nav .lanes .lt b{display:block;font-size:15px;color:var(--ink);white-space:nowrap}
+#nav .main{position:relative;z-index:1}
+#nav .lanes{display:flex;align-items:center;gap:10px;max-height:0;opacity:0;overflow:hidden;padding:0 12px 0 68px;transition:max-height .35s cubic-bezier(.2,.8,.2,1),opacity .25s,padding .35s cubic-bezier(.2,.8,.2,1)}
+#nav .lanes.on{max-height:64px;opacity:1;padding-bottom:10px}
+#nav .head{position:relative;z-index:1}#nav .lanes{position:relative;z-index:1}
+#nav .lanes .ln{display:flex;gap:2px;background:color-mix(in srgb,var(--ink) 9%,transparent);border-radius:11px;padding:3px;flex:none}
+#nav .lanes .l{width:30px;height:36px;border-radius:8px;display:grid;place-items:center;color:color-mix(in srgb,var(--ink) 30%,transparent);position:relative}
+#nav .lanes .l+.l::before{content:'';position:absolute;left:-2px;top:8px;bottom:8px;border-left:2px dashed color-mix(in srgb,var(--ink) 18%,transparent)}
+#nav .lanes .l.rec+.l::before,#nav .lanes .l+.l.rec::before{display:none}
+#nav .lanes .l svg{width:25px;height:25px}#nav .lanes .l.ok{color:var(--ink)}#nav .lanes .l.rec{background:var(--blue);color:var(--onblue);box-shadow:0 2px 8px -3px color-mix(in srgb,var(--blue) 80%,transparent)}
+#nav .lanes .lt{flex:1;font-size:13px;line-height:1.2;color:var(--mute);min-width:0}#nav .lanes .lt b{display:block;font-size:15px;font-weight:800;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#nav .lanes .lt span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#nav .lanes .lt span:empty{display:none}
 #nav .acts{display:flex;gap:8px;margin-top:10px}#nav .acts button{flex:1;min-height:44px}
 #nav.on{display:flex}
 
@@ -189,12 +192,12 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 </style></head><body>
 <div id="app">
  <div id="mapwrap"><div id="map"></div><div class="scrim"></div><div class="attr"><a href="https://openfreemap.org">OpenFreeMap</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a></div></div>
- <div id="nav"><div class="head" id="navHead" role="button" aria-expanded="false" aria-label="Weitere Abbiegungen anzeigen">
+ <div id="nav"><div class="main"><div class="head" id="navHead" role="button" aria-expanded="false" aria-label="Weitere Abbiegungen anzeigen">
   <div class="ni"><svg viewBox="0 0 48 48" id="navIco"></svg></div>
   <div class="tx"><b id="navD">–</b><span id="navT">–</span></div>
   <span class="then" id="navThen"></span>
   <svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-  <div class="lanes" id="lanes"><div class="ln" id="laneBox"></div><div class="lt"><b id="laneT"></b><span id="laneS"></span></div></div>
+  <div class="lanes" id="lanes"><div class="ln" id="laneBox"></div><div class="lt"><b id="laneT"></b><span id="laneS"></span></div></div></div>
   <div class="more"><div id="navSteps"></div><div class="acts"><button class="btn" id="navOv">Übersicht</button><button class="btn" id="navX">Beenden</button></div></div></div>
  <div id="blitz"><div class="lim" id="bLim">–</div><div><b id="bT">Blitzer</b><span id="bD"></span></div></div>
  <div id="simBar"><span id="simT">Simulation</span><button id="simP" aria-label="Pause">❚❚</button><button id="simF">1×</button><button id="simX">Ende</button></div>
@@ -314,7 +317,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='25.11.2026 · 23';
+const APP_VERSION='25.11.2026 · 24';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -957,7 +960,7 @@ $('pvGo').onclick=()=>{if(!PREVIEW)return;NAV=PREVIEW;PREVIEW=null;closeSheets()
  const rec=LS.get('gw_recent',[]).filter(x=>x.name!==NAV.dest.name);rec.unshift(NAV.dest);LS.set('gw_recent',rec.slice(0,6));
  appr=null;setTimeout(()=>syncShared(true),500);const first=NAV.steps[1];announce('start','Route gestartet. '+(first?`${inDist(first.s)} ${farText(first)}`:''),0);if(first&&first.s<Math.max(180,v*14))first.said.far=1;if(cur)updateNav(cur);renderNav()};
 $('pvCancel').onclick=()=>{PREVIEW=null;clearRoute();closeSheets();follow=true;applyView(true)};
-function endNav(silent){if(SIM.on&&NAV&&!SIM.ending){SIM.ending=true;try{simEnd(true)}finally{SIM.ending=false}}if(!NAV&&!PREVIEW)return;$('nav').classList.remove('open');document.body.classList.remove('nav-open');NAV=null;PREVIEW=null;clearRoute();laneUp=false;clearTimeout(laneAnim);$('lanes').classList.remove('on','up');
+function endNav(silent){if(SIM.on&&NAV&&!SIM.ending){SIM.ending=true;try{simEnd(true)}finally{SIM.ending=false}}if(!NAV&&!PREVIEW)return;$('nav').classList.remove('open');document.body.classList.remove('nav-open');NAV=null;PREVIEW=null;clearRoute();laneUp=false;$('lanes').classList.remove('on');
  document.getElementById('app').classList.remove('app-nav');document.body.classList.remove('nav-on');$('nav').classList.remove('on');appr=null;if(!silent)toast('Navigation beendet')}
 $('navX').onclick=()=>{$('nav').classList.remove('open');document.body.classList.remove('nav-open');endNav()};
 $('navHead').onclick=()=>{const o=$('nav').classList.toggle('open');document.body.classList.toggle('nav-open',o);$('navHead').setAttribute('aria-expanded',o);renderNav()};
@@ -1068,24 +1071,15 @@ function crossBefore(R,Ds){if(!R.onRoute)return null;let x=null;
 function sideEnds(R,a,b){if(!R.lp)return{};const o={};for(const x of R.lp)if(x.s>a&&x.s<=b){if(x.endL)o.left=1;if(x.endR)o.right=1}return o}
 const SIDETXT={left:'Linke Spur',middle:'Mittlere Spur',right:'Rechte Spur'},SIDEPL={left:'Linke Spuren',middle:'Mittlere Spuren',right:'Rechte Spuren'};
 // Spurfenster: bei Empfehlung nach oben über die Abbiegeanzeige gleiten, danach wieder nach unten und ausblenden
-let laneUp=false,laneAnim=null;
-function laneMove(up){const ln=$('lanes'),hd=$('navHead');if(laneUp===up)return;laneUp=up;clearTimeout(laneAnim);
- const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
- if(up)ln.classList.add('on');
- const a0=ln.getBoundingClientRect().top,b0=hd.getBoundingClientRect().top;
- ln.classList.toggle('up',up);
- const a1=ln.getBoundingClientRect().top,b1=hd.getBoundingClientRect().top;
- requestAnimationFrame(()=>document.documentElement.style.setProperty('--navh',$('nav').offsetHeight+'px'));
- const T=reduce?0:450,ease='cubic-bezier(.2,.8,.2,1)';
- if(T&&ln.animate){ln.animate([{transform:`translateY(${a0-a1}px)`},{transform:'none'}],{duration:T,easing:ease});hd.animate([{transform:`translateY(${b0-b1}px)`},{transform:'none'}],{duration:T,easing:ease})}
- if(!up)laneAnim=setTimeout(()=>{if(laneUp)return;const done=()=>{if(!laneUp){ln.classList.remove('on');requestAnimationFrame(()=>document.documentElement.style.setProperty('--navh',$('nav').offsetHeight+'px'))}};
-  if(T&&ln.animate){const an=ln.animate([{opacity:1},{opacity:0}],{duration:180});an.onfinish=done}else done()},T+250)}
+let laneUp=false;
+const setNavh=()=>document.documentElement.style.setProperty('--navh',$('nav').offsetHeight+'px');
+function laneMove(up){if(laneUp===up)return;laneUp=up;$('lanes').classList.toggle('on',up);requestAnimationFrame(setNavh);setTimeout(setNavh,400)}
 function updateLanes(R){const el=$('lanes'),a=laneAdvice(R);
  if(!a||a.d>Math.max(1000,v*45)){laneMove(false);return}
  const n=a.D.lanes.length,several=a.lanes.length>1&&a.lanes.length<n;
  $('laneBox').innerHTML=a.D.lanes.map((l,i)=>`<div class="l ${a.lanes.includes(i)?'rec':l.ok?'ok':''}"><svg viewBox="0 0 48 48">${laneIcon(l.ind,laneUse(l,a.D,a.M))}</svg></div>`).join('');
  $('laneT').textContent=(several?SIDEPL[a.side]:SIDETXT[a.side])+(a.d>250?' wählen':' halten');
- $('laneS').textContent=`für ${lf(a.M.text)} in ${fmt(Math.max(0,a.M.s-R.s))}`;laneMove(true);
+ {const nx=R.next>0?R.next:R.steps.length-1,cs=R.steps[nx],same=cs&&Math.abs(cs.s-a.M.s)<2;$('laneS').textContent=same?'':`für ${lf(a.M.text)} in ${fmt(Math.max(0,a.M.s-R.s))}`}laneMove(true);
  const trig=Math.max(350,v*22);if(!a.D.said&&a.d<=trig){a.D.said=1;announce('lane',`${SIDETXT[a.side]} ${a.d>200?'wählen':'halten'}`,a.side==='left'?-0.8:a.side==='right'?0.8:0)}}
 function renderNav(){const R=NAV;if(!R)return;const el=$('nav');el.classList.add('on');el.classList.toggle('off',R.offN>0);requestAnimationFrame(()=>document.documentElement.style.setProperty('--navh',el.offsetHeight+'px'));
  updateLanes(R);
