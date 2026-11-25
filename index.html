@@ -260,7 +260,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='25.11.2026 · 4';
+const APP_VERSION='25.11.2026 · 5';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -785,14 +785,17 @@ function laneAdvice(R){if(!R.lanes||!R.lanes.length)return null;
  if(D.lanes.every(l=>l.ok))return null;               // alle Spuren passen: kein Hinweis nötig
  if(!R.lp&&R.lpBusy&&Date.now()-R.lpTry<10000)return null; // Fahrstreifen werden noch geladen
  if(laneDrop(R,R.s,D.s-10)!=null)return null;           // Straße wird vorher noch schmaler: erst danach empfehlen
- const ends=sideEnds(R,D.s+5,Math.min(D.s+400,(R.steps[nx+1]||{s:1e9}).s));
- const M2=R.steps[nx+1],m2=M2&&M2.s-M.s<800&&M2.st.maneuver.type!=='arrive'?(M2.st.maneuver.modifier||''):'';
+ const X=crossBefore(R,D.s);if(X!=null)return null;     // erst nach der letzten Ampelkreuzung davor empfehlen
+ const nEnd=Math.min(D.s+400,(R.steps[nx+1]||{s:1e9}).s),ends=sideEnds(R,D.s+5,nEnd),after=laneDrop(R,D.s+5,nEnd);
+ const M2=R.steps[nx+1];let m2=M2&&M2.s-M.s<800&&M2.st.maneuver.type!=='arrive'?(M2.st.maneuver.modifier||''):'';
+ if(m2&&laneDrop(R,D.s+5,M2.s-10)!=null)m2='';           // vor dem übernächsten Abbiegen wird es eh einspurig
  let best=null;
  for(const side of['left','middle','right']){if(!sideOk(D,side))continue;
   let sc=3;for(const L of ahead)if(L!==D&&sideOk(L,side))sc+=1;
   if(m2&&((side==='left'&&/left/.test(m2))||(side==='right'&&/right/.test(m2))))sc+=1.5;
   if(side==='middle'&&m2&&/straight/.test(m2))sc+=0.5;
   if(ends[side])sc-=2.5;
+  else if(after!=null&&!ends.left&&!ends.right&&side==='left')sc-=1.5; // Straße wird danach schmaler, Seite unbekannt: rechts bleiben
   if(!best||sc>best.sc)best={side,sc}}
  if(!best)return null;return{D,M,side:best.side,lanes:recLanes(D,best.side),d:D.s-R.s}}
 // ---------- Fahrstreifen entlang der Route (OSM lanes / turn:lanes über Overpass) ----------
@@ -826,6 +829,12 @@ function laneDrop(R,a,b){if(!R.lp)return null;let prev=null,drop=null;const P2=R
   if(prev!=null&&x.n<prev&&x.s>a){const nx=P2[i+1];if(!nx||nx.s-x.s>90||nx.n<prev)drop=x.s}
   if((x.endL||x.endR)&&x.s>a)drop=Math.max(drop||0,x.s+20);prev=x.n}
  return drop!=null&&drop<=b?drop:null}
+// Letzte Ampelkreuzung zwischen Fahrzeug und Entscheidungsstelle (mehr als 150 m davor), hinter der die Spuren
+// nicht sicher bekannt sind. Solange sie noch vor uns liegt, wird keine Spur empfohlen.
+function crossBefore(R,Ds){if(!R.onRoute)return null;let x=null;
+ for(const o of R.onRoute)if(o.s>R.s+5&&o.s<Ds-150)x=o.s;if(x==null)return null;
+ if(R.lp){const P2=R.lp.filter(p=>p.s>x&&p.s<Ds-10);if(P2.length>=2&&P2.every(p=>p.n))return null}
+ return x}
 // Welche Seite verschwindet kurz nach der Kreuzung? (aus turn:lanes merge_to_left/right)
 function sideEnds(R,a,b){if(!R.lp)return{};const o={};for(const x of R.lp)if(x.s>a&&x.s<=b){if(x.endL)o.left=1;if(x.endR)o.right=1}return o}
 const SIDETXT={left:'Linke Spur',middle:'Mittlere Spur',right:'Rechte Spur'},SIDEPL={left:'Linke Spuren',middle:'Mittlere Spuren',right:'Rechte Spuren'};
