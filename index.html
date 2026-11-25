@@ -302,7 +302,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='25.11.2026 · 15';
+const APP_VERSION='25.11.2026 · 16';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -824,7 +824,7 @@ let voices=null;const pickVoice=()=>{try{const vs=speechSynthesis.getVoices();re
 let actx=null;
 function audioInit(){try{if('audioSession' in navigator&&set.audio!=='sprache')navigator.audioSession.type='ambient'}catch(e){}
  try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();if(actx.state!=='running')actx.resume()}catch(e){}}
-function beep(seq,pan){if(!actx)audioInit();if(!actx)return;const t0=actx.currentTime+0.02;
+function beep(seq,pan){if(!actx)audioInit();if(!actx)return;if(actx.state!=='running'){try{actx.resume()}catch(e){}}const t0=actx.currentTime+0.02;
  seq.forEach(([f,st,du])=>{const o=actx.createOscillator(),g=actx.createGain();o.type='sine';o.frequency.value=f;
   g.gain.setValueAtTime(0,t0+st);g.gain.linearRampToValueAtTime(0.35,t0+st+0.02);g.gain.exponentialRampToValueAtTime(0.001,t0+st+du);
   let last=g;if(actx.createStereoPanner){const p=actx.createStereoPanner();p.pan.value=pan||0;g.connect(p);last=p}
@@ -832,7 +832,15 @@ function beep(seq,pan){if(!actx)audioInit();if(!actx)return;const t0=actx.curren
 const TONES={wx:[[740,0,.2],[740,.3,.2],[740,.6,.2]],lane:[[660,0,.12],[660,.16,.12]],blitz:[[1480,0,.12],[1050,.16,.12],[1480,.32,.12],[1050,.48,.16]],far:[[880,0,.18]],near:[[880,0,.14],[1175,.18,.22]],arrive:[[784,0,.16],[988,.18,.16],[1319,.36,.3]],reroute:[[523,0,.18],[392,.22,.28]],start:[[659,0,.14],[880,.16,.2]],test:[[880,0,.14],[1175,.18,.22]]};
 function announce(kind,text,pan){if(set.audio==='aus')return;if(set.audio==='ton'){beep(TONES[kind]||TONES.far,pan);return}say(text)}
 const panOf=st=>{const m=(st&&st.st.maneuver.modifier)||'';return /left/.test(m)?-0.8:/right/.test(m)?0.8:0};
-function say(text){if(set.audio!=='sprache'||!('speechSynthesis' in window))return;try{const u=new SpeechSynthesisUtterance(text);u.lang='de-DE';voices=voices||pickVoice();if(voices)u.voice=voices;u.rate=1.05;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){}}
+function say(text){if(set.audio!=='sprache'||!('speechSynthesis' in window))return;try{const u=new SpeechSynthesisUtterance(text);u.lang='de-DE';voices=voices||pickVoice();if(voices)u.voice=voices;u.rate=1.05;if(speechSynthesis.paused)speechSynthesis.resume();
+ if(speechSynthesis.speaking||speechSynthesis.pending){speechSynthesis.cancel();setTimeout(()=>speechSynthesis.speak(u),120)}else speechSynthesis.speak(u)}catch(e){}}  // iOS verschluckt speak() direkt nach cancel()
+// iOS hält den Audiokanal an, sobald die App kurz im Hintergrund war (anderer App-Wechsel, Bildschirm aus, Anruf).
+// Beim Zurückkommen und bei jeder Berührung wieder aufwecken; Sprache braucht dafür eine Berührung.
+function audioWake(){try{if(actx&&actx.state!=='running')actx.resume()}catch(e){}try{if('speechSynthesis' in window&&speechSynthesis.paused)speechSynthesis.resume()}catch(e){}}
+let speechOk=false;
+for(const ev of['touchend','click'])document.addEventListener(ev,()=>{if(watch==null&&!SIM.on)return;audioWake();if(!speechOk&&set.audio==='sprache'){speechOk=true;unlockSpeech()}},{capture:true,passive:true});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')audioWake();else speechOk=false});
+const audioState=()=>`${({aus:'aus',ton:'Töne',sprache:'Sprache'})[set.audio]||set.audio} · Tonkanal ${actx?({running:'aktiv',suspended:'angehalten',interrupted:'unterbrochen',closed:'geschlossen'})[actx.state]||actx.state:'noch nicht gestartet'}`+(set.audio==='sprache'?` · ${'speechSynthesis' in window?(pickVoice()?'deutsche Stimme':'keine deutsche Stimme gefunden'):'Sprachausgabe nicht verfügbar'}`:'');
 function unlockSpeech(){audioInit();if(set.audio!=='sprache')return;try{if('speechSynthesis' in window){const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u)}}catch(e){}}
 const MODS={'uturn':'wenden','sharp right':'scharf rechts','right':'rechts','slight right':'leicht rechts','straight':'geradeaus','slight left':'leicht links','left':'links','sharp left':'scharf links'};
 const ANG={'uturn':180,'sharp right':135,'right':90,'slight right':45,'straight':0,'slight left':-45,'left':-90,'sharp left':-135};
@@ -1121,7 +1129,7 @@ $('res').onclick=e=>{const fr=e.target.closest('[data-fren]');if(fr){renameFav(f
 // ---------- Diagnose ----------
 function renderDiag(){const now=Date.now()/1000,R=NAV;
  const rows=[['App-Version',APP_VERSION+(SIM.on?' · SIMULATION aktiv':'')],['GPS',DIAG.acc==null?'noch kein Signal':`±${Math.round(DIAG.acc)} m, ${DIAG.fixes} Positionen in dieser Sitzung`],
-  ['Karte',mapReady?(mapErr?'geladen, Hinweis: '+mapErr:'3D-Karte geladen'):(mapErr||'lädt …')],['Ampel-Datei Leipzig',fileState],['Blitzer',set.blitz?`${camState} · ${mobCams().length} mobile gemeldet`:'aus'],['Verkehrsmeldungen Autobahn',set.vwd?vwdState:'aus'],['Angekündigte Kontrollen',set.blitz?annState:'aus'],['Gemeinsame Daten',set.share?`an · ${SHARE.up} hochgeladen, ${PEND.length} wartend · ${SHARE.down} Beobachtungen von allen geladen${SHARE.last?' um '+SHARE.last:''}${SHARE.err?' · Fehler: '+SHARE.err:''}`:'aus'],['Baustellen',workState],['Straßenbahn-Fahrplan',tramState],['Fahrstreifen der Route',NAV?(NAV.lpState||'lädt …'):'nur während der Navigation'],['Wetterwarnungen',WX.state],['Tempolimits',set.vlim?VL.state+(VL.cur?` · jetzt ${VL.cur.v==='none'?'ohne Limit':VL.cur.v+' km/h'}${VL.cur.cond?' (zeitlich)':''}${VL.cur.imp?' (aus Zone)':''}`:' · jetzt unbekannt'):'aus'],['Ampeln geladen',`${SIG.size} gesamt · Online-Abruf: ${DIAG.load}`],
+  ['Karte',mapReady?(mapErr?'geladen, Hinweis: '+mapErr:'3D-Karte geladen'):(mapErr||'lädt …')],['Ampel-Datei Leipzig',fileState],['Blitzer',set.blitz?`${camState} · ${mobCams().length} mobile gemeldet`:'aus'],['Ton',audioState()],['Verkehrsmeldungen Autobahn',set.vwd?vwdState:'aus'],['Angekündigte Kontrollen',set.blitz?annState:'aus'],['Gemeinsame Daten',set.share?`an · ${SHARE.up} hochgeladen, ${PEND.length} wartend · ${SHARE.down} Beobachtungen von allen geladen${SHARE.last?' um '+SHARE.last:''}${SHARE.err?' · Fehler: '+SHARE.err:''}`:'aus'],['Baustellen',workState],['Straßenbahn-Fahrplan',tramState],['Fahrstreifen der Route',NAV?(NAV.lpState||'lädt …'):'nur während der Navigation'],['Wetterwarnungen',WX.state],['Tempolimits',set.vlim?VL.state+(VL.cur?` · jetzt ${VL.cur.v==='none'?'ohne Limit':VL.cur.v+' km/h'}${VL.cur.cond?' (zeitlich)':''}${VL.cur.imp?' (aus Zone)':''}`:' · jetzt unbekannt'):'aus'],['Ampeln geladen',`${SIG.size} gesamt · Online-Abruf: ${DIAG.load}`],
   ['Nächste Ampel',(()=>{if(!cur||!SIG.size)return '–';let b=1e9;for(const x of SIG.values()){const d=dist(cur,x);if(d<b)b=d}return fmt(b)+' entfernt'})()],
   ['Fahrtrichtung',heading==null?'noch unbekannt (erst losfahren)':Math.round(heading)+'°'],
   ['Navigation',R?`aktiv, ${(R.onRoute||[]).length} Ampeln auf der Route`:'aus (Ampeln werden per Fahrtrichtung erkannt)'],
@@ -1341,7 +1349,7 @@ async function checkUpdate(){try{const r=await fetch('./?v='+Date.now(),{cache:'
   let n=0;try{n=+sessionStorage.getItem('gw_upd')||0}catch(e){}if(n>2)return;try{sessionStorage.setItem('gw_upd',n+1)}catch(e){}
   location.replace(location.pathname+'?v='+encodeURIComponent(m[1]))}}catch(e){}}
 setTimeout(checkUpdate,1500);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});drawSignals();drawReps();renderLearn();loadFile();setBlitz();loadWorks();loadTrams();
-if(location.hostname=='gw.test')window.__gw={WX:()=>WX,drawWx,VWD:()=>VWD,loadVwd,vwdAhead,VL,ANN:()=>ANN,annAt,condMs,wayLimit,OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr,map,SIM};
+if(location.hostname=='gw.test')window.__gw={actx:()=>actx,audioState,WX:()=>WX,drawWx,VWD:()=>VWD,loadVwd,vwdAhead,VL,ANN:()=>ANN,annAt,condMs,wayLimit,OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr,map,SIM};
 $('startInfo').textContent=(Object.keys(OBS).length?`Bisher gelernt: ${Object.keys(OBS).length} Ampel-Richtungen. `:'')+'Version '+APP_VERSION;
 
 }
