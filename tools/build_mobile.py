@@ -16,7 +16,7 @@ OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.sy
 HW = '^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street)(_link)?$'
 
 SOURCES = {
-    'bonn': {'name': 'Stadt Bonn', 'lic': 'CC0', 'area': 'Bonn', 'admin': '6',
+    'bonn': {'name': 'Stadt Bonn', 'lic': 'CC0', 'city': 'Bonn', 'bbox': (50.63, 7.02, 50.78, 7.22),
              'url': 'https://www.bonn.de/themen-entdecken/verkehr-mobilitaet/mobile-messstellen-aktuelle-woche.php?sp:out=openData.json'},
 }
 
@@ -77,30 +77,57 @@ def norm(s):
     return re.sub(r'[\s\-]', '', s.lower().replace('ß', 'ss'))
 
 
+def overpass(src, names):
+    rx = '|'.join(re.sub(r'[()\[\]{}|*+?^$\\"]', '.', n) for n in sorted(names))   # Sonderzeichen als Platzhalter
+    b = src['bbox']
+    q = f'[out:json][timeout:90];way["highway"~"{HW}"]["name"~"^({rx})$"]({b[0]},{b[1]},{b[2]},{b[3]});out tags geom;'
+    for attempt in range(2):
+        for u in OVERPASS:
+            try:
+                return json.loads(get(u, data=urllib.parse.urlencode({'data': q}).encode(), timeout=120)).get('elements', [])
+            except Exception as e:
+                print('Overpass', u, e, file=sys.stderr)
+                time.sleep(10)
+    return None
+
+
+def nominatim(src, name):
+    """Ausweichweg: Linie der Straße über Nominatim (max. 1 Anfrage/s)."""
+    time.sleep(1.1)
+    b = src['bbox']
+    url = 'https://nominatim.openstreetmap.org/search?' + urllib.parse.urlencode({
+        'street': name, 'city': src['city'], 'countrycodes': 'de', 'format': 'jsonv2', 'polygon_geojson': 1, 'limit': 10,
+        'viewbox': f'{b[1]},{b[2]},{b[3]},{b[0]}', 'bounded': 1})
+    lines = []
+    for r in json.loads(get(url)):
+        g = r.get('geojson') or {}
+        cs = [g['coordinates']] if g.get('type') == 'LineString' else g.get('coordinates', []) if g.get('type') == 'MultiLineString' else []
+        for c in cs:
+            if len(c) >= 2:
+                lines.append([v for p in c for v in (round(p[0], 5), round(p[1], 5))])
+    return lines
+
+
 def geocode(src, names):
-    """Straßennamen einer Stadt → {name: [linie, …]} über eine Overpass-Abfrage."""
+    """Straßennamen → {name: [linie, …]}: eine Overpass-Abfrage, sonst Nominatim je Straße."""
     if not names:
         return {}
-    rx = '|'.join(re.sub(r'[()\[\]{}|*+?^$\\"]', '.', n) for n in sorted(names))   # Sonderzeichen als Platzhalter
-    q = (f'[out:json][timeout:120];area["boundary"="administrative"]["name"="{src["area"]}"]["admin_level"="{src["admin"]}"]->.a;'
-         f'way(area.a)["highway"~"{HW}"]["name"~"^({rx})$",i];out tags geom;')
-    j = None
-    for u in OVERPASS:
-        try:
-            j = json.loads(get(u, data=urllib.parse.urlencode({'data': q}).encode(), timeout=180))
-            break
-        except Exception as e:
-            print('Overpass', u, e, file=sys.stderr)
-            time.sleep(5)
-    if j is None:
-        raise RuntimeError('Overpass nicht erreichbar')
     by = {norm(n): n for n in names}
     res = {}
-    for w in j.get('elements', []):
-        n = by.get(norm((w.get('tags') or {}).get('name', '')))
-        g = w.get('geometry') or []
-        if n and len(g) >= 2:
-            res.setdefault(n, []).append([v for p in g for v in (round(p['lon'], 5), round(p['lat'], 5))])
+    els = overpass(src, names)
+    if els is not None:
+        for w in els:
+            n = by.get(norm((w.get('tags') or {}).get('name', '')))
+            g = w.get('geometry') or []
+            if n and len(g) >= 2:
+                res.setdefault(n, []).append([v for p in g for v in (round(p['lon'], 5), round(p['lat'], 5))])
+    for n in sorted(names - set(res)) if els is None else []:
+        try:
+            ls = nominatim(src, n)
+            if ls:
+                res[n] = ls
+        except Exception as e:
+            print('Nominatim', n, e, file=sys.stderr)
     return res
 
 
@@ -108,11 +135,17 @@ def build(dst):
     today = datetime.date.today()
     keep_from = (today - datetime.timedelta(days=1)).isoformat()
     out = {'updated': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M UTC'), 'sources': [], 'items': [], 'geo': {}}
+    try:   # Straßenlinien aus früheren Läufen wiederverwenden
+        cache = json.load(open(dst, encoding='utf-8')).get('geo', {})
+    except Exception:
+        cache = {}
     for sid, src in SOURCES.items():
         info = {'id': sid, 'name': src['name'], 'lic': src['lic'], 'n': 0, 'miss': [], 'state': 'ok'}
         try:
             rows = [r for r in fetch_bonn(src) if r[0] >= keep_from]
-            geo = geocode(src, {st for _, st in rows})
+            want = {st for _, st in rows}
+            geo = {st: cache[f'{sid}|{st}'] for st in want if f'{sid}|{st}' in cache}
+            geo.update(geocode(src, want - set(geo)))
             for d, st in rows:
                 if st in geo:
                     out['items'].append({'d': d, 's': sid, 'n': st})
