@@ -1,0 +1,16 @@
+name: Probe Tempolimit live (temporär)
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/probe.yml, .github/probe/live.py]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q playwright && python -m playwright install --with-deps chromium >/dev/null
+      - run: (python3 -m http.server 8000 >/dev/null 2>&1 &) && sleep 2 && timeout 300 python3 .github/probe/live.py
+      - name: Overpass direkt
+        run: |
+          Q='[out:json][timeout:25];way(around:1200,51.3250,12.3747)[highway~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|service)(_link)?$"];out tags geom;'
+          for u in https://overpass-api.de/api/interpreter https://overpass.kumi.systems/api/interpreter https://overpass.private.coffee/api/interpreter; do curl -s -o o.json -w "$u HTTP %{http_code} %{size_download} B %{time_total}s\n" --max-time 40 --data-urlencode "data=$Q" "$u"; done
