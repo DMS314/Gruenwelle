@@ -281,7 +281,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='25.11.2026 · 7';
+const APP_VERSION='25.11.2026 · 8';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -373,7 +373,7 @@ function loadIcons(){for(const[name,svg]of Object.entries(ICONS)){if(map.hasImag
  img.onload=()=>{try{if(!map.hasImage(name))map.addImage(name,img,{pixelRatio:2})}catch(e){}};img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg)}}
 const carEl=document.createElement('div');carEl.className='car';
 carEl.innerHTML='<svg viewBox="0 0 38 38"><circle cx="19" cy="19" r="17" fill="#33ccff" opacity=".25"/><path d="M19 5l10 24-10-6-10 6z" fill="#33ccff" stroke="#0b1a26" stroke-width="2.5" stroke-linejoin="round"/></svg>';
-const me=new maplibregl.Marker({element:carEl,rotationAlignment:'map',pitchAlignment:'viewport'}).setLngLat([12.3731,51.3397]);
+const me=new maplibregl.Marker({element:carEl,rotationAlignment:'map',pitchAlignment:'viewport',subpixelPositioning:true}).setLngLat([12.3731,51.3397]);
 let meOn=false;
 let follow=true,freeT=null;
 const freeMap=()=>{follow=false;clearTimeout(freeT);freeT=setTimeout(()=>{follow=true;applyView(true)},15000)};
@@ -398,23 +398,24 @@ function smoothFrame(){requestAnimationFrame(smoothFrame);if(!SM.on||!cur)return
  const lag=Math.min(1.3,(now-SM.fixT)/1000),kp=1-Math.exp(-dt/0.7),kb=1-Math.exp(-dt/0.35),moving=v>1.2;
  const R=NAV,onRoute=R&&R.cum&&R.off!=null&&R.off<25&&!(R.offN>0);let brgT;
  if(onRoute){const sT=Math.min(R.total,R.s+(moving?v*lag:0));
-  if(SM.s==null||Math.abs(SM.s-sT)>60)SM.s=sT;else{if(moving)SM.s+=v*dt;SM.s+=(sT-SM.s)*kp;if(SM.s>R.total)SM.s=R.total}
+  if(SM.s==null||Math.abs(SM.s-sT)>60)SM.s=sT;else{if(moving)SM.s+=v*dt;if(moving||Math.abs(sT-SM.s)>8)SM.s+=(sT-SM.s)*kp;if(SM.s>R.total)SM.s=R.total}
   const q=routeAt(R,SM.s);SM.lat=q.lat;SM.lon=q.lon;
   if(moving){const a=routeAt(R,SM.s-4),b=routeAt(R,SM.s+12);if(dist(a,b)>3)brgT=bearing(a,b)}}
  else{SM.s=null;const h=heading??SM.brg,ex=moving?v*lag:0,
    tg={lat:cur.lat+ex*Math.cos(h*Math.PI/180)/111195,lon:cur.lon+ex*Math.sin(h*Math.PI/180)/(111320*Math.cos(cur.lat*Math.PI/180))};
   if(dist(SM,tg)>80){SM.lat=tg.lat;SM.lon=tg.lon}
   else{if(moving){SM.lat+=v*dt*Math.cos(h*Math.PI/180)/111195;SM.lon+=v*dt*Math.sin(h*Math.PI/180)/(111320*Math.cos(cur.lat*Math.PI/180))}
-   SM.lat+=(tg.lat-SM.lat)*kp;SM.lon+=(tg.lon-SM.lon)*kp}}
+   if(moving||dist(SM,tg)>Math.max(8,(cur.acc||10)*0.8)){SM.lat+=(tg.lat-SM.lat)*kp;SM.lon+=(tg.lon-SM.lon)*kp}}}
  if(brgT==null)brgT=heading??SM.brg;
  SM.brg=normB(SM.brg+adiff(brgT,SM.brg)*kb);
- me.setLngLat([SM.lon,SM.lat]);me.setRotation(SM.brg);
- if(!follow||PREVIEW_ACTIVE()||now<SM.easeUntil||map.isMoving&&map.isMoving()&&!SM.jumping)return;
+ const drawMe=()=>{me.setLngLat([SM.lon,SM.lat]);me.setRotation(SM.brg)};
+ if(!follow||PREVIEW_ACTIVE()||now<SM.easeUntil||map.isMoving&&map.isMoving()&&!SM.jumping){drawMe();return}
  const camT=set.ori!=='nord'?SM.brg:0;SM.cam=normB(SM.cam+adiff(camT,SM.cam)*(1-Math.exp(-dt/0.6)));
  const o=camOpts();
- if(Math.abs(SM.cLat-SM.lat)<2e-7&&Math.abs(SM.cLon-SM.lon)<2e-7&&Math.abs(adiff(SM.cam,SM.cB))<0.05&&SM.cZ===o.zoom)return;
+ if(Math.abs(SM.cLat-SM.lat)<2e-7&&Math.abs(SM.cLon-SM.lon)<2e-7&&Math.abs(adiff(SM.cam,SM.cB))<0.05&&SM.cZ===o.zoom){drawMe();return}
  SM.cLat=SM.lat;SM.cLon=SM.lon;SM.cB=SM.cam;SM.cZ=o.zoom;SM.jumping=true;
- try{map.jumpTo({center:[SM.lon,SM.lat],bearing:SM.cam,...o})}finally{SM.jumping=false}}
+ // Karte sofort im selben Bild neu zeichnen, sonst hinkt sie dem Pfeil ein Bild hinterher (Zittern auf dem iPhone)
+ try{map.jumpTo({center:[SM.lon,SM.lat],bearing:SM.cam,...o});drawMe();map.redraw()}catch(e){drawMe()}finally{SM.jumping=false}}
 requestAnimationFrame(smoothFrame);
 const isLand=()=>matchMedia('(orientation:landscape) and (max-height:540px)').matches;
 window.addEventListener('resize',()=>{setTimeout(()=>{map.resize();applyView(true)},150)});
@@ -602,7 +603,7 @@ function onFix(pos){
  const c=pos.coords,t=pos.timestamp/1000,p={lat:c.latitude,lon:c.longitude,acc:c.accuracy,t};
  let gv=v;if(prev){const dt=t-prev.t;if(dt>0){const dd=dist(prev,p);gv=c.speed!=null&&c.speed>=0?c.speed:dd/dt;v=v*0.4+gv*0.6}}
  const hv=c.heading!=null&&!isNaN(c.heading)&&c.heading>=0&&v>2;if(hv)heading=c.heading;
- if(!lastMove)lastMove=p;else if(dist(lastMove,p)>8){if(!hv)heading=bearing(lastMove,p);lastMove=p}
+ if(!lastMove)lastMove=p;else if(dist(lastMove,p)>8){if(!hv&&v>1.5&&dist(lastMove,p)>Math.max(8,(c.accuracy||10)*0.8))heading=bearing(lastMove,p);lastMove=p}
  prev=p;cur=p;SM.fixT=performance.now();DIAG.fixes++;DIAG.acc=c.accuracy;
  $('gps').textContent='±'+Math.round(c.accuracy)+' m';$('gps').classList.toggle('warn',c.accuracy>30);
  applyView();
