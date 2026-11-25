@@ -8,24 +8,16 @@ async def main():
   await pg.goto('http://gw.test:8000/index.html');await pg.wait_for_timeout(3000)
   await pg.click('#goSim');await pg.wait_for_timeout(8000)
   await pg.click('#pvSim');await pg.click('#simF');await pg.click('#simF')   # 4×
-  t0=time.time();last=None;hist=[]
+  t0=time.time();last=None;hist=[];k=0
   while time.time()-t0<150:
    st=await pg.evaluate("()=>{const e=document.getElementById('vlim');return e.classList.contains('on')?(document.getElementById('vlimN').textContent+(e.classList.contains('none')?'(frei)':'')+(e.classList.contains('imp')?'(vermutet)':'')):'—'}")
    if st!=last:hist.append(f'{int(time.time()-t0)}s:{st}');last=st
-   if len(hist)<3:print(int(time.time()-t0),'s',await pg.evaluate('()=>[window.__gw.VL.state,JSON.stringify(window.__gw.OPS)]'),flush=True)
+   if k%5==0 and k<60:print(int(time.time()-t0),'s',await pg.evaluate('()=>[window.__gw.VL.state,JSON.stringify(window.__gw.OPS)]'),flush=True)
+   k+=1
    if not await pg.evaluate("document.getElementById('simBar').classList.contains('on')"):break
    await pg.wait_for_timeout(1000)
   print('VERLAUF',hist,flush=True)
-  st=await pg.evaluate("()=>{const e=document.getElementById('vlim');return e.classList.contains('on')?(document.getElementById('vlimN').textContent+(e.classList.contains('none')?'(frei)':'')+(e.classList.contains('imp')?'(vermutet)':'')):'—'}")
-   if st!=last:hist.append(f'{int(time.time()-t0)}s:{st}');last=st
-   if len(hist)<3:print(int(time.time()-t0),'s',await pg.evaluate('()=>[window.__gw.VL.state,JSON.stringify(window.__gw.OPS)]'),flush=True)
-   if not await pg.evaluate("document.getElementById('simBar').classList.contains('on')"):break
-   await pg.wait_for_timeout(1000)
-  print('VERLAUF',hist,flush=True)
-  await pg.click('#setBtn');await pg.wait_for_timeout(500)
-  d=await pg.evaluate("()=>[...document.querySelectorAll('#diag tr, #diagT tr, .diag tr')].map(r=>r.innerText.replace(/\\s+/g,' ')).filter(t=>/Overpass|Tempolimit|App-Version/.test(t))")
-  print('DIAG',d,flush=True)
-  st=await pg.evaluate("()=>({state:window.__gw.VL.state,ops:window.__gw.OPS,ways:window.__gw.VL.ways?window.__gw.VL.ways.size:0})")
-  print('VL',st,flush=True);print('FEHLER',errs,flush=True)
+  print('VL',await pg.evaluate("()=>({state:window.__gw.VL.state,ops:window.__gw.OPS,ways:window.__gw.VL.ways?window.__gw.VL.ways.size:0})"),flush=True)
+  print('FEHLER',errs,flush=True)
   await b.close()
 asyncio.run(main())
