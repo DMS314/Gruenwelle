@@ -110,6 +110,13 @@ html{background:var(--card)}body{background:var(--bg)}
 #blitz.on{display:flex}.nav-on #blitz{top:calc(env(safe-area-inset-top) + var(--navh,64px) + 66px)}.nav-on.nav-open #blitz{display:none}#blitz.fast{background:#e53935;color:#fff}
 #blitz .lim{width:44px;height:44px;border-radius:50%;border:5px solid #e53935;background:#fff;color:#1d2329;display:grid;place-items:center;font-weight:800;font-size:17px;flex:none}
 #blitz b{font-size:18px;display:block}#blitz span{font-size:14px}
+/* Während der Navigation sitzt die Blitzerwarnung als Zeile in der Navi-Karte (unter der Abbiegung) */
+#nav #blitz{position:relative;order:1;left:auto;right:auto;top:auto!important;width:auto;z-index:1;background:transparent;color:var(--ink);border:0;border-radius:0;box-shadow:none;
+ margin:0;padding:9px 14px 10px 10px;gap:14px;border-top:1px solid color-mix(in srgb,var(--ink) 9%,transparent)}
+.nav-on.nav-open #nav #blitz.on{display:flex}
+#nav #blitz .lim{width:42px;height:42px;font-size:16px;border-width:5px;margin-left:3px;box-shadow:0 0 0 1.5px #fff}
+#nav #blitz>div:last-child{line-height:1.2;min-width:0}#nav #blitz b{font-size:17px;font-weight:800}#nav #blitz span{display:block;font-size:13.5px;color:var(--mute);margin-top:2px}
+#nav #blitz.fast{background:#e53935;color:#fff;border-top-color:transparent}#nav #blitz.fast span{color:#fff}
 #simBar{position:absolute;right:10px;top:calc(env(safe-area-inset-top) + 66px);z-index:556;display:none;align-items:center;gap:4px;background:#7048e8;color:#fff;border-radius:20px;padding:3px 4px 3px 12px;box-shadow:0 4px 14px -6px #0007;font-size:13px;font-weight:700}
 #simBar.on{display:flex}#simBar button{font:inherit;font-size:13px;font-weight:800;border:0;background:#ffffff26;color:#fff;border-radius:16px;min-width:36px;height:32px;padding:0 9px;cursor:pointer}
 #simBar #simX{background:#fff;color:#7048e8}.nav-on #simBar{top:calc(env(safe-area-inset-top) + var(--navh,64px) + 66px)}.nav-on.nav-open #simBar{display:none}
@@ -317,7 +324,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='25.11.2026 · 26';
+const APP_VERSION='25.11.2026 · 27';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -965,7 +972,7 @@ $('pvGo').onclick=()=>{if(!PREVIEW)return;NAV=PREVIEW;PREVIEW=null;closeSheets()
  const rec=LS.get('gw_recent',[]).filter(x=>x.name!==NAV.dest.name);rec.unshift(NAV.dest);LS.set('gw_recent',rec.slice(0,6));
  appr=null;setTimeout(()=>syncShared(true),500);const first=NAV.steps[1];announce('start','Route gestartet. '+(first?`${inDist(first.s)} ${farText(first)}`:''),0);if(first&&first.s<Math.max(180,v*14))first.said.far=1;if(cur)updateNav(cur);renderNav()};
 $('pvCancel').onclick=()=>{PREVIEW=null;clearRoute();closeSheets();follow=true;applyView(true)};
-function endNav(silent){if(SIM.on&&NAV&&!SIM.ending){SIM.ending=true;try{simEnd(true)}finally{SIM.ending=false}}if(!NAV&&!PREVIEW)return;$('nav').classList.remove('open');document.body.classList.remove('nav-open');NAV=null;PREVIEW=null;clearRoute();laneUp=false;$('lanes').classList.remove('on');
+function endNav(silent){if(SIM.on&&NAV&&!SIM.ending){SIM.ending=true;try{simEnd(true)}finally{SIM.ending=false}}if(!NAV&&!PREVIEW)return;$('nav').classList.remove('open');document.body.classList.remove('nav-open');NAV=null;PREVIEW=null;clearRoute();laneUp=false;$('lanes').classList.remove('on');blitzHome(false);
  document.getElementById('app').classList.remove('app-nav');document.body.classList.remove('nav-on');$('nav').classList.remove('on');appr=null;if(!silent)toast('Navigation beendet')}
 $('navX').onclick=()=>{$('nav').classList.remove('open');document.body.classList.remove('nav-open');endNav()};
 $('navHead').onclick=()=>{const o=$('nav').classList.toggle('open');document.body.classList.toggle('nav-open',o);$('navHead').setAttribute('aria-expanded',o);renderNav()};
@@ -1089,7 +1096,10 @@ function updateLanes(R){const el=$('lanes'),a=laneAdvice(R);
  $('laneT').textContent=laneSay(a.side,several,a.d>250);
  {const nx=R.next>0?R.next:R.steps.length-1,cs=R.steps[nx],same=cs&&Math.abs(cs.s-a.M.s)<2;$('laneS').textContent=same?'':`für ${lf(a.M.text)} in ${fmt(Math.max(0,a.M.s-R.s))}`}laneMove(true);
  const trig=Math.max(350,v*22);if(!a.D.said&&a.d<=trig){a.D.said=1;announce('lane',laneSay(a.side,several,a.d>200),a.side==='left'?-0.8:a.side==='right'?0.8:0)}}
-function renderNav(){const R=NAV;if(!R)return;const el=$('nav');el.classList.add('on');el.classList.toggle('off',R.offN>0);requestAnimationFrame(()=>document.documentElement.style.setProperty('--navh',el.offsetHeight+'px'));
+// Blitzerwarnung während der Navigation in die Navi-Karte holen, danach zurück an ihren Platz
+function blitzHome(inNav){const b=$('blitz'),main=document.querySelector('#nav .main');if(inNav){if(b.parentNode!==main)main.appendChild(b)}else if(b.parentNode===main)$('simBar').before(b);requestAnimationFrame(setNavh)}
+new MutationObserver(()=>{if(NAV)requestAnimationFrame(setNavh)}).observe($('blitz'),{attributes:true,attributeFilter:['class']});
+function renderNav(){const R=NAV;if(!R)return;const el=$('nav');blitzHome(true);el.classList.add('on');el.classList.toggle('off',R.offN>0);requestAnimationFrame(()=>document.documentElement.style.setProperty('--navh',el.offsetHeight+'px'));
  updateLanes(R);
  const nx=R.next>0?R.next:R.steps.length-1,st=R.steps[nx];
  if(st){const d=Math.max(0,st.s-R.s);$('navIco').innerHTML=navIcon(st.st);$('navD').textContent=fmt(d);$('navT').textContent=R.offN>0?'Abseits der Route':st.text;
