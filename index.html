@@ -76,7 +76,11 @@ html{background:var(--card)}body{background:var(--bg)}
 #nav .then{font-size:12px;font-weight:600;background:color-mix(in srgb,var(--blue) 22%,transparent);color:var(--ink);border-radius:10px;padding:3px 8px;white-space:nowrap;display:none;align-items:center;gap:4px;flex:none}
 #nav .then svg{width:16px;height:16px}#nav .then.on{display:inline-flex}
 #nav .chev{width:20px;height:20px;flex:none;color:var(--mute);transition:transform .25s}#nav.open .chev{transform:rotate(180deg)}
-#nav .prog{height:3px;background:color-mix(in srgb,var(--ink) 10%,transparent)}#nav .prog i{display:block;height:100%;width:0;background:var(--blue);transition:width .8s linear}
+#nav .head::before{content:'';position:absolute;left:0;top:0;bottom:0;width:var(--np,0%);z-index:-1;pointer-events:none;
+ background:linear-gradient(90deg,color-mix(in srgb,var(--blue) 18%,transparent),color-mix(in srgb,var(--blue) 34%,transparent));
+ border-right:3px solid color-mix(in srgb,var(--blue) 70%,transparent);transition:width 1s linear,background .4s}
+#nav[data-np="0"] .head::before{border-right-width:0}#nav.npj .head::before{transition:none}
+#nav.near .head::before{background:linear-gradient(90deg,color-mix(in srgb,var(--blue) 30%,transparent),color-mix(in srgb,var(--blue) 50%,transparent))}
 #nav .more{display:none;padding:4px 12px 12px;border-top:1px solid color-mix(in srgb,var(--ink) 8%,transparent)}#nav.open .more{display:block}
 #nav .stp{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid color-mix(in srgb,var(--ink) 6%,transparent);font-size:14px}
 #nav .stp svg{width:22px;height:22px;flex:none;color:var(--blue)}#nav .stp em{font-style:normal;margin-left:auto;color:var(--mute);white-space:nowrap;padding-left:8px}
@@ -168,7 +172,6 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
   <span class="then" id="navThen"></span>
   <svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
   <div class="lanes" id="lanes"><div class="ln" id="laneBox"></div><div class="lt"><b id="laneT"></b><span id="laneS"></span></div></div>
-  <div class="prog"><i id="navProg"></i></div>
   <div class="more"><div id="navSteps"></div><div class="acts"><button class="btn" id="navOv">Übersicht</button><button class="btn" id="navX">Beenden</button></div></div></div>
  <div id="blitz"><div class="lim" id="bLim">–</div><div><b id="bT">Blitzer</b><span id="bD"></span></div></div>
  <div id="simBar"><span id="simT">Simulation</span><button id="simP" aria-label="Pause">❚❚</button><button id="simF">1×</button><button id="simX">Ende</button></div>
@@ -281,7 +284,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='25.11.2026 · 8';
+const APP_VERSION='25.11.2026 · 9';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -890,7 +893,7 @@ function renderNav(){const R=NAV;if(!R)return;const el=$('nav');el.classList.add
  updateLanes(R);
  const nx=R.next>0?R.next:R.steps.length-1,st=R.steps[nx];
  if(st){const d=Math.max(0,st.s-R.s);$('navIco').innerHTML=navIcon(st.st);$('navD').textContent=fmt(d);$('navT').textContent=R.offN>0?'Abseits der Route':st.text;
-  const span=Math.min(400,st.s-(nx>0?R.steps[nx-1].s:0));$('navProg').style.width=Math.max(0,Math.min(100,(1-d/Math.max(span,1))*100))+'%';
+  const span=Math.min(500,st.s-(nx>0?R.steps[nx-1].s:0));{const pr=Math.max(0,Math.min(100,(1-d/Math.max(span,1))*100)),nv=$('nav');if(pr<(nv._np||0)-20){nv.classList.add('npj');void nv.offsetWidth}nv.style.setProperty('--np',pr.toFixed(1)+'%');nv._np=pr;if(nv.classList.contains('npj'))requestAnimationFrame(()=>requestAnimationFrame(()=>nv.classList.remove('npj')));nv.dataset.np=pr<0.5?'0':'1';nv.classList.toggle('near',d<60)}
   const n2=R.steps[nx+1],th=$('navThen');
   if(n2&&n2.st.maneuver.type!=='arrive'&&n2.s-st.s<150){th.innerHTML='dann <svg viewBox="0 0 48 48">'+navIcon(n2.st)+'</svg>';th.classList.add('on')}else th.classList.remove('on');
   if(el.classList.contains('open')){$('navSteps').innerHTML=R.steps.slice(nx,nx+5).map(x=>`<div class="stp"><svg viewBox="0 0 48 48">${navIcon(x.st)}</svg><div>${esc(x.text)}</div><em>${fmt(Math.max(0,x.s-R.s))}</em></div>`).join('')}}
