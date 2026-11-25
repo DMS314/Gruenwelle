@@ -314,7 +314,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='25.11.2026 · 21';
+const APP_VERSION='25.11.2026 · 22';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -844,8 +844,9 @@ function renderVoices(){const box=$('voiceBox');if(!box)return;box.style.display
  sel.innerHTML=vs.length?`<option value="">Automatisch${best?' ('+esc(vLabel(best))+')':''}</option>`+vs.map(v=>`<option value="${esc(v.voiceURI)}">${esc(vLabel(v))}</option>`).join(''):'<option value="">Keine deutsche Stimme gefunden</option>';
  sel.value=set.voice&&vs.some(v=>v.voiceURI===set.voice)?set.voice:'';
  const top=best?vQual(best):0;
- $('voiceInfo').innerHTML=top>=2?'Natürlichere Stimmen mit „Premium“ oder „Erweitert“ sind installiert.':'Für eine natürlichere Stimme in iOS eine bessere laden: <b>Einstellungen</b> öffnen, oben ins Suchfeld <b>Stimmen</b> eingeben, den Treffer unter Bedienungshilfen öffnen (ab iOS 26 unter „Lesen &amp; Sprechen“) › <b>Deutsch</b>, dann z. B. <b>Anna</b> oder <b>Helena</b> in der Variante <b>(Premium)</b> oder <b>(Erweitert)</b> über das Wolkensymbol laden. Danach Grünwelle neu öffnen, die Stimme wird automatisch gewählt. Siri-Stimmen stehen Web-Apps nicht zur Verfügung.'}
+ $('voiceInfo').innerHTML='Auf dem iPhone bekommen Web-Apps nur die fest eingebauten Stimmen. In den iOS-Einstellungen nachgeladene Stimmen (z. B. Petra, Premium/Erweitert) und Siri-Stimmen gibt iOS nicht an Webseiten weiter. Die App nimmt automatisch die beste verfügbare.'}
 try{speechSynthesis.addEventListener('voiceschanged',()=>{voices=null;renderVoices()})}catch(e){}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){voices=null;renderVoices()}});
 let actx=null;
 function audioInit(){try{if('audioSession' in navigator&&set.audio!=='sprache')navigator.audioSession.type='ambient'}catch(e){}
  try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();if(actx.state!=='running')actx.resume()}catch(e){}}
