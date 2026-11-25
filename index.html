@@ -110,9 +110,8 @@ html{background:var(--card)}body{background:var(--bg)}
 #simBar.on{display:flex}#simBar button{font:inherit;font-size:13px;font-weight:800;border:0;background:#ffffff26;color:#fff;border-radius:16px;min-width:36px;height:32px;padding:0 9px;cursor:pointer}
 #simBar #simX{background:#fff;color:#7048e8}.nav-on #simBar{top:calc(env(safe-area-inset-top) + var(--navh,64px) + 66px)}.nav-on.nav-open #simBar{display:none}
 body.sim #wx{max-width:calc(100% - 230px)}
-#wx{position:absolute;left:10px;top:calc(env(safe-area-inset-top) + 66px);z-index:554;display:none;align-items:center;gap:6px;max-width:calc(100% - 20px);border:0;border-radius:18px;height:34px;padding:0 12px 0 8px;font:inherit;font-size:13px;font-weight:700;box-shadow:0 4px 14px -6px #0007;cursor:pointer;white-space:nowrap;overflow:hidden;background:#ffd43b;color:#1d2329}
-#wx.on{display:inline-flex}#wx svg{width:20px;height:20px;flex:none}#wx span{overflow:hidden;text-overflow:ellipsis}
-#wx[data-s=moderate]{background:#ff922b}#wx[data-s=severe]{background:#e03131;color:#fff}#wx[data-s=extreme]{background:#9c36b5;color:#fff}
+#wx{position:absolute;left:10px;top:calc(env(safe-area-inset-top) + 66px);z-index:554;display:none;place-items:center;width:42px;height:42px;border:0;border-radius:50%;padding:0;background:var(--card);color:var(--ink);box-shadow:0 4px 14px -6px #0007;cursor:pointer}
+#wx.on{display:grid}#wx .wi{width:25px;height:25px}#wx .wb{position:absolute;right:-4px;bottom:-3px;width:21px;height:21px;filter:drop-shadow(0 1px 1px #0005)}
 #blitz.on~#wx{display:none!important}.nav-on #wx{top:calc(env(safe-area-inset-top) + var(--navh,64px) + 66px)}.nav-on.nav-open #wx{display:none}
 .wxa{border-left:6px solid #ffd43b;padding:6px 0 6px 12px;margin:12px 0}.wxa[data-s=moderate]{border-color:#ff922b}.wxa[data-s=severe]{border-color:#e03131}.wxa[data-s=extreme]{border-color:#9c36b5}
 .wxa b{display:block;font-size:16px}.wxa .t{font-size:13px;color:var(--mute);margin:2px 0 6px}.wxa p{margin:4px 0;font-size:15px;line-height:1.4}
@@ -181,7 +180,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
   <div class="more"><div id="navSteps"></div><div class="acts"><button class="btn" id="navOv">Übersicht</button><button class="btn" id="navX">Beenden</button></div></div></div>
  <div id="blitz"><div class="lim" id="bLim">–</div><div><b id="bT">Blitzer</b><span id="bD"></span></div></div>
  <div id="simBar"><span id="simT">Simulation</span><button id="simP" aria-label="Pause">❚❚</button><button id="simF">1×</button><button id="simX">Ende</button></div>
- <button id="wx" aria-label="Wetterwarnung anzeigen"><svg viewBox="0 0 24 24"><path d="M12 2.5L1.8 20.5h20.4z" fill="currentColor" opacity=".9"/><path d="M11 9h2v6h-2zm0 7.5h2v2h-2z" fill="var(--wxi,#fff)"/></svg><span id="wxT"></span></button>
+ <button id="wx" aria-label="Wetterwarnung anzeigen"></button>
  <div class="top"><span class="pill"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="var(--blue)" stroke-width="2.2"/><circle cx="12" cy="12" r="3.5" fill="var(--blue)"/></svg><span id="gps">GPS aus</span></span><span class="pill"><svg viewBox="0 0 24 24"><rect x="7.5" y="2.5" width="9" height="19" rx="3" fill="#1d2329" stroke="currentColor" stroke-width="1.2" stroke-opacity=".35"/><circle cx="12" cy="7" r="1.9" fill="#ff4d4f"/><circle cx="12" cy="12" r="1.9" fill="#ffc72c"/><circle cx="12" cy="17" r="1.9" fill="#1fbf5f"/></svg><span id="sigs">–</span></span><button class="ibtn" id="fsBtn" aria-label="Vollbild"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="ibtn navbtn" id="searchBtn" aria-label="Navigation starten: Ziel eingeben"><svg viewBox="0 0 24 24" class="dir"><rect x="4.2" y="4.2" width="15.6" height="15.6" rx="3" transform="rotate(45 12 12)" fill="#33ccff" stroke="none"/><path d="M9.2 15.5v-2.6a2 2 0 0 1 2-2h4.3" fill="none" stroke="#0b1a26" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.6 8.6l2.6 2.3-2.6 2.3" fill="none" stroke="#0b1a26" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Wohin?</span></button><button class="ibtn" id="setBtn" aria-label="Einstellungen"><svg viewBox="0 0 24 24"><path d="M19.46 10.09 L22.06 10.34 L22.06 13.66 L19.46 13.91 L18.63 15.92 L20.29 17.94 L17.94 20.29 L15.92 18.63 L13.91 19.46 L13.66 22.06 L10.34 22.06 L10.09 19.46 L8.08 18.63 L6.06 20.29 L3.71 17.94 L5.37 15.92 L4.54 13.91 L1.94 13.66 L1.94 10.34 L4.54 10.09 L5.37 8.08 L3.71 6.06 L6.06 3.71 L8.08 5.37 L10.09 4.54 L10.34 1.94 L13.66 1.94 L13.91 4.54 L15.92 5.37 L17.94 3.71 L20.29 6.06 L18.63 8.08Z" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/><circle cx="12" cy="12" r="3.4" fill="var(--card)" stroke="none"/></svg></button></div>
  <div class="alert" id="alert"><div class="dot" id="aDot">!</div><div class="tx"><b id="aT"></b><span id="aD"></span></div><button class="btn pri" id="aYes">Noch da</button><button class="btn" id="aNo">Weg</button></div>
  <div class="panel">
@@ -295,7 +294,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='25.11.2026 · 13';
+const APP_VERSION='25.11.2026 · 14';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -618,10 +617,22 @@ async function fetchWx(p,force){if(!set.wx){WX.list=[];WX.state='aus';drawWx();r
  drawWx()}
 const wxTime=a=>{const o=Date.parse(a.onset),x=a.expires?Date.parse(a.expires):0,f=t=>{const d=new Date(t),td=new Date(Date.now());const same=d.toDateString()===td.toDateString(),tm=d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});return same?tm:d.toLocaleDateString('de-DE',{weekday:'short'})+' '+tm};
  return o>Date.now()?`ab ${f(o)}${x?' bis '+f(x):''}`:x?`bis ${f(x)}`:'gilt jetzt'};
+// Symbol je Warnart (DWD-Ereignis) + Warndreieck in der Farbe der Warnstufe
+const WXI={schnee:'<g stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"><path d="M12 2.5v19M3.8 7.25l16.4 9.5M3.8 16.75l16.4-9.5M9.5 3.8 12 6.3l2.5-2.5M9.5 20.2 12 17.7l2.5 2.5M3.5 10.4l3.4-.9-.9-3.4M20.5 13.6l-3.4.9.9 3.4M6 17.9l.9-3.4-3.4-.9M18 6.1l-.9 3.4 3.4.9"/></g>',
+ gewitter:'<path d="M13.5 2 5 13.5h6L10 22l9-12h-6.2z" fill="currentColor"/>',
+ wind:'<g stroke="currentColor" stroke-width="2.2" stroke-linecap="round" fill="none"><path d="M3 8.5h10.5a3 3 0 1 0-3-3M3 12.5h15a3 3 0 1 1-3 3M3 16.5h7"/></g>',
+ nebel:'<g stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M2.5 11.5h19M4 16h16M6.5 20.5h11"/></g>',
+ regen:'<path d="M7 15a4.5 4.5 0 0 1-.6-9 6 6 0 0 1 11.4 1.6A3.7 3.7 0 0 1 17.5 15z" fill="currentColor"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 18l-1 3M12.5 18l-1 3M17 18l-1 3"/></g>',
+ hitze:'<circle cx="12" cy="12" r="4.5" fill="currentColor"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></g>',
+ wolke:'<path d="M6.5 19a5 5 0 0 1-.7-9.95 6.5 6.5 0 0 1 12.5 1.7A4.2 4.2 0 0 1 17.8 19z" fill="currentColor"/>'};
+const wxKind=a=>{const e=((a.event_de||'')+' '+(a.event_en||'')).toUpperCase();
+ return /SCHNEE|GLÄTTE|GLATTEIS|FROST|EIS|SNOW|ICE/.test(e)?'schnee':/GEWITTER|THUNDER/.test(e)?'gewitter':/NEBEL|FOG/.test(e)?'nebel':/WIND|STURM|ORKAN|BÖEN|GALE|STORM/.test(e)?'wind':/REGEN|TAUWETTER|RAIN|THAW/.test(e)?'regen':/HITZE|UV|HEAT/.test(e)?'hitze':'wolke'};
+const WXCOL={minor:['#ffd43b','#1d2329'],moderate:['#ff922b','#1d2329'],severe:['#e03131','#fff'],extreme:['#9c36b5','#fff']};
 function drawWx(){const el=$('wx'),a=WX.list[0];if(!set.wx||!a){el.classList.remove('on');return}
- el.dataset.s=a.severity||'minor';el.style.setProperty('--wxi',a.severity==='severe'||a.severity==='extreme'?'#e03131':'#1d2329');
- if(a.severity==='extreme')el.style.setProperty('--wxi','#9c36b5');
- $('wxT').textContent=`${a.event_de||'Wetterwarnung'} · ${wxTime(a)}${WX.list.length>1?' · +'+(WX.list.length-1):''}`;el.classList.add('on');
+ const[bg,fg]=WXCOL[a.severity]||WXCOL.minor;
+ el.innerHTML=`<svg class="wi" viewBox="0 0 24 24">${WXI[wxKind(a)]}</svg><svg class="wb" viewBox="0 0 24 24"><path d="M12 2.5 1.5 21h21z" fill="${bg}" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/><path d="M11 9h2v5.5h-2zm0 7.3h2v2.2h-2z" fill="${fg}"/></svg>`;
+ el.setAttribute('aria-label',`${WXNAME[a.severity]||'Wetterwarnung'}: ${a.event_de||''}, ${wxTime(a)}${WX.list.length>1?`, ${WX.list.length} Warnungen`:''}. Details anzeigen`);
+ el.classList.add('on');
  if($('wxSheet').classList.contains('on'))renderWxSheet()}
 function renderWxSheet(){$('wxLoc').textContent=WX.loc?'Für '+WX.loc:'';
  $('wxL').innerHTML=WX.list.length?WX.list.map(a=>`<div class="wxa" data-s="${esc(a.severity)}"><b>${esc(a.headline_de||a.event_de)}</b><div class="t">${esc(WXNAME[a.severity]||'')} · ${esc(wxTime(a))}</div><p>${esc(a.description_de||'')}</p>${a.instruction_de?`<p><i>${esc(a.instruction_de)}</i></p>`:''}</div>`).join(''):'<p>Zurzeit keine Warnungen.</p>'}
@@ -1314,7 +1325,7 @@ async function checkUpdate(){try{const r=await fetch('./?v='+Date.now(),{cache:'
   let n=0;try{n=+sessionStorage.getItem('gw_upd')||0}catch(e){}if(n>2)return;try{sessionStorage.setItem('gw_upd',n+1)}catch(e){}
   location.replace(location.pathname+'?v='+encodeURIComponent(m[1]))}}catch(e){}}
 setTimeout(checkUpdate,1500);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});drawSignals();drawReps();renderLearn();loadFile();setBlitz();loadWorks();loadTrams();
-if(location.hostname=='gw.test')window.__gw={VWD:()=>VWD,loadVwd,vwdAhead,VL,ANN:()=>ANN,annAt,condMs,wayLimit,OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr,map,SIM};
+if(location.hostname=='gw.test')window.__gw={WX:()=>WX,drawWx,VWD:()=>VWD,loadVwd,vwdAhead,VL,ANN:()=>ANN,annAt,condMs,wayLimit,OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr,map,SIM};
 $('startInfo').textContent=(Object.keys(OBS).length?`Bisher gelernt: ${Object.keys(OBS).length} Ampel-Richtungen. `:'')+'Version '+APP_VERSION;
 
 }
