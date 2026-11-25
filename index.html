@@ -82,6 +82,9 @@ html{background:var(--card)}body{background:var(--bg)}
 #nav .stp svg{width:22px;height:22px;flex:none;color:var(--blue)}#nav .stp em{font-style:normal;margin-left:auto;color:var(--mute);white-space:nowrap;padding-left:8px}
 #nav .stp div{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #nav .lanes{display:none;align-items:center;gap:10px;padding:6px 12px 8px;border-top:1px solid color-mix(in srgb,var(--ink) 8%,transparent)}#nav .lanes.on{display:flex}
+#nav .lanes.up{order:-1;border-top:0;border-bottom:1px solid color-mix(in srgb,var(--ink) 10%,transparent);padding:10px 12px 9px;background:color-mix(in srgb,var(--blue) 14%,transparent)}
+#nav .lanes.up .l{width:34px;height:38px}#nav .lanes.up .l svg{width:28px;height:28px}#nav .lanes.up .lt b{font-size:17px}
+#nav .head,#nav .lanes{position:relative;z-index:1;background-clip:padding-box}#nav .lanes{z-index:2}
 #nav .lanes .ln{display:flex;gap:3px;background:color-mix(in srgb,var(--ink) 8%,transparent);border-radius:10px;padding:3px}
 #nav .lanes .l{width:30px;height:34px;border-radius:7px;display:grid;place-items:center;color:color-mix(in srgb,var(--ink) 35%,transparent)}
 #nav .lanes .l svg{width:24px;height:24px}#nav .lanes .l.ok{color:var(--ink)}#nav .lanes .l.rec{background:var(--blue);color:var(--onblue)}
@@ -257,7 +260,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='25.11.2026 · 1';
+const APP_VERSION='25.11.2026 · 2';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -695,7 +698,7 @@ $('pvGo').onclick=()=>{if(!PREVIEW)return;NAV=PREVIEW;PREVIEW=null;closeSheets()
  const rec=LS.get('gw_recent',[]).filter(x=>x.name!==NAV.dest.name);rec.unshift(NAV.dest);LS.set('gw_recent',rec.slice(0,6));
  appr=null;setTimeout(()=>syncShared(true),500);const first=NAV.steps[1];announce('start','Route gestartet. '+(first?`${inDist(first.s)} ${farText(first)}`:''),0);if(first&&first.s<Math.max(180,v*14))first.said.far=1;if(cur)updateNav(cur);renderNav()};
 $('pvCancel').onclick=()=>{PREVIEW=null;clearRoute();closeSheets();follow=true;applyView(true)};
-function endNav(silent){if(!NAV&&!PREVIEW)return;$('nav').classList.remove('open');document.body.classList.remove('nav-open');NAV=null;PREVIEW=null;clearRoute();
+function endNav(silent){if(!NAV&&!PREVIEW)return;$('nav').classList.remove('open');document.body.classList.remove('nav-open');NAV=null;PREVIEW=null;clearRoute();laneUp=false;clearTimeout(laneAnim);$('lanes').classList.remove('on','up');
  document.getElementById('app').classList.remove('app-nav');document.body.classList.remove('nav-on');$('nav').classList.remove('on');appr=null;if(!silent)toast('Navigation beendet')}
 $('navX').onclick=()=>{$('nav').classList.remove('open');document.body.classList.remove('nav-open');endNav()};
 $('navHead').onclick=()=>{const o=$('nav').classList.toggle('open');document.body.classList.toggle('nav-open',o);$('navHead').setAttribute('aria-expanded',o);renderNav()};
@@ -758,12 +761,25 @@ function laneAdvice(R){if(!R.lanes||!R.lanes.length)return null;
   if(!best||sc>best.sc)best={side,sc}}
  if(!best)return null;return{D,M,side:best.side,lanes:recLanes(D,best.side),d:D.s-R.s}}
 const SIDETXT={left:'Linke Spur',middle:'Mittlere Spur',right:'Rechte Spur'},SIDEPL={left:'Linke Spuren',middle:'Mittlere Spuren',right:'Rechte Spuren'};
+// Spurfenster: bei Empfehlung nach oben über die Abbiegeanzeige gleiten, danach wieder nach unten und ausblenden
+let laneUp=false,laneAnim=null;
+function laneMove(up){const ln=$('lanes'),hd=$('navHead');if(laneUp===up)return;laneUp=up;clearTimeout(laneAnim);
+ const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+ if(up)ln.classList.add('on');
+ const a0=ln.getBoundingClientRect().top,b0=hd.getBoundingClientRect().top;
+ ln.classList.toggle('up',up);
+ const a1=ln.getBoundingClientRect().top,b1=hd.getBoundingClientRect().top;
+ requestAnimationFrame(()=>document.documentElement.style.setProperty('--navh',$('nav').offsetHeight+'px'));
+ const T=reduce?0:450,ease='cubic-bezier(.2,.8,.2,1)';
+ if(T&&ln.animate){ln.animate([{transform:`translateY(${a0-a1}px)`},{transform:'none'}],{duration:T,easing:ease});hd.animate([{transform:`translateY(${b0-b1}px)`},{transform:'none'}],{duration:T,easing:ease})}
+ if(!up)laneAnim=setTimeout(()=>{if(laneUp)return;const done=()=>{if(!laneUp){ln.classList.remove('on');requestAnimationFrame(()=>document.documentElement.style.setProperty('--navh',$('nav').offsetHeight+'px'))}};
+  if(T&&ln.animate){const an=ln.animate([{opacity:1},{opacity:0}],{duration:180});an.onfinish=done}else done()},T+250)}
 function updateLanes(R){const el=$('lanes'),a=laneAdvice(R);
- if(!a||a.d>Math.max(1000,v*45)){el.classList.remove('on');return}
+ if(!a||a.d>Math.max(1000,v*45)){laneMove(false);return}
  const n=a.D.lanes.length,several=a.lanes.length>1&&a.lanes.length<n;
  $('laneBox').innerHTML=a.D.lanes.map((l,i)=>`<div class="l ${a.lanes.includes(i)?'rec':l.ok?'ok':''}"><svg viewBox="0 0 48 48">${laneIcon(l.ind,laneUse(l,a.D,a.M))}</svg></div>`).join('');
  $('laneT').textContent=(several?SIDEPL[a.side]:SIDETXT[a.side])+(a.d>250?' wählen':' halten');
- $('laneS').textContent=`für ${lf(a.M.text)} in ${fmt(Math.max(0,a.M.s-R.s))}`;el.classList.add('on');
+ $('laneS').textContent=`für ${lf(a.M.text)} in ${fmt(Math.max(0,a.M.s-R.s))}`;laneMove(true);
  const trig=Math.max(350,v*22);if(!a.D.said&&a.d<=trig){a.D.said=1;announce('lane',`${SIDETXT[a.side]} ${a.d>200?'wählen':'halten'}`,a.side==='left'?-0.8:a.side==='right'?0.8:0)}}
 function renderNav(){const R=NAV;if(!R)return;const el=$('nav');el.classList.add('on');el.classList.toggle('off',R.offN>0);requestAnimationFrame(()=>document.documentElement.style.setProperty('--navh',el.offsetHeight+'px'));
  updateLanes(R);
