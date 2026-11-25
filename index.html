@@ -260,7 +260,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='25.11.2026 · 3';
+const APP_VERSION='25.11.2026 · 4';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -745,6 +745,7 @@ const inDist=d=>'In '+(d>=1000?(Math.round(d/100)/10).toString().replace('.',','
 const farText=st=>st.st.maneuver.type=='arrive'?'erreichst du dein Ziel':lf(st.text);
 function updateNav(p){const R=NAV;if(!R)return;
  let q=snap(R,p.lat,p.lon,Math.max(0,R.i-5),R.i+80);if(q.d>40){const g=snap(R,p.lat,p.lon);if(g.d<q.d)q=g}
+ if(!R.lpBusy&&(R.lpEnd==null||(R.s>R.lpEnd-3000&&R.lpEnd<R.total))&&Date.now()-(R.lpTry||0)>60000)fetchLaneProfile(R);
  R.off=q.d;if(q.d>45&&(p.acc||0)<35)R.offN++;else{R.offN=0;R.i=q.i;R.s=Math.max(R.s-15,q.s)}
  if(R.offN>=3&&p.t-R.last>12){reroute(p);return}
  const rem=R.total-R.s;
@@ -782,14 +783,51 @@ function laneAdvice(R){if(!R.lanes||!R.lanes.length)return null;
  const ahead=R.lanes.filter(L=>L.s>R.s+3&&L.s<=M.s+30&&L.s-R.s<1500);if(!ahead.length)return null;
  const D=ahead.reduce((a,b)=>Math.abs(b.s-M.s)<Math.abs(a.s-M.s)?b:a);
  if(D.lanes.every(l=>l.ok))return null;               // alle Spuren passen: kein Hinweis nötig
+ if(!R.lp&&R.lpBusy&&Date.now()-R.lpTry<10000)return null; // Fahrstreifen werden noch geladen
+ if(laneDrop(R,R.s,D.s-10)!=null)return null;           // Straße wird vorher noch schmaler: erst danach empfehlen
+ const ends=sideEnds(R,D.s+5,Math.min(D.s+400,(R.steps[nx+1]||{s:1e9}).s));
  const M2=R.steps[nx+1],m2=M2&&M2.s-M.s<800&&M2.st.maneuver.type!=='arrive'?(M2.st.maneuver.modifier||''):'';
  let best=null;
  for(const side of['left','middle','right']){if(!sideOk(D,side))continue;
   let sc=3;for(const L of ahead)if(L!==D&&sideOk(L,side))sc+=1;
   if(m2&&((side==='left'&&/left/.test(m2))||(side==='right'&&/right/.test(m2))))sc+=1.5;
   if(side==='middle'&&m2&&/straight/.test(m2))sc+=0.5;
+  if(ends[side])sc-=2.5;
   if(!best||sc>best.sc)best={side,sc}}
  if(!best)return null;return{D,M,side:best.side,lanes:recLanes(D,best.side),d:D.s-R.s}}
+// ---------- Fahrstreifen entlang der Route (OSM lanes / turn:lanes über Overpass) ----------
+// Damit der Assistent keine Spur empfiehlt, bevor die Straße noch einmal schmaler wird.
+const MINOR=/^(residential|unclassified|living_street|service)$/;
+function lanesFor(tg,fwd){const ow=tg.oneway,hw=tg.highway||'',one=ow==='yes'||ow==='1'||ow==='true'||ow==='-1'||tg.junction==='roundabout'||(/^motorway/.test(hw)&&ow!=='no');
+ const cnt=x=>x?x.split('|').length:0,int=x=>{const n=parseInt(x);return n>0?n:0};let n=0,tl='';
+ if(one){if((ow==='-1')===fwd)return null;n=int(tg.lanes)||cnt(tg['turn:lanes']);tl=tg['turn:lanes']||''}
+ else{const k=fwd?'forward':'backward';tl=tg['turn:lanes:'+k]||'';n=int(tg['lanes:'+k])||cnt(tl)||(int(tg.lanes)?Math.max(1,Math.floor(int(tg.lanes)/2)):(MINOR.test(hw)?1:0))}
+ if(!n)return{n:null};const L=tl?tl.split('|'):[];return{n,endR:L.length>1&&/merge_to_left/.test(L[L.length-1]),endL:L.length>1&&/merge_to_right/.test(L[0])}}
+async function fetchLaneProfile(R){R.lpBusy=true;R.lpTry=Date.now();
+ try{const s0=Math.max(0,R.s-50),s1=Math.min(R.total,s0+12000),step=Math.max(30,(s1-s0)/380),S=[];for(let x=s0;x<=s1;x+=step)S.push(x);
+  const pts=S.map(x=>routeAt(R,x));
+  const q=`[out:json][timeout:25];way(around:14,${pts.map(c=>c.lat.toFixed(5)+','+c.lon.toFixed(5)).join(',')})[highway~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|service)(_link)?$"];out tags geom;`;
+  let j=null;for(const u of OVERPASS){try{const r=await tfetch(u,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}},25000);if(!r.ok)throw new Error(r.status);j=await r.json();break}catch(e){}}
+  if(!j)throw new Error('Overpass');
+  const lat0=pts[0].lat,kx=111320*Math.cos(lat0*RAD),ky=110540,XY=(la,lo)=>[(lo-pts[0].lon)*kx,(la-lat0)*ky];
+  const segs=[];for(const w of j.elements||[]){if(!w.geometry||w.geometry.length<2)continue;const g=w.geometry.map(c=>XY(c.lat,c.lon));for(let i=0;i<g.length-1;i++)segs.push([g[i],g[i+1],w.tags||{}])}
+  const prof=[];
+  for(let k=0;k<S.length;k++){const a=routeAt(R,S[k]-8),b=routeAt(R,S[k]+8),rb=bearing(a,b),[px,py]=XY(pts[k].lat,pts[k].lon);let best=null;
+   for(const[A,B,tg]of segs){if(Math.max(A[0],B[0])<px-14||Math.min(A[0],B[0])>px+14||Math.max(A[1],B[1])<py-14||Math.min(A[1],B[1])>py+14)continue;
+    const pr=projSeg(px,py,A[0],A[1],B[0],B[1]);if(pr.d>12)continue;const sb=(Math.atan2(B[0]-A[0],B[1]-A[1])*180/Math.PI+360)%360,df=Math.abs(adiff(rb,sb));
+    if(df>40&&df<140)continue;if(!best||pr.d<best.d)best={d:pr.d,tg,fwd:df<=40}}
+   const ln=best?lanesFor(best.tg,best.fwd):null;prof.push(Object.assign({s:S[k]},ln&&ln.n?ln:{n:null}))}
+  R.lp=prof;R.lpEnd=s1;R.lpState=`${prof.filter(x=>x.n).length} von ${prof.length} Punkten mit Fahrstreifen`}
+ catch(e){R.lpState='Fahrstreifen nicht geladen ('+e.message+')'}
+ R.lpBusy=false}
+// Wird die Straße zwischen a und b schmaler? Liefert die Stelle oder null
+function laneDrop(R,a,b){if(!R.lp)return null;let prev=null,drop=null;const P2=R.lp.filter(x=>x.s>=a-60&&x.s<=b&&x.n);
+ for(let i=0;i<P2.length;i++){const x=P2[i];
+  if(prev!=null&&x.n<prev&&x.s>a){const nx=P2[i+1];if(!nx||nx.s-x.s>90||nx.n<prev)drop=x.s}
+  if((x.endL||x.endR)&&x.s>a)drop=Math.max(drop||0,x.s+20);prev=x.n}
+ return drop!=null&&drop<=b?drop:null}
+// Welche Seite verschwindet kurz nach der Kreuzung? (aus turn:lanes merge_to_left/right)
+function sideEnds(R,a,b){if(!R.lp)return{};const o={};for(const x of R.lp)if(x.s>a&&x.s<=b){if(x.endL)o.left=1;if(x.endR)o.right=1}return o}
 const SIDETXT={left:'Linke Spur',middle:'Mittlere Spur',right:'Rechte Spur'},SIDEPL={left:'Linke Spuren',middle:'Mittlere Spuren',right:'Rechte Spuren'};
 // Spurfenster: bei Empfehlung nach oben über die Abbiegeanzeige gleiten, danach wieder nach unten und ausblenden
 let laneUp=false,laneAnim=null;
@@ -839,7 +877,7 @@ $('res').onclick=e=>{const b=e.target.closest('[data-r]');if(!b)return;const d=R
 // ---------- Diagnose ----------
 function renderDiag(){const now=Date.now()/1000,R=NAV;
  const rows=[['App-Version',APP_VERSION],['GPS',DIAG.acc==null?'noch kein Signal':`±${Math.round(DIAG.acc)} m, ${DIAG.fixes} Positionen in dieser Sitzung`],
-  ['Karte',mapReady?(mapErr?'geladen, Hinweis: '+mapErr:'3D-Karte geladen'):(mapErr||'lädt …')],['Ampel-Datei Leipzig',fileState],['Feste Blitzer',camState],['Gemeinsame Daten',set.share?`an · ${SHARE.up} hochgeladen, ${PEND.length} wartend · ${SHARE.down} Beobachtungen von allen geladen${SHARE.last?' um '+SHARE.last:''}${SHARE.err?' · Fehler: '+SHARE.err:''}`:'aus'],['Baustellen',workState],['Straßenbahn-Fahrplan',tramState],['Wetterwarnungen',WX.state],['Ampeln geladen',`${SIG.size} gesamt · Online-Abruf: ${DIAG.load}`],
+  ['Karte',mapReady?(mapErr?'geladen, Hinweis: '+mapErr:'3D-Karte geladen'):(mapErr||'lädt …')],['Ampel-Datei Leipzig',fileState],['Feste Blitzer',camState],['Gemeinsame Daten',set.share?`an · ${SHARE.up} hochgeladen, ${PEND.length} wartend · ${SHARE.down} Beobachtungen von allen geladen${SHARE.last?' um '+SHARE.last:''}${SHARE.err?' · Fehler: '+SHARE.err:''}`:'aus'],['Baustellen',workState],['Straßenbahn-Fahrplan',tramState],['Fahrstreifen der Route',NAV?(NAV.lpState||'lädt …'):'nur während der Navigation'],['Wetterwarnungen',WX.state],['Ampeln geladen',`${SIG.size} gesamt · Online-Abruf: ${DIAG.load}`],
   ['Nächste Ampel',(()=>{if(!cur||!SIG.size)return '–';let b=1e9;for(const x of SIG.values()){const d=dist(cur,x);if(d<b)b=d}return fmt(b)+' entfernt'})()],
   ['Fahrtrichtung',heading==null?'noch unbekannt (erst losfahren)':Math.round(heading)+'°'],
   ['Navigation',R?`aktiv, ${(R.onRoute||[]).length} Ampeln auf der Route`:'aus (Ampeln werden per Fahrtrichtung erkannt)'],
