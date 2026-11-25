@@ -38,7 +38,7 @@ html{background:var(--card)}body{background:var(--bg)}
 .spd b{font-size:21px}.spd small{font-size:11px;color:var(--mute)}
 .spdw{display:flex;align-items:center;gap:6px}
 .vlim{display:none;width:46px;height:46px;border-radius:50%;border:5px solid #e53935;background:#fff;color:#1d2329;place-items:center;font-weight:800;font-size:18px;letter-spacing:-.5px;box-sizing:border-box;flex:none;box-shadow:0 0 0 1.5px #fff,0 2px 6px -2px #0008}
-.vlim.on{display:grid}.vlim.w3{font-size:15px}
+.vlim.on{display:grid}.vlim.imp{opacity:.55;border-color:#e5393599}.vlim.w3{font-size:15px}
 .vlim.none{border:2px solid #9aa3aa;background:#fff repeating-linear-gradient(135deg,transparent 0 5px,#4b5359 5px 7px);background-size:100% 100%}
 .vlim.none b{display:none}
 .spdw.over .spd{border-color:var(--red)}.spdw.over .spd b{color:var(--red)}
@@ -93,8 +93,14 @@ html{background:var(--card)}body{background:var(--bg)}
 #nav .stp svg{width:22px;height:22px;flex:none;color:var(--blue)}#nav .stp em{font-style:normal;margin-left:auto;color:var(--mute);white-space:nowrap;padding-left:8px}
 #nav .stp div{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #nav .main{position:relative;z-index:1;display:flex;flex-direction:column}
-#nav .lanes{order:-1;display:flex;align-items:center;gap:12px;max-height:0;opacity:0;overflow:hidden;padding:0 14px 0 8px;transition:max-height .35s cubic-bezier(.2,.8,.2,1),opacity .25s,padding .35s cubic-bezier(.2,.8,.2,1)}
-#nav .lanes.on{max-height:64px;opacity:1;padding-top:9px;padding-bottom:1px}
+#nav .lanes{order:-1;display:flex;align-items:center;gap:10px;max-height:0;opacity:0;overflow:hidden;padding:0 14px 0 8px;transition:max-height .35s cubic-bezier(.2,.8,.2,1),opacity .25s,padding .35s cubic-bezier(.2,.8,.2,1)}
+#nav .lanes.on{max-height:90px;opacity:1;padding-top:10px;padding-bottom:4px}
+/* Mit Spurhinweis: Spuren groß, Abbiegezeile kompakt */
+#nav.lanes-on .lanes .l{width:40px;height:56px;border-radius:11px}#nav.lanes-on .lanes .l svg{width:36px;height:36px}
+#nav.lanes-on .lanes .ln{border-radius:14px;padding:4px;gap:3px}#nav.lanes-on .lanes .lt b{font-size:18px;-webkit-line-clamp:3;hyphens:auto}
+#nav.lanes-on .head{padding-top:4px;padding-bottom:6px;gap:10px}#nav.lanes-on .ni{width:36px;height:36px;border-radius:11px;margin-left:4px}#nav.lanes-on .ni svg{width:24px;height:24px}
+#nav.lanes-on .tx b{font-size:17px}#nav.lanes-on .tx span{font-size:13px}
+#nav .head,#nav .ni,#nav .ni svg,#nav .tx b,#nav .lanes .l,#nav .lanes .l svg{transition:all .3s cubic-bezier(.2,.8,.2,1)}
 #nav .head{position:relative;z-index:1}#nav .lanes{position:relative;z-index:1}
 #nav .lanes .ln{display:flex;gap:2px;background:color-mix(in srgb,var(--ink) 9%,transparent);border-radius:11px;padding:3px;flex:none}
 #nav .lanes .l{width:30px;height:36px;border-radius:8px;display:grid;place-items:center;color:color-mix(in srgb,var(--ink) 30%,transparent);position:relative}
@@ -324,7 +330,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='25.11.2026 · 27';
+const APP_VERSION='25.11.2026 · 28';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -785,7 +791,7 @@ const render0=render;render=function(){render0();try{tramHint()}catch(e){}};
 
 // ---------- Tempolimit aus OpenStreetMap (maxspeed) ----------
 // Straßen im Umkreis von 900 m werden per Overpass geladen und lokal mit Position und Fahrtrichtung abgeglichen.
-const VL={c:null,segs:[],busy:false,tryT:0,cur:null,way:null,lost:0,state:'noch nicht geladen'};
+const VL={c:null,segs:[],ways:null,busy:false,tryT:0,cur:null,way:null,last:null,lastT:0,lastName:'',seenT:0,state:'noch nicht geladen'};
 const VLZONE={'de:urban':50,'de:rural':100,'de:zone30':30,'de:zone:30':30,'de:zone20':20,'de:zone:20':20,'de:zone10':10,'de:zone:10':10,'de:living_street':7,'de:bicycle_road':30,'de:motorway':'none'};
 function msVal(x){if(x==null)return null;x=String(x).trim().toLowerCase();if(x==='none')return'none';if(x==='walk')return 7;
  if(VLZONE[x]!=null)return VLZONE[x];{const z=x.match(/^[a-z]{2}:(?:zone:?)?(\d+)$/);if(z&&+z[1]>0)return +z[1]}const m=x.match(/^(\d+)\s*(mph)?$/);if(m&&+m[1]>0)return m[2]?Math.round(+m[1]*1.609):+m[1];return null}
@@ -810,37 +816,53 @@ function wayLimit(tg,fwd,d){const k=fwd?'forward':'backward';
  if(tg.highway==='living_street')return{v:7,imp:1};if(tg.highway==='motorway')return{v:'none',imp:1};
  return null}
 const offsetPt=(p,b,d)=>({lat:p.lat+d*Math.cos(b*RAD)/110540,lon:p.lon+d*Math.sin(b*RAD)/(111320*Math.cos(p.lat*RAD))});
+// Straßen in den Speicher übernehmen (aus der Umgebungsabfrage und aus der Routen-Abfrage des Spurassistenten)
+function vlAdd(els,c,keep){VL.ways=VL.ways||new Map();let n=0;
+ for(const w of els){if(!w.geometry||w.geometry.length<2)continue;const t=w.tags||{},tg={};
+  for(const k in t)if(/^(highway|name|ref|maxspeed|zone|source:maxspeed|oneway)/.test(k))tg[k]=t[k];
+  if(wayLimit(tg,true,new Date()))n++;
+  const g=w.geometry.map(q=>[q.lat,q.lon]);let la=0,lo=0;for(const x of g){la+=x[0];lo+=x[1]}VL.ways.set(w.id,{tg,g,lat:la/g.length,lon:lo/g.length,keep:(VL.ways.get(w.id)||{}).keep||keep>6000})}
+ for(const[id,w]of VL.ways)if(!w.keep&&dist(c,w)>keep)VL.ways.delete(id);   // weit entfernte verwerfen, Routenstraßen behalten
+ VL.segs=[];for(const[id,w]of VL.ways)for(let k=0;k<w.g.length-1;k++){const a=w.g[k],b=w.g[k+1];VL.segs.push([a[0],a[1],b[0],b[1],w.tg,id])}
+ return n}
 async function loadVL(c){if(VL.busy||Date.now()-VL.tryT<20000)return;VL.busy=true;VL.tryT=Date.now();
- const q=`[out:json][timeout:25];way(around:900,${c.lat.toFixed(5)},${c.lon.toFixed(5)})[highway~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street)(_link)?$"];out tags geom;`;
+ const q=`[out:json][timeout:25];way(around:1200,${c.lat.toFixed(5)},${c.lon.toFixed(5)})[highway~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|service)(_link)?$"];out tags geom;`;
  let j=null;for(const u of OVERPASS){try{const r=await tfetch(u,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}},25000);if(!r.ok)throw 0;j=await r.json();break}catch(e){}}
- if(j){const c0={lat:c.lat,lon:c.lon},kx=111320*Math.cos(c0.lat*RAD),ky=110540,segs=[];let n=0;
-  for(const w of j.elements||[]){if(!w.geometry||w.geometry.length<2)continue;const tg=w.tags||{};if(wayLimit(tg,true,new Date())||tg['maxspeed:backward']||tg['maxspeed:conditional'])n++;
-   const g=w.geometry.map(q=>[(q.lon-c0.lon)*kx,(q.lat-c0.lat)*ky]);for(let i=0;i<g.length-1;i++)segs.push([g[i],g[i+1],tg,w.id])}
-  VL.c=c0;VL.kx=kx;VL.ky=ky;VL.segs=segs;VL.state=`ok um ${hm()}, ${(j.elements||[]).length} Straßen, ${n} mit Limit`}
- else VL.state=`fehlgeschlagen um ${hm()}, neuer Versuch in 20 s`;
+ if(j){VL.c={lat:c.lat,lon:c.lon};const n=vlAdd(j.elements||[],c,6000);
+  VL.state=`ok um ${hm()}, ${VL.ways.size} Straßen im Speicher, ${n} von ${(j.elements||[]).length} neu geladenen mit Limit`}
+ else VL.state=`Abfrage fehlgeschlagen um ${hm()}${VL.segs.length?', nutze geladene Straßen':''}, neuer Versuch in 20 s`;
  VL.busy=false}
-function matchVL(p,brg){if(!VL.c||!VL.segs.length)return null;const px=(p.lon-VL.c.lon)*VL.kx,py=(p.lat-VL.c.lat)*VL.ky;let best=null;
- for(const sg of VL.segs){const[A,B]=sg;if(Math.max(A[0],B[0])<px-22||Math.min(A[0],B[0])>px+22||Math.max(A[1],B[1])<py-22||Math.min(A[1],B[1])>py+22)continue;
-  const pr=projSeg(px,py,A[0],A[1],B[0],B[1]);if(pr.d>20)continue;let fwd=true,cost=pr.d;
-  if(brg!=null){const sb=(Math.atan2(B[0]-A[0],B[1]-A[1])*180/Math.PI+360)%360,df=Math.abs(adiff(brg,sb));if(df>45&&df<135)continue;fwd=df<=45}
-  if(sg[3]===VL.way)cost-=5;   // am bisherigen Weg bleiben, gegen Flackern an Kreuzungen
-  if(!best||cost<best.cost)best={cost,tg:sg[2],fwd,id:sg[3]}}
+function matchVL(p,brg){if(!VL.segs.length)return null;const kx=111320*Math.cos(p.lat*RAD),ky=110540,tl=22/ky,tn=22/kx;let best=null;
+ for(const sg of VL.segs){if(Math.max(sg[0],sg[2])<p.lat-tl||Math.min(sg[0],sg[2])>p.lat+tl||Math.max(sg[1],sg[3])<p.lon-tn||Math.min(sg[1],sg[3])>p.lon+tn)continue;
+  const ax=(sg[1]-p.lon)*kx,ay=(sg[0]-p.lat)*ky,bx=(sg[3]-p.lon)*kx,by=(sg[2]-p.lat)*ky,pr=projSeg(0,0,ax,ay,bx,by);if(pr.d>20)continue;let fwd=true,cost=pr.d;
+  if(brg!=null){const sb=(Math.atan2(bx-ax,by-ay)*180/Math.PI+360)%360,df=Math.abs(adiff(brg,sb));if(df>45&&df<135)continue;fwd=df<=45}
+  if(sg[5]===VL.way)cost-=5;   // am bisherigen Weg bleiben, gegen Flackern an Kreuzungen
+  if(sg[4].highway==='service')cost+=6;   // Parkplatz-/Zufahrtswege nur, wenn nichts anderes passt
+  if(!best||cost<best.cost)best={cost,tg:sg[4],fwd,id:sg[5]}}
  return best}
-function updateVL(p){const R=NAV,on=R&&!(R.offN>0);let q=p,brg=heading,ahead=null;
- if(on){q=routeAt(R,R.s);brg=bearing(routeAt(R,Math.max(0,R.s-8)),routeAt(R,R.s+8));ahead=routeAt(R,R.s+250)}
- else if(heading!=null&&v>3)ahead=offsetPt(p,heading,250);
- const A=ahead||p;if(!VL.c||dist(A,VL.c)>450)loadVL(A);
- const m=matchVL(q,brg);
- if(m){VL.way=m.id;VL.cur=wayLimit(m.tg,m.fwd,new Date());VL.lost=0}else if(++VL.lost>4){VL.cur=null;VL.way=null}
- renderVL()}
+// Gesetzliches Limit, wenn nichts eingetragen ist (nur Anzeige, „vermutet“): innerorts 50, außerorts 100
+function defLim(hw,p){if(!hw)return null;if(/^motorway$/.test(hw))return{v:'none',imp:2};if(/_link$/.test(hw))return null;
+ if(inBox(p,0)||/residential|service|unclassified/.test(hw))return{v:50,imp:2};return{v:100,imp:2}}
+function updateVL(p){const R=NAV,on=R&&!(R.offN>0),now=Date.now();let q=p,brg=heading,ahead=null;
+ if(on){q=routeAt(R,R.s);brg=bearing(routeAt(R,Math.max(0,R.s-8)),routeAt(R,R.s+8));ahead=routeAt(R,R.s+300)}
+ else if(heading!=null&&v>3)ahead=offsetPt(p,heading,300);
+ const A=ahead||p;if(!VL.c||dist(A,VL.c)>600)loadVL(A);
+ const m=matchVL(q,brg);let lim=null;
+ if(m){VL.way=m.id;lim=wayLimit(m.tg,m.fwd,new Date())}
+ if(!lim&&m&&m.tg.name&&m.tg.name===VL.lastName&&VL.last&&now-VL.lastT<180000)lim=VL.last;   // gleiche Straße, Abschnitt ohne Eintrag
+ if(lim&&!lim.imp){VL.last=lim;VL.lastT=now;VL.lastName=m&&m.tg.name||VL.lastName}
+ if(!lim&&!m&&VL.cur&&now-(VL.seenT||0)<15000)lim=VL.cur;                             // kurz kein Treffer (Kreuzung, GPS): Schild stehen lassen
+ if(!lim&&m)lim=defLim(m.tg.highway,p);
+ if(m)VL.seenT=now;
+ VL.cur=lim;renderVL()}
 // Limit für Empfehlungen: bekanntes Straßenlimit, sonst Einstellung (beim Rad nie über der Einstellung)
-function effLim(){const x=VL.cur&&VL.cur.v;if(x==='none')return set.mode==='rad'?set.limit:130;if(typeof x==='number')return set.mode==='rad'?Math.min(set.limit,x):x;return set.limit}
-const roadLim=()=>VL.cur&&typeof VL.cur.v==='number'?VL.cur.v:0;
+function effLim(){const x=VL.cur&&VL.cur.imp!==2&&VL.cur.v;if(x==='none')return set.mode==='rad'?set.limit:130;if(typeof x==='number')return set.mode==='rad'?Math.min(set.limit,x):x;return set.limit}
+const roadLim=()=>VL.cur&&VL.cur.imp!==2&&typeof VL.cur.v==='number'?VL.cur.v:0;
 function renderVL(){const el=$('vlim'),x=set.vlim&&cur&&VL.cur?VL.cur.v:null,kmh=Math.round(v*3.6);
- el.classList.toggle('on',x!=null);el.classList.toggle('none',x==='none');
- if(typeof x==='number'){$('vlimN').textContent=x;el.classList.toggle('w3',x>=100);el.setAttribute('aria-label',`Tempolimit ${x} km/h${VL.cur.cond?' (zeitlich begrenzt)':''}`)}
+ el.classList.toggle('on',x!=null);el.classList.toggle('none',x==='none');el.classList.toggle('imp',!!(VL.cur&&VL.cur.imp===2));
+ if(typeof x==='number'){$('vlimN').textContent=x;el.classList.toggle('w3',x>=100);el.setAttribute('aria-label',`Tempolimit ${x} km/h${VL.cur.cond?' (zeitlich begrenzt)':''}${VL.cur.imp===2?' (vermutet, nicht eingetragen)':''}`)}
  else if(x==='none')el.setAttribute('aria-label','Kein Tempolimit');
- $('spdW').classList.toggle('over',typeof x==='number'&&kmh>x+3)}
+ $('spdW').classList.toggle('over',typeof x==='number'&&!(VL.cur&&VL.cur.imp===2)&&kmh>x+3)}
 
 // ---------- Navigation ----------
 let NAV=null;
@@ -972,7 +994,7 @@ $('pvGo').onclick=()=>{if(!PREVIEW)return;NAV=PREVIEW;PREVIEW=null;closeSheets()
  const rec=LS.get('gw_recent',[]).filter(x=>x.name!==NAV.dest.name);rec.unshift(NAV.dest);LS.set('gw_recent',rec.slice(0,6));
  appr=null;setTimeout(()=>syncShared(true),500);const first=NAV.steps[1];announce('start','Route gestartet. '+(first?`${inDist(first.s)} ${farText(first)}`:''),0);if(first&&first.s<Math.max(180,v*14))first.said.far=1;if(cur)updateNav(cur);renderNav()};
 $('pvCancel').onclick=()=>{PREVIEW=null;clearRoute();closeSheets();follow=true;applyView(true)};
-function endNav(silent){if(SIM.on&&NAV&&!SIM.ending){SIM.ending=true;try{simEnd(true)}finally{SIM.ending=false}}if(!NAV&&!PREVIEW)return;$('nav').classList.remove('open');document.body.classList.remove('nav-open');NAV=null;PREVIEW=null;clearRoute();laneUp=false;$('lanes').classList.remove('on');blitzHome(false);
+function endNav(silent){if(SIM.on&&NAV&&!SIM.ending){SIM.ending=true;try{simEnd(true)}finally{SIM.ending=false}}if(!NAV&&!PREVIEW)return;$('nav').classList.remove('open');document.body.classList.remove('nav-open');NAV=null;PREVIEW=null;clearRoute();laneUp=false;$('lanes').classList.remove('on');$('nav').classList.remove('lanes-on');blitzHome(false);
  document.getElementById('app').classList.remove('app-nav');document.body.classList.remove('nav-on');$('nav').classList.remove('on');appr=null;if(!silent)toast('Navigation beendet')}
 $('navX').onclick=()=>{$('nav').classList.remove('open');document.body.classList.remove('nav-open');endNav()};
 $('navHead').onclick=()=>{const o=$('nav').classList.toggle('open');document.body.classList.toggle('nav-open',o);$('navHead').setAttribute('aria-expanded',o);renderNav()};
@@ -1056,6 +1078,7 @@ async function fetchLaneProfile(R){R.lpBusy=true;R.lpTry=Date.now();
   const q=`[out:json][timeout:25];way(around:14,${pts.map(c=>c.lat.toFixed(5)+','+c.lon.toFixed(5)).join(',')})[highway~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|service)(_link)?$"];out tags geom;`;
   let j=null;for(const u of OVERPASS){try{const r=await tfetch(u,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}},25000);if(!r.ok)throw new Error(r.status);j=await r.json();break}catch(e){}}
   if(!j)throw new Error('Overpass');
+  try{for(const w of VL.ways?VL.ways.values():[])w.keep=false;vlAdd(j.elements||[],pts[0],20000)}catch(e){}   // Tempolimits entlang der Route gleich mitnehmen
   const lat0=pts[0].lat,kx=111320*Math.cos(lat0*RAD),ky=110540,XY=(la,lo)=>[(lo-pts[0].lon)*kx,(la-lat0)*ky];
   const segs=[];for(const w of j.elements||[]){if(!w.geometry||w.geometry.length<2)continue;const g=w.geometry.map(c=>XY(c.lat,c.lon));for(let i=0;i<g.length-1;i++)segs.push([g[i],g[i+1],w.tags||{}])}
   const prof=[];
@@ -1088,7 +1111,7 @@ const laneSay=(side,pl,far)=>`Auf ${SIDEADJ[side]}${pl?'n Spuren':'r Spur'} ${fa
 // Spurfenster: bei Empfehlung nach oben über die Abbiegeanzeige gleiten, danach wieder nach unten und ausblenden
 let laneUp=false;
 const setNavh=()=>document.documentElement.style.setProperty('--navh',$('nav').offsetHeight+'px');
-function laneMove(up){if(laneUp===up)return;laneUp=up;$('lanes').classList.toggle('on',up);requestAnimationFrame(setNavh);setTimeout(setNavh,400)}
+function laneMove(up){if(laneUp===up)return;laneUp=up;$('lanes').classList.toggle('on',up);$('nav').classList.toggle('lanes-on',up);requestAnimationFrame(setNavh);setTimeout(setNavh,400)}
 function updateLanes(R){const el=$('lanes'),a=laneAdvice(R);
  if(!a||a.d>Math.max(1000,v*45)){laneMove(false);return}
  const n=a.D.lanes.length,several=a.lanes.length>1&&a.lanes.length<n;
@@ -1171,7 +1194,7 @@ $('res').onclick=e=>{const fr=e.target.closest('[data-fren]');if(fr){renameFav(f
 // ---------- Diagnose ----------
 function renderDiag(){const now=Date.now()/1000,R=NAV;
  const rows=[['App-Version',APP_VERSION+(SIM.on?' · SIMULATION aktiv':'')],['GPS',DIAG.acc==null?'noch kein Signal':`±${Math.round(DIAG.acc)} m, ${DIAG.fixes} Positionen in dieser Sitzung`],
-  ['Karte',mapReady?(mapErr?'geladen, Hinweis: '+mapErr:'3D-Karte geladen'):(mapErr||'lädt …')],['Ampel-Datei Leipzig',fileState],['Blitzer',set.blitz?`${camState} · ${mobCams().length} mobile gemeldet`:'aus'],['Ton',audioState()],['Verkehrsmeldungen Autobahn',set.vwd?vwdState:'aus'],['Angekündigte Kontrollen',set.blitz?annState:'aus'],['Gemeinsame Daten',set.share?`an · ${SHARE.up} hochgeladen, ${PEND.length} wartend · ${SHARE.down} Beobachtungen von allen geladen${SHARE.last?' um '+SHARE.last:''}${SHARE.err?' · Fehler: '+SHARE.err:''}`:'aus'],['Baustellen',workState],['Straßenbahn-Fahrplan',tramState],['Fahrstreifen der Route',NAV?(NAV.lpState||'lädt …'):'nur während der Navigation'],['Wetterwarnungen',WX.state],['Tempolimits',set.vlim?VL.state+(VL.cur?` · jetzt ${VL.cur.v==='none'?'ohne Limit':VL.cur.v+' km/h'}${VL.cur.cond?' (zeitlich)':''}${VL.cur.imp?' (aus Zone)':''}`:' · jetzt unbekannt'):'aus'],['Ampeln geladen',`${SIG.size} gesamt · Online-Abruf: ${DIAG.load}`],
+  ['Karte',mapReady?(mapErr?'geladen, Hinweis: '+mapErr:'3D-Karte geladen'):(mapErr||'lädt …')],['Ampel-Datei Leipzig',fileState],['Blitzer',set.blitz?`${camState} · ${mobCams().length} mobile gemeldet`:'aus'],['Ton',audioState()],['Verkehrsmeldungen Autobahn',set.vwd?vwdState:'aus'],['Angekündigte Kontrollen',set.blitz?annState:'aus'],['Gemeinsame Daten',set.share?`an · ${SHARE.up} hochgeladen, ${PEND.length} wartend · ${SHARE.down} Beobachtungen von allen geladen${SHARE.last?' um '+SHARE.last:''}${SHARE.err?' · Fehler: '+SHARE.err:''}`:'aus'],['Baustellen',workState],['Straßenbahn-Fahrplan',tramState],['Fahrstreifen der Route',NAV?(NAV.lpState||'lädt …'):'nur während der Navigation'],['Wetterwarnungen',WX.state],['Tempolimits',set.vlim?VL.state+(VL.cur?` · jetzt ${VL.cur.v==='none'?'ohne Limit':VL.cur.v+' km/h'}${VL.cur.cond?' (zeitlich)':''}${VL.cur.imp===1?' (aus Zone)':VL.cur.imp===2?' (vermutet)':''}`:' · jetzt unbekannt')+(NAV?` · Route ${NAV.lp?'mit':'noch ohne'} Straßendaten`:''):'aus'],['Ampeln geladen',`${SIG.size} gesamt · Online-Abruf: ${DIAG.load}`],
   ['Nächste Ampel',(()=>{if(!cur||!SIG.size)return '–';let b=1e9;for(const x of SIG.values()){const d=dist(cur,x);if(d<b)b=d}return fmt(b)+' entfernt'})()],
   ['Fahrtrichtung',heading==null?'noch unbekannt (erst losfahren)':Math.round(heading)+'°'],
   ['Navigation',R?`aktiv, ${(R.onRoute||[]).length} Ampeln auf der Route`:'aus (Ampeln werden per Fahrtrichtung erkannt)'],
