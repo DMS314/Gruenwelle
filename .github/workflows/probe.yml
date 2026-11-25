@@ -1,0 +1,18 @@
+name: Probe Routing-Tempolimits (temporär)
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/probe.yml]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          for base in https://routing.openstreetmap.de/routed-car/route/v1/driving/ https://router.project-osrm.org/route/v1/driving/ https://routing.openstreetmap.de/routed-bike/route/v1/driving/; do
+            curl -s -o r.json -w "$base HTTP %{http_code}\n" "${base}12.3731,51.3397;12.3950,51.3270?overview=full&geometries=geojson&steps=true&alternatives=false&annotations=maxspeed"
+            python3 -c "
+          import json,collections;j=json.load(open('r.json'));print(' code',j.get('code'),j.get('message',''))
+          if j.get('routes'):
+            ms=[m for l in j['routes'][0]['legs'] for m in (l.get('annotation') or {}).get('maxspeed',[])]
+            print(' Abschnitte',len(ms),'Koordinaten',len(j['routes'][0]['geometry']['coordinates']),collections.Counter(str(m) for m in ms).most_common(5))"
+          done
