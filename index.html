@@ -121,7 +121,15 @@ body.sim #wx{max-width:calc(100% - 230px)}
 .tlines{display:flex;flex-wrap:wrap;gap:5px;margin:4px 0 6px}
 .src.trh{display:none;color:var(--blue);font-weight:600}.src.trh.on{display:block}
 #nav.off{border:2px solid var(--amber)}#nav.off .ni{background:var(--amber)}
-.app-nav .top .pill{display:none}.app-nav .top{top:calc(env(safe-area-inset-top) + var(--navh,64px) + 18px)}
+.app-nav .top .pill{display:none}
+.dl{display:none}#drawerTab{display:none}
+.app-nav .top{left:0;right:auto;top:calc(env(safe-area-inset-top) + var(--navh,64px) + 128px);flex-direction:column;align-items:stretch;gap:8px;padding:10px 10px 10px max(10px,env(safe-area-inset-left));background:var(--card);border-radius:0 18px 18px 0;box-shadow:0 8px 24px -10px #000a;pointer-events:auto;z-index:560;transform:translateX(-100%);transition:transform .28s cubic-bezier(.2,.8,.2,1)}
+.app-nav .top.open{transform:none}
+.app-nav .top .ibtn{width:auto;height:44px;border-radius:14px;padding:0 16px 0 9px;display:flex;align-items:center;gap:10px;box-shadow:none;background:transparent;font-size:15px;font-weight:700;justify-content:flex-start}
+.app-nav .top .ibtn:active{background:var(--line)}
+.app-nav .top .ibtn.navbtn span,.app-nav .top .dl{display:inline}
+.app-nav #drawerTab{display:grid;place-items:center;position:absolute;left:100%;top:8px;width:26px;height:54px;padding:0;border:0;border-radius:0 14px 14px 0;background:var(--card);color:var(--mute);box-shadow:6px 4px 14px -8px #0008;cursor:pointer}
+.app-nav #drawerTab svg{width:18px;height:18px;transition:transform .28s}.app-nav .top.open #drawerTab svg{transform:rotate(180deg)}
 .eta{display:none;flex:1;min-width:0;align-items:baseline;gap:8px;font-size:13px;color:var(--mute);white-space:nowrap;overflow:hidden}.eta span{overflow:hidden;text-overflow:ellipsis}.app-nav .stats{display:none}
 .eta b{font-size:18px;color:var(--ink);white-space:nowrap}.app-nav .eta{display:flex}
 .ibtn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round}
@@ -181,7 +189,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
  <div id="blitz"><div class="lim" id="bLim">–</div><div><b id="bT">Blitzer</b><span id="bD"></span></div></div>
  <div id="simBar"><span id="simT">Simulation</span><button id="simP" aria-label="Pause">❚❚</button><button id="simF">1×</button><button id="simX">Ende</button></div>
  <button id="wx" aria-label="Wetterwarnung anzeigen"></button>
- <div class="top"><span class="pill"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="var(--blue)" stroke-width="2.2"/><circle cx="12" cy="12" r="3.5" fill="var(--blue)"/></svg><span id="gps">GPS aus</span></span><span class="pill"><svg viewBox="0 0 24 24"><rect x="7.5" y="2.5" width="9" height="19" rx="3" fill="#1d2329" stroke="currentColor" stroke-width="1.2" stroke-opacity=".35"/><circle cx="12" cy="7" r="1.9" fill="#ff4d4f"/><circle cx="12" cy="12" r="1.9" fill="#ffc72c"/><circle cx="12" cy="17" r="1.9" fill="#1fbf5f"/></svg><span id="sigs">–</span></span><button class="ibtn" id="fsBtn" aria-label="Vollbild"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="ibtn navbtn" id="searchBtn" aria-label="Navigation starten: Ziel eingeben"><svg viewBox="0 0 24 24" class="dir"><rect x="4.2" y="4.2" width="15.6" height="15.6" rx="3" transform="rotate(45 12 12)" fill="#33ccff" stroke="none"/><path d="M9.2 15.5v-2.6a2 2 0 0 1 2-2h4.3" fill="none" stroke="#0b1a26" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.6 8.6l2.6 2.3-2.6 2.3" fill="none" stroke="#0b1a26" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Wohin?</span></button><button class="ibtn" id="setBtn" aria-label="Einstellungen"><svg viewBox="0 0 24 24"><path d="M19.46 10.09 L22.06 10.34 L22.06 13.66 L19.46 13.91 L18.63 15.92 L20.29 17.94 L17.94 20.29 L15.92 18.63 L13.91 19.46 L13.66 22.06 L10.34 22.06 L10.09 19.46 L8.08 18.63 L6.06 20.29 L3.71 17.94 L5.37 15.92 L4.54 13.91 L1.94 13.66 L1.94 10.34 L4.54 10.09 L5.37 8.08 L3.71 6.06 L6.06 3.71 L8.08 5.37 L10.09 4.54 L10.34 1.94 L13.66 1.94 L13.91 4.54 L15.92 5.37 L17.94 3.71 L20.29 6.06 L18.63 8.08Z" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/><circle cx="12" cy="12" r="3.4" fill="var(--card)" stroke="none"/></svg></button></div>
+ <div class="top"><span class="pill"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="var(--blue)" stroke-width="2.2"/><circle cx="12" cy="12" r="3.5" fill="var(--blue)"/></svg><span id="gps">GPS aus</span></span><span class="pill"><svg viewBox="0 0 24 24"><rect x="7.5" y="2.5" width="9" height="19" rx="3" fill="#1d2329" stroke="currentColor" stroke-width="1.2" stroke-opacity=".35"/><circle cx="12" cy="7" r="1.9" fill="#ff4d4f"/><circle cx="12" cy="12" r="1.9" fill="#ffc72c"/><circle cx="12" cy="17" r="1.9" fill="#1fbf5f"/></svg><span id="sigs">–</span></span><button class="ibtn" id="fsBtn" aria-label="Vollbild"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="dl">Vollbild</span></button><button class="ibtn navbtn" id="searchBtn" aria-label="Navigation starten: Ziel eingeben"><svg viewBox="0 0 24 24" class="dir"><rect x="4.2" y="4.2" width="15.6" height="15.6" rx="3" transform="rotate(45 12 12)" fill="#33ccff" stroke="none"/><path d="M9.2 15.5v-2.6a2 2 0 0 1 2-2h4.3" fill="none" stroke="#0b1a26" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.6 8.6l2.6 2.3-2.6 2.3" fill="none" stroke="#0b1a26" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Wohin?</span></button><button class="ibtn" id="setBtn" aria-label="Einstellungen"><svg viewBox="0 0 24 24"><path d="M19.46 10.09 L22.06 10.34 L22.06 13.66 L19.46 13.91 L18.63 15.92 L20.29 17.94 L17.94 20.29 L15.92 18.63 L13.91 19.46 L13.66 22.06 L10.34 22.06 L10.09 19.46 L8.08 18.63 L6.06 20.29 L3.71 17.94 L5.37 15.92 L4.54 13.91 L1.94 13.66 L1.94 10.34 L4.54 10.09 L5.37 8.08 L3.71 6.06 L6.06 3.71 L8.08 5.37 L10.09 4.54 L10.34 1.94 L13.66 1.94 L13.91 4.54 L15.92 5.37 L17.94 3.71 L20.29 6.06 L18.63 8.08Z" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/><circle cx="12" cy="12" r="3.4" fill="var(--card)" stroke="none"/></svg><span class="dl">Einstellungen</span></button><button id="drawerTab" aria-label="Menü öffnen" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
  <div class="alert" id="alert"><div class="dot" id="aDot">!</div><div class="tx"><b id="aT"></b><span id="aD"></span></div><button class="btn pri" id="aYes">Noch da</button><button class="btn" id="aNo">Weg</button></div>
  <div class="panel">
   <div class="pilot" id="pilot">
@@ -294,7 +302,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='25.11.2026 · 14';
+const APP_VERSION='25.11.2026 · 15';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -907,7 +915,7 @@ async function preview(dest){if(!cur){toast('Erst Fahrt starten');return}closeSh
  const r=await fetchRoute(cur,dest);if(!r){toast('Keine Route gefunden');return}
  PREVIEW=buildRoute(r,dest);computeOnRoute(PREVIEW);drawRoute(PREVIEW);follow=false;{const la=PREVIEW.ll.map(c=>c[0]),lo=PREVIEW.ll.map(c=>c[1]);map.fitBounds([[Math.min(...lo),Math.min(...la)],[Math.max(...lo),Math.max(...la)]],{padding:{top:60,bottom:Math.round($('map').clientHeight*0.1)+60,left:40,right:40},bearing:0,pitch:0,duration:700})}
  $('toast').classList.remove('on');$('pvName').textContent=dest.name;$('pvAddr').textContent=dest.sub||'';renderPreview();$('prevSheet').classList.add('on');loadRouteSignals(PREVIEW)}
-$('pvGo').onclick=()=>{if(!PREVIEW)return;NAV=PREVIEW;PREVIEW=null;closeSheets();follow=true;setTimeout(()=>applyView(true),0);document.getElementById('app').classList.add('app-nav');document.body.classList.add('nav-on');
+$('pvGo').onclick=()=>{if(!PREVIEW)return;NAV=PREVIEW;PREVIEW=null;closeSheets();follow=true;setTimeout(()=>applyView(true),0);document.querySelector('.top').classList.remove('open');document.getElementById('app').classList.add('app-nav');document.body.classList.add('nav-on');
  const rec=LS.get('gw_recent',[]).filter(x=>x.name!==NAV.dest.name);rec.unshift(NAV.dest);LS.set('gw_recent',rec.slice(0,6));
  appr=null;setTimeout(()=>syncShared(true),500);const first=NAV.steps[1];announce('start','Route gestartet. '+(first?`${inDist(first.s)} ${farText(first)}`:''),0);if(first&&first.s<Math.max(180,v*14))first.said.far=1;if(cur)updateNav(cur);renderNav()};
 $('pvCancel').onclick=()=>{PREVIEW=null;clearRoute();closeSheets();follow=true;applyView(true)};
@@ -1216,6 +1224,14 @@ document.addEventListener('click',e=>{const m=e.target.closest('[data-mode]');if
  const or=e.target.closest('[data-ori]');if(or){set.ori=or.dataset.ori;saveSet();renderSet();applyView(true)}
  const l=e.target.closest('[data-lim]');if(l){set.limit=+l.dataset.lim;saveSet();renderSet();render()}});
 renderSet();applyTheme();
+{const top=document.querySelector('.top'),inNav=()=>document.getElementById('app').classList.contains('app-nav');
+ const drawer=o=>{top.classList.toggle('open',o);$('drawerTab').setAttribute('aria-expanded',o);$('drawerTab').setAttribute('aria-label',o?'Menü schließen':'Menü öffnen')};
+ $('drawerTab').onclick=e=>{e.stopPropagation();drawer(!top.classList.contains('open'))};
+ for(const id of['searchBtn','setBtn','fsBtn'])$(id).addEventListener('click',()=>{if(inNav())drawer(false)});
+ whenMap(()=>map.on('click',()=>drawer(false)));
+ let sx=null;
+ document.addEventListener('touchstart',e=>{if(!inNav())return;const t=e.touches[0];sx=t.clientX<22||top.classList.contains('open')?{x:t.clientX,y:t.clientY}:null},{passive:true});
+ document.addEventListener('touchend',e=>{if(!sx)return;const t=e.changedTouches[0],dx=t.clientX-sx.x,dy=Math.abs(t.clientY-sx.y);if(dy<60){if(dx>50)drawer(true);else if(dx<-50)drawer(false)}sx=null},{passive:true})}
 const exportText=()=>JSON.stringify({version:1,exported:new Date().toISOString(),obs:OBS,reports:REPS});
 $('exp').onclick=()=>{const blob=new Blob([exportText()],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='gruenwelle-daten.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000)};
 $('copy').onclick=async()=>{try{await navigator.clipboard.writeText(exportText());toast('Daten kopiert')}catch(e){toast('Kopieren nicht erlaubt')}};
