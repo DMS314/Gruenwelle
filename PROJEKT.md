@@ -48,6 +48,7 @@ Publishable Key steht in `index.html` (`SB`). Supabase-Hinweis „anon kann SECU
 
 ## Offen / zurückgestellt
 - Rechtliches vor Veröffentlichung: Impressum, Datenschutzerklärung, Teilen als Opt-in beim ersten Start, Schrift und MapLibre selbst hosten, Markenprüfung „Grünwelle“. Vom Nutzer erstmal zurückgestellt.
+- Ampeldaten der Stadt Leipzig: Die Stadt liefert Schaltzeitprognosen von rund 400 Ampeln an TrafficPilot (GEVAS), Pilot ab 28.10.2025, stadtweit seit April 2026. Projekt ABSOLUT II (Data Week Leipzig 2026) nennt Datenbus mit LSA-Daten/Schaltzeitprognosen. Zuständig: Mobilitäts- und Tiefbauamt, Verkehrs- und Datenmanagement, Thomas Grzeschik (Sachgebietsleiter), mta-verkehrsmanagement@leipzig.de, 0341 123-9084. Anfrage nach Datenzugang für Grünwelle entworfen (11/2026), Antwort offen.
 - Ideen: Autobahn-Sperrungen (`services/closure`), Stau bei der Routenwahl berücksichtigen, Ton bei Tempoüberschreitung, Park+Ride-Belegung, Unfallatlas, Ratenbegrenzung in Supabase, Anfrage an die Stadt Leipzig nach Ampeldaten.
 - Bestätigt: unterer Rand im Hochformat, kein Zittern mehr (ab 25.11.2026 · 8).
 - Behoben in 25.11.2026 · 11: Meldungsbox („… noch da?“) lag im Hochformat hinter dem Bedienfeld, jetzt darüber (`--panh`).
