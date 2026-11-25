@@ -12,13 +12,20 @@ async def main():
   while time.time()-t0<150:
    st=await pg.evaluate("()=>{const e=document.getElementById('vlim');return e.classList.contains('on')?(document.getElementById('vlimN').textContent+(e.classList.contains('none')?'(frei)':'')+(e.classList.contains('imp')?'(vermutet)':'')):'—'}")
    if st!=last:hist.append(f'{int(time.time()-t0)}s:{st}');last=st
+   if len(hist)<3:print(int(time.time()-t0),'s',await pg.evaluate('()=>[window.__gw.VL.state,JSON.stringify(window.__gw.OPS)]'),flush=True)
+   if not await pg.evaluate("document.getElementById('simBar').classList.contains('on')"):break
+   await pg.wait_for_timeout(1000)
+  print('VERLAUF',hist,flush=True)
+  st=await pg.evaluate("()=>{const e=document.getElementById('vlim');return e.classList.contains('on')?(document.getElementById('vlimN').textContent+(e.classList.contains('none')?'(frei)':'')+(e.classList.contains('imp')?'(vermutet)':'')):'—'}")
+   if st!=last:hist.append(f'{int(time.time()-t0)}s:{st}');last=st
+   if len(hist)<3:print(int(time.time()-t0),'s',await pg.evaluate('()=>[window.__gw.VL.state,JSON.stringify(window.__gw.OPS)]'),flush=True)
    if not await pg.evaluate("document.getElementById('simBar').classList.contains('on')"):break
    await pg.wait_for_timeout(1000)
   print('VERLAUF',hist,flush=True)
   await pg.click('#setBtn');await pg.wait_for_timeout(500)
   d=await pg.evaluate("()=>[...document.querySelectorAll('#diag tr, #diagT tr, .diag tr')].map(r=>r.innerText.replace(/\\s+/g,' ')).filter(t=>/Overpass|Tempolimit|App-Version/.test(t))")
   print('DIAG',d,flush=True)
-  st=await pg.evaluate("()=>({state:window.__gw.VL.state,ways:window.__gw.VL.ways?window.__gw.VL.ways.size:0})")
+  st=await pg.evaluate("()=>({state:window.__gw.VL.state,ops:window.__gw.OPS,ways:window.__gw.VL.ways?window.__gw.VL.ways.size:0})")
   print('VL',st,flush=True);print('FEHLER',errs,flush=True)
   await b.close()
 asyncio.run(main())

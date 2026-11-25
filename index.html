@@ -835,7 +835,7 @@ function vlAdd(els,c,keep){VL.ways=VL.ways||new Map();let n=0;
  VL.segs=[];for(const[id,w]of VL.ways)for(let k=0;k<w.g.length-1;k++){const a=w.g[k],b=w.g[k+1];VL.segs.push([a[0],a[1],b[0],b[1],w.tg,id])}
  return n}
 async function loadVL(c){if(VL.busy||Date.now()-VL.tryT<20000)return;VL.busy=true;VL.tryT=Date.now();
- const q=`[out:json][timeout:25];way(around:1200,${c.lat.toFixed(5)},${c.lon.toFixed(5)})[highway~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|service)(_link)?$"];out tags geom;`;
+ const q=`[out:json][timeout:25];way(around:800,${c.lat.toFixed(5)},${c.lon.toFixed(5)})[highway~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street)(_link)?$"];out tags geom qt;`;
  let j=null;try{j=await overpass(q)}catch(e){}
  if(j){VL.c={lat:c.lat,lon:c.lon};const n=vlAdd(j.elements||[],c,6000);
   VL.state=`ok um ${hm()}, ${VL.ways.size} Straßen im Speicher, ${n} von ${(j.elements||[]).length} neu geladenen mit Limit`}
@@ -855,7 +855,7 @@ function defLim(hw,p){if(!hw)return null;if(/^motorway$/.test(hw))return{v:'none
 function updateVL(p){const R=NAV,on=R&&!(R.offN>0),now=Date.now();let q=p,brg=heading,ahead=null;
  if(on){q=routeAt(R,R.s);brg=bearing(routeAt(R,Math.max(0,R.s-8)),routeAt(R,R.s+8));ahead=routeAt(R,R.s+300)}
  else if(heading!=null&&v>3)ahead=offsetPt(p,heading,300);
- const A=ahead||p;if(!VL.c||dist(A,VL.c)>600)loadVL(A);
+ const A=ahead||p;if(!VL.c||dist(A,VL.c)>400)loadVL(A);
  const m=matchVL(q,brg);let lim=null;
  if(m){VL.way=m.id;lim=wayLimit(m.tg,m.fwd,new Date())}
  if(!lim&&m&&m.tg.name&&m.tg.name===VL.lastName&&VL.last&&now-VL.lastT<180000)lim=VL.last;   // gleiche Straße, Abschnitt ohne Eintrag
@@ -1431,7 +1431,7 @@ async function checkUpdate(){try{const r=await fetch('./?v='+Date.now(),{cache:'
   let n=0;try{n=+sessionStorage.getItem('gw_upd')||0}catch(e){}if(n>2)return;try{sessionStorage.setItem('gw_upd',n+1)}catch(e){}
   location.replace(location.pathname+'?v='+encodeURIComponent(m[1]))}}catch(e){}}
 setTimeout(checkUpdate,1500);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});drawSignals();drawReps();renderLearn();loadFile();setBlitz();loadWorks();loadTrams();
-if(location.hostname=='gw.test')window.__gw={actx:()=>actx,audioState,WX:()=>WX,drawWx,VWD:()=>VWD,loadVwd,vwdAhead,VL,ANN:()=>ANN,annAt,condMs,wayLimit,OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr,map,SIM};
+if(location.hostname=='gw.test')window.__gw={OPS,actx:()=>actx,audioState,WX:()=>WX,drawWx,VWD:()=>VWD,loadVwd,vwdAhead,VL,ANN:()=>ANN,annAt,condMs,wayLimit,OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr,map,SIM};
 $('startInfo').textContent=(Object.keys(OBS).length?`Bisher gelernt: ${Object.keys(OBS).length} Ampel-Richtungen. `:'')+'Version '+APP_VERSION;
 
 }
