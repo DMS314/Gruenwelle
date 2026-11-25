@@ -56,6 +56,7 @@ html{background:var(--card)}body{background:var(--bg)}
 .btn{font:inherit;font-weight:500;border:0;border-radius:14px;min-height:46px;padding:0 16px;cursor:pointer;background:var(--line);color:var(--ink)}
 .btn.pri{background:var(--blue);color:var(--onblue);font-weight:700}.btn.big{width:100%;font-size:18px;min-height:56px}
 .btn:focus-visible,.chip:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.voicerow{flex-wrap:nowrap}#voiceSel{flex:1;min-width:0;font:inherit;font-size:15px;min-height:44px;border:1px solid var(--line);border-radius:22px;padding:0 14px;background:var(--card);color:var(--ink)}
 .chip{font:inherit;font-size:15px;border:1px solid var(--line);background:none;color:var(--ink);border-radius:22px;min-height:44px;padding:0 16px;cursor:pointer}
 .chip[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
@@ -255,6 +256,8 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <div class="sheet" id="setSheet"><h2>Einstellungen</h2>
  <h3>Ansagen</h3><div class="row"><button class="chip" data-audio="ton">Signaltöne</button><button class="chip" data-audio="sprache">Sprache</button><button class="chip" data-audio="aus">Aus</button></div>
  <p class="small" id="audioInfo"></p>
+ <div id="voiceBox"><h3>Stimme</h3><div class="row voicerow"><select id="voiceSel" aria-label="Stimme für Sprachansagen"></select><button class="chip" id="voiceTry">Probe</button></div>
+ <p class="small" id="voiceInfo"></p></div>
  <h3>Karte</h3><div class="row"><button class="chip" data-ori="3d">3D</button><button class="chip" data-ori="fahrt">2D Fahrtrichtung</button><button class="chip" data-ori="nord">2D Norden</button></div>
  <h3>Baustellen</h3><div class="row"><button class="chip" data-works="1">Anzeigen</button><button class="chip" data-works="0">Ausblenden</button></div>
  <p class="small">Autobahn-Baustellen der Autobahn GmbH und Straßenbaustellen aus OpenStreetMap, täglich aktualisiert. Antippen zeigt Details.</p>
@@ -311,7 +314,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='25.11.2026 · 19';
+const APP_VERSION='25.11.2026 · 20';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -829,7 +832,20 @@ let NAV=null;
 const clearRoute=()=>{src('route',EMPTY);src('dest',EMPTY)};
 const ROUTERS={auto:['https://routing.openstreetmap.de/routed-car/route/v1/driving/','https://router.project-osrm.org/route/v1/driving/'],rad:['https://routing.openstreetmap.de/routed-bike/route/v1/driving/']};
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let voices=null;const pickVoice=()=>{try{const vs=speechSynthesis.getVoices();return vs.find(v=>/^de/i.test(v.lang))||null}catch(e){return null}};
+// Stimmenwahl: beste deutsche Stimme des Geräts. Premium/Erweitert klingen natürlich; Kompakt- und Eloquence-Stimmen (Eddy, Flo, Grandma …) blechern
+let voices=null;
+const deVoices=()=>{try{return speechSynthesis.getVoices().filter(v=>/^de/i.test(v.lang))}catch(e){return[]}};
+const vQual=v=>{const n=(v.name+' '+v.voiceURI).toLowerCase();return /premium/.test(n)?3:/enhanced|erweitert|neural|natural|online/.test(n)?2:/eloquence|grandma|grandpa|oma|opa|rocko|shelley|flo\b|reed|sandy|eddy|bad news|bahh|bells|boing|bubbles|cellos|jester|organ|superstar|trinoids|whisper|wobble|zarvox|albert|fred|junior|ralph|kathy/.test(n)?0:1};
+const vScore=v=>vQual(v)*100+(/^de[-_]de/i.test(v.lang)?10:0)+(/anna|petra|helena|markus|yannick|viktor|martin/i.test(v.name)?5:0)+(v.localService===false?2:0);
+const vLabel=v=>{const q=vQual(v),nm=v.name.replace(/\s*\((premium|enhanced|erweitert|kompakt|compact)\)/i,'').replace(/^(Microsoft|Google)\s+/,'').trim();
+ return nm.replace(/\s*\(Deutsch[^)]*\)\)?/,'')+(q===3?' · Premium':q===2?' · Erweitert':q===0?' · Effektstimme':/compact|kompakt/i.test(v.voiceURI+v.name)?' · einfach':'')+(/^de[-_](at|ch)/i.test(v.lang)?(/at/i.test(v.lang)?' (AT)':' (CH)'):'')};
+const pickVoice=()=>{const vs=deVoices();if(!vs.length)return null;const own=set.voice&&vs.find(v=>v.voiceURI===set.voice);return own||vs.slice().sort((a,b)=>vScore(b)-vScore(a))[0]};
+function renderVoices(){const box=$('voiceBox');if(!box)return;box.style.display=set.audio==='sprache'?'':'none';const vs=deVoices().sort((a,b)=>vScore(b)-vScore(a)),sel=$('voiceSel'),best=vs[0];
+ sel.innerHTML=vs.length?`<option value="">Automatisch${best?' ('+esc(vLabel(best))+')':''}</option>`+vs.map(v=>`<option value="${esc(v.voiceURI)}">${esc(vLabel(v))}</option>`).join(''):'<option value="">Keine deutsche Stimme gefunden</option>';
+ sel.value=set.voice&&vs.some(v=>v.voiceURI===set.voice)?set.voice:'';
+ const top=best?vQual(best):0;
+ $('voiceInfo').innerHTML=top>=2?'Natürlichere Stimmen mit „Premium“ oder „Erweitert“ sind installiert.':'Für eine natürlichere Stimme in iOS eine bessere laden: <b>Einstellungen › Bedienungshilfen › Gesprochene Inhalte › Stimmen › Deutsch</b>, dort z. B. <b>Anna</b> oder <b>Helena</b> antippen und die Variante <b>(Premium)</b> oder <b>(Erweitert)</b> laden. Danach die App neu öffnen, sie wird automatisch gewählt.'}
+try{speechSynthesis.addEventListener('voiceschanged',()=>{voices=null;renderVoices()})}catch(e){}
 let actx=null;
 function audioInit(){try{if('audioSession' in navigator&&set.audio!=='sprache')navigator.audioSession.type='ambient'}catch(e){}
  try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();if(actx.state!=='running')actx.resume()}catch(e){}}
@@ -844,7 +860,7 @@ const WICHTIG=new Set(['near','blitz','wx','vwd','test']);
 const volNow=()=>set.audio==='aus'?'aus':set.vol||'alle';
 function announce(kind,text,pan){if(set.audio==='aus'||set.vol==='aus')return;if(set.vol==='wichtig'&&!WICHTIG.has(kind))return;if(set.audio==='ton'){beep(TONES[kind]||TONES.far,pan);return}say(text)}
 const panOf=st=>{const m=(st&&st.st.maneuver.modifier)||'';return /left/.test(m)?-0.8:/right/.test(m)?0.8:0};
-function say(text){if(set.audio!=='sprache'||!('speechSynthesis' in window))return;try{const u=new SpeechSynthesisUtterance(text);u.lang='de-DE';voices=voices||pickVoice();if(voices)u.voice=voices;u.rate=1.05;if(speechSynthesis.paused)speechSynthesis.resume();
+function say(text){if(set.audio!=='sprache'||!('speechSynthesis' in window))return;try{const u=new SpeechSynthesisUtterance(text);u.lang='de-DE';voices=voices||pickVoice();if(voices){u.voice=voices;u.lang=voices.lang};u.rate=set.voice||(voices&&vQual(voices)>=2)?1:0.97;u.pitch=1;if(speechSynthesis.paused)speechSynthesis.resume();
  if(speechSynthesis.speaking||speechSynthesis.pending){speechSynthesis.cancel();setTimeout(()=>speechSynthesis.speak(u),120)}else speechSynthesis.speak(u)}catch(e){}}  // iOS verschluckt speak() direkt nach cancel()
 // iOS hält den Audiokanal an, sobald die App kurz im Hintergrund war (anderer App-Wechsel, Bildschirm aus, Anruf).
 // Beim Zurückkommen und bei jeder Berührung wieder aufwecken; Sprache braucht dafür eine Berührung.
@@ -852,7 +868,7 @@ function audioWake(){try{if(actx&&actx.state!=='running')actx.resume()}catch(e){
 let speechOk=false;
 for(const ev of['touchend','click'])document.addEventListener(ev,()=>{if(watch==null&&!SIM.on)return;audioWake();if(!speechOk&&set.audio==='sprache'){speechOk=true;unlockSpeech()}},{capture:true,passive:true});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')audioWake();else speechOk=false});
-const audioState=()=>`${({aus:'aus',ton:'Töne',sprache:'Sprache'})[set.audio]||set.audio} · ${({aus:'lautlos',wichtig:'nur wichtige',alle:'alle'})[volNow()]} · Tonkanal ${actx?({running:'aktiv',suspended:'angehalten',interrupted:'unterbrochen',closed:'geschlossen'})[actx.state]||actx.state:'noch nicht gestartet'}`+(set.audio==='sprache'?` · ${'speechSynthesis' in window?(pickVoice()?'deutsche Stimme':'keine deutsche Stimme gefunden'):'Sprachausgabe nicht verfügbar'}`:'');
+const audioState=()=>`${({aus:'aus',ton:'Töne',sprache:'Sprache'})[set.audio]||set.audio} · ${({aus:'lautlos',wichtig:'nur wichtige',alle:'alle'})[volNow()]} · Tonkanal ${actx?({running:'aktiv',suspended:'angehalten',interrupted:'unterbrochen',closed:'geschlossen'})[actx.state]||actx.state:'noch nicht gestartet'}`+(set.audio==='sprache'?` · ${'speechSynthesis' in window?(pickVoice()?'Stimme '+vLabel(pickVoice()):'keine deutsche Stimme gefunden'):'Sprachausgabe nicht verfügbar'}`:'');
 function renderVol(){const lv=volNow();document.querySelector('.top').dataset.mute=lv;document.querySelectorAll('.vol [data-vol]').forEach(b=>b.setAttribute('aria-checked',b.dataset.vol===lv))}
 function unlockSpeech(){audioInit();if(set.audio!=='sprache')return;try{if('speechSynthesis' in window){const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u)}}catch(e){}}
 const MODS={'uturn':'wenden','sharp right':'scharf rechts','right':'rechts','slight right':'leicht rechts','straight':'geradeaus','slight left':'leicht links','left':'links','sharp left':'scharf links'};
@@ -1230,6 +1246,7 @@ const renderSet=()=>{document.querySelectorAll('[data-mode]').forEach(b=>b.setAt
  document.querySelectorAll('[data-wx]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.wx==set.wx));
  document.querySelectorAll('[data-vwd]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.vwd==set.vwd));
  document.querySelectorAll('[data-vlim]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.vlim==set.vlim));
+ renderVoices();
  $('audioInfo').textContent={ton:'Kurze Töne über dem Radio, das Radio läuft weiter. Links abbiegen klingt von links, rechts von rechts.',sprache:'Gesprochene Hinweise. Achtung: iOS hält dabei das Radio oder die Musik an und startet sie danach nicht wieder.',aus:'Keine Ansagen, nur Anzeige.'}[set.audio];
  $('limits').innerHTML=MODES[set.mode].limits.map(l=>`<button class="chip" data-lim="${l}" aria-pressed="${l==set.limit}">${l} km/h</button>`).join('')};
 document.addEventListener('click',e=>{const m=e.target.closest('[data-mode]');if(m){set.mode=m.dataset.mode;set.limit=MODES[set.mode].def;saveSet();renderSet();render()}
@@ -1245,6 +1262,8 @@ document.addEventListener('click',e=>{const m=e.target.closest('[data-mode]');if
  const or=e.target.closest('[data-ori]');if(or){set.ori=or.dataset.ori;saveSet();renderSet();applyView(true)}
  const l=e.target.closest('[data-lim]');if(l){set.limit=+l.dataset.lim;saveSet();renderSet();render()}});
 renderSet();applyTheme();renderVol();
+$('voiceSel').onchange=e=>{set.voice=e.target.value||'';voices=null;saveSet();unlockSpeech();say('Hallo, so klinge ich bei den Ansagen. In 300 Metern rechts abbiegen.')};
+$('voiceTry').onclick=()=>{voices=null;unlockSpeech();say('In 300 Metern rechts abbiegen in die Karl-Liebknecht-Straße. Danach links halten.')};
 {const top=document.querySelector('.top'),inNav=()=>document.getElementById('app').classList.contains('app-nav');
  const drawer=o=>{top.classList.toggle('open',o);$('drawerTab').setAttribute('aria-expanded',o);$('drawerTab').setAttribute('aria-label',o?'Menü schließen':'Menü öffnen')};
  $('drawerTab').onclick=e=>{e.stopPropagation();drawer(!top.classList.contains('open'))};
