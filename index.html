@@ -247,7 +247,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
  <h3>Wetterwarnungen</h3><div class="row"><button class="chip" data-wx="1">An</button><button class="chip" data-wx="0">Aus</button></div>
  <p class="small">Amtliche Warnungen des Deutschen Wetterdienstes (z. B. Glätte, Sturm, Gewitter, Nebel) für deinen Standort. Neue Warnungen ab Stufe orange werden angesagt.</p>
  <h3>Blitzer</h3><div class="row"><button class="chip" data-blitz="0">Aus</button><button class="chip" data-blitz="1">An</button></div>
- <p class="small">Zeigt feste Blitzer aus OpenStreetMap und von Nutzern gemeldete mobile Blitzer (3 Stunden sichtbar, länger wenn bestätigt) und warnt beim Annähern: immer auf dem Bildschirm, mit Ton nur, wenn du schneller als erlaubt fährst. <b>In Deutschland ist die Nutzung während der Fahrt für Fahrer verboten (§ 23 Abs. 1c StVO, Bußgeld und Punkt), auch über das Handy des Beifahrers.</b> Einschalten auf eigene Verantwortung, z. B. zur Planung vor der Fahrt.</p>
+ <p class="small">Zeigt feste Blitzer aus OpenStreetMap von Nutzern gemeldete mobile Blitzer (3 Stunden sichtbar, länger wenn bestätigt) sowie amtlich angekündigte Kontrollen des Tages als rot gestrichelte Straße (bisher nur Stadt Bonn, für Sachsen gibt es keine freie Quelle) und warnt beim Annähern: immer auf dem Bildschirm, mit Ton nur, wenn du schneller als erlaubt fährst. <b>In Deutschland ist die Nutzung während der Fahrt für Fahrer verboten (§ 23 Abs. 1c StVO, Bußgeld und Punkt), auch über das Handy des Beifahrers.</b> Einschalten auf eigene Verantwortung, z. B. zur Planung vor der Fahrt.</p>
  <h3>Farben</h3><div class="row"><button class="chip" data-theme="auto">Automatisch</button><button class="chip" data-theme="day">Tag</button><button class="chip" data-theme="night">Nacht</button></div>
  <h3>Fahrzeug</h3><div class="row"><button class="chip" data-mode="auto">Auto</button><button class="chip" data-mode="rad">Rad</button></div>
  <h3>Tempolimit anzeigen</h3><div class="row"><button class="chip" data-vlim="1">An</button><button class="chip" data-vlim="0">Aus</button></div>
@@ -267,7 +267,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
  <h3>Vollbild</h3><div class="row"><button class="btn" id="fsSet"><svg width="20" height="20" style="vertical-align:-4px;margin-right:6px" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Vollbild ohne Leisten</button></div><p class="small" id="fsInfo"></p>
  <h3>Fahrt</h3><div class="row"><button class="btn" id="stop">Fahrt beenden</button></div>
  <h3>Diagnose</h3><div id="diag" class="small" style="line-height:1.5"></div>
- <p class="small" style="margin-top:14px">Karte, Ampelstandorte und Routen: © OpenStreetMap-Mitwirkende. Suche: Photon (komoot). Routing: OSRM über FOSSGIS. Straßenbahn-Fahrplan: DELFI e.V. über gtfs.de, CC BY 4.0. Wetterwarnungen: Deutscher Wetterdienst über Bright Sky. Gelernte Daten und Meldungen verlassen das Gerät nur, wenn „Daten mit allen teilen“ an ist.</p>
+ <p class="small" style="margin-top:14px">Karte, Ampelstandorte und Routen: © OpenStreetMap-Mitwirkende. Suche: Photon (komoot). Routing: OSRM über FOSSGIS. Straßenbahn-Fahrplan: DELFI e.V. über gtfs.de, CC BY 4.0. Wetterwarnungen: Deutscher Wetterdienst über Bright Sky. Angekündigte Kontrollen: Stadt Bonn, Open Data (CC0). Gelernte Daten und Meldungen verlassen das Gerät nur, wenn „Daten mit allen teilen“ an ist.</p>
  <button class="btn big" data-close style="margin-top:8px">Schließen</button></div>
 
 <div class="start" id="start"><div class="in">
@@ -293,7 +293,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='25.11.2026 · 11';
+const APP_VERSION='25.11.2026 · 12';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -339,12 +339,14 @@ map.on('load',()=>{
  for(const id of['sigs','reps','dest'])map.addSource(id,{type:'geojson',data:EMPTY});
  map.addLayer({id:'sigs',type:'symbol',source:'sigs',minzoom:13,layout:{'icon-image':['match',['get','k'],'t','ico-ampel-t','l','ico-ampel-l','ico-ampel-u'],'icon-size':['interpolate',['linear'],['zoom'],13,0.55,16,0.8,18,1],'icon-anchor':'bottom','symbol-sort-key':['match',['get','k'],'t',2,'l',1,0],'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-pitch-alignment':'viewport','icon-rotation-alignment':'viewport'}});
  map.addLayer({id:'reps',type:'symbol',source:'reps',layout:{'icon-image':['get','icon'],'icon-size':['interpolate',['linear'],['zoom'],13,0.55,16,0.8,18,1],'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-pitch-alignment':'viewport','icon-rotation-alignment':'viewport'}});
+ map.addSource('ann',{type:'geojson',data:EMPTY});
+ map.addLayer({id:'ann',type:'line',source:'ann',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#e53935','line-width':['interpolate',['linear'],['zoom'],12,2.5,18,8],'line-opacity':.7,'line-dasharray':[0.5,1.5]}},before);
  map.addSource('cams',{type:'geojson',data:EMPTY});
  map.addLayer({id:'cams',type:'symbol',source:'cams',layout:{'icon-image':'ico-blitz','icon-size':['interpolate',['linear'],['zoom'],13,0.55,16,0.8,18,1],'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-pitch-alignment':'viewport','icon-rotation-alignment':'viewport'}});
  map.addLayer({id:'dest',type:'symbol',source:'dest',layout:{'icon-image':'ico-ziel','icon-size':['interpolate',['linear'],['zoom'],12,0.7,17,1],'icon-anchor':'bottom-left','icon-allow-overlap':true,'icon-ignore-placement':true,'icon-pitch-alignment':'viewport','icon-rotation-alignment':'viewport'}});
  loadIcons();
  styleMap();
- mapReady=true;setTimeout(()=>{try{drawCams();drawWorks();drawTrams();drawFavs()}catch(e){}},0);mapQ.splice(0).forEach(f=>{try{f()}catch(e){}});applyView(true)});
+ mapReady=true;setTimeout(()=>{try{drawCams();drawAnn();drawWorks();drawTrams();drawFavs()}catch(e){}},0);mapQ.splice(0).forEach(f=>{try{f()}catch(e){}});applyView(true)});
 // Waze-ähnliche Kartenfarben, Tag und Nacht
 const THEMES={
  day:{bg:'#e9ecef',land:'#e4e7ea',park:'#cdeac3',water:'#a9d8f3',bld:'#dadde1',bld3:'#d3d7dc',road:'#ffffff',major:'#ffe28a',motor:'#f9c04f',casing:'#c4cad0',text:'#3c4852',halo:'#ffffff',rcase:'#127fb0'},
@@ -475,7 +477,29 @@ const mobCams=()=>set.blitz?allReps().filter(r=>r.type==='mob'&&!HIDE[r.sid]).ma
 async function loadCams(){if(CAMS)return;camState='lädt …';try{const r=await tfetch('cameras.json',{cache:'no-cache'},30000);if(!r.ok)throw new Error(r.status);const j=await r.json();
  CAMS=(j.cameras||[]).map(([id,lat,lon,max])=>({id,lat,lon,max}));camState=`${CAMS.length} feste Blitzer, Stand ${j.updated}`}catch(e){CAMS=null;camState='Blitzer-Datei nicht verfügbar'}drawCams()}
 function drawCams(){src('cams',set.blitz&&CAMS?{type:'FeatureCollection',features:CAMS.map(c=>({type:'Feature',geometry:{type:'Point',coordinates:[c.lon,c.lat]},properties:{}}))}:EMPTY)}
-function setBlitz(){if(set.blitz)loadCams();else{camState='aus';$('blitz').classList.remove('on');camCur=null}drawCams();renderTypes();drawReps()}
+function setBlitz(){if(set.blitz){loadCams();loadAnn()}else{camState='aus';$('blitz').classList.remove('on');camCur=null}drawCams();drawAnn();renderTypes();drawReps()}
+// ---------- Amtlich angekündigte mobile Kontrollen (Tag + Straße, mobile.json aus tools/build_mobile.py) ----------
+let ANN=null,annState='lädt …',annT=0;const annWarned=new Map(),ANNSRC={bonn:'Stadt Bonn'};
+const dayKey=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const annToday=()=>{if(!ANN)return[];const k=dayKey();return(ANN.j.items||[]).filter(it=>it.d===k&&ANN.lines.has(it.s+'|'+it.n))};
+async function loadAnn(force){if(!set.blitz)return;if(!force&&ANN&&Date.now()-annT<6*3600e3){drawAnn();return}annT=Date.now();
+ try{const r=await tfetch('mobile.json',{cache:'no-cache'},30000);if(!r.ok)throw new Error(r.status);const j=await r.json(),lines=new Map();
+  for(const[k,g]of Object.entries(j.geo||{})){const L=g.map(a=>{const q=[];for(let i=0;i+1<a.length;i+=2)q.push([a[i],a[i+1]]);return q});let w=180,so=90,e=-180,n=-90;
+   for(const l of L)for(const[x,y]of l){w=Math.min(w,x);e=Math.max(e,x);so=Math.min(so,y);n=Math.max(n,y)}lines.set(k,{L,bb:[w-0.0005,so-0.0004,e+0.0005,n+0.0004]})}
+  ANN={j,lines};annState=`${annToday().length} heute angekündigt · Quellen: ${(j.sources||[]).map(x=>x.name+(x.state!=='ok'?' (Fehler)':'')).join(', ')||'keine'} · Stand ${j.updated}`}
+ catch(e){annState='Datei nicht verfügbar'}drawAnn()}
+function drawAnn(){src('ann',set.blitz&&ANN?{type:'FeatureCollection',features:annToday().map(it=>({type:'Feature',geometry:{type:'MultiLineString',coordinates:ANN.lines.get(it.s+'|'+it.n).L},properties:{}}))}:EMPTY)}
+setInterval(()=>{if(set.blitz)loadAnn()},600000);
+// Fährt das Fahrzeug gerade auf einer heute angekündigten Straße (in Längsrichtung)?
+function annAt(p){if(!set.blitz||!ANN||heading==null)return null;const kx=111320*Math.cos(p.lat*RAD),ky=110540;let best=null;
+ for(const it of annToday()){const o=ANN.lines.get(it.s+'|'+it.n),b=o.bb;if(p.lon<b[0]||p.lon>b[2]||p.lat<b[1]||p.lat>b[3])continue;
+  for(const l of o.L)for(let i=0;i<l.length-1;i++){const ax=(l[i][0]-p.lon)*kx,ay=(l[i][1]-p.lat)*ky,bx=(l[i+1][0]-p.lon)*kx,by=(l[i+1][1]-p.lat)*ky,pr=projSeg(0,0,ax,ay,bx,by);if(pr.d>18)continue;
+   const sb=(Math.atan2(bx-ax,by-ay)*180/Math.PI+360)%360,df=Math.abs(adiff(heading,sb));if(df>35&&df<145)continue;if(!best||pr.d<best.d)best={it,d:pr.d}}}
+ return best}
+function showAnn(n,el){const lim=roadLim()||set.limit,kmh=Math.round(v*3.6),fast=kmh>lim+3;camCur='a:'+n.it.n;
+ $('bLim').textContent=lim;$('bT').textContent='Kontrolle angekündigt';$('bD').textContent=`Heute auf ${n.it.n} · ${ANNSRC[n.it.s]||n.it.s}`+(fast?` · du fährst ${kmh}`:'');
+ el.classList.add('on');el.classList.toggle('fast',fast);
+ const k=n.it.s+'|'+n.it.n,w=annWarned.get(k)||0;if(fast&&Date.now()-w>600000){annWarned.set(k,Date.now());announce('blitz',`Achtung, heute angekündigte Geschwindigkeitskontrolle. Erlaubt sind ${lim}.`,0)}}
 function camAhead(p){if(!set.blitz||heading==null)return null;let best=null;
  for(const c of[...(CAMS||[]),...mobCams()]){let d;
   if(NAV){const q=snap(NAV,c.lat,c.lon);if(q.d>25)continue;d=q.s-NAV.s;if(d<-15||d>500)continue}
@@ -485,7 +509,7 @@ function checkCams(p){const a=camAhead(p),el=$('blitz');
  // Nach dem Vorbeifahren an einem gemeldeten mobilen Blitzer kurz fragen, ob er noch da ist
  if(mobLast&&(!a||a.c.id!==mobLast.id)){if(dist(p,mobLast.rep)<150&&!answered.has(mobLast.rep.id))mobAsk={r:mobLast.rep,until:Date.now()+20000};mobLast=null}
  if(a&&a.c.rep)mobLast=a.c;
- if(!a){el.classList.remove('on');camCur=null;return}
+ if(!a){const n=annAt(p);if(n){showAnn(n,el);return}el.classList.remove('on');camCur=null;return}
  const lim=a.c.max||roadLim()||set.limit,kmh=Math.round(v*3.6),fast=kmh>lim+3;camCur=a.c.id;
  $('bLim').textContent=lim;const mob=a.c.rep,bn=mob?'Mobiler Blitzer':'Blitzer';$('bT').textContent=a.d>15?bn+' in '+fmt(a.d):bn;$('bD').textContent=(mob?`Gemeldet ${repAge(mob)} · `:'')+(a.c.max||roadLim()?`Erlaubt ${lim} km/h`:`Limit unbekannt, geprüft mit ${lim} km/h`)+(fast?` · du fährst ${kmh}`:'');
  el.classList.add('on');el.classList.toggle('fast',fast);
@@ -1035,7 +1059,7 @@ $('res').onclick=e=>{const fr=e.target.closest('[data-fren]');if(fr){renameFav(f
 // ---------- Diagnose ----------
 function renderDiag(){const now=Date.now()/1000,R=NAV;
  const rows=[['App-Version',APP_VERSION+(SIM.on?' · SIMULATION aktiv':'')],['GPS',DIAG.acc==null?'noch kein Signal':`±${Math.round(DIAG.acc)} m, ${DIAG.fixes} Positionen in dieser Sitzung`],
-  ['Karte',mapReady?(mapErr?'geladen, Hinweis: '+mapErr:'3D-Karte geladen'):(mapErr||'lädt …')],['Ampel-Datei Leipzig',fileState],['Blitzer',set.blitz?`${camState} · ${mobCams().length} mobile gemeldet`:'aus'],['Gemeinsame Daten',set.share?`an · ${SHARE.up} hochgeladen, ${PEND.length} wartend · ${SHARE.down} Beobachtungen von allen geladen${SHARE.last?' um '+SHARE.last:''}${SHARE.err?' · Fehler: '+SHARE.err:''}`:'aus'],['Baustellen',workState],['Straßenbahn-Fahrplan',tramState],['Fahrstreifen der Route',NAV?(NAV.lpState||'lädt …'):'nur während der Navigation'],['Wetterwarnungen',WX.state],['Tempolimits',set.vlim?VL.state+(VL.cur?` · jetzt ${VL.cur.v==='none'?'ohne Limit':VL.cur.v+' km/h'}${VL.cur.cond?' (zeitlich)':''}${VL.cur.imp?' (aus Zone)':''}`:' · jetzt unbekannt'):'aus'],['Ampeln geladen',`${SIG.size} gesamt · Online-Abruf: ${DIAG.load}`],
+  ['Karte',mapReady?(mapErr?'geladen, Hinweis: '+mapErr:'3D-Karte geladen'):(mapErr||'lädt …')],['Ampel-Datei Leipzig',fileState],['Blitzer',set.blitz?`${camState} · ${mobCams().length} mobile gemeldet`:'aus'],['Angekündigte Kontrollen',set.blitz?annState:'aus'],['Gemeinsame Daten',set.share?`an · ${SHARE.up} hochgeladen, ${PEND.length} wartend · ${SHARE.down} Beobachtungen von allen geladen${SHARE.last?' um '+SHARE.last:''}${SHARE.err?' · Fehler: '+SHARE.err:''}`:'aus'],['Baustellen',workState],['Straßenbahn-Fahrplan',tramState],['Fahrstreifen der Route',NAV?(NAV.lpState||'lädt …'):'nur während der Navigation'],['Wetterwarnungen',WX.state],['Tempolimits',set.vlim?VL.state+(VL.cur?` · jetzt ${VL.cur.v==='none'?'ohne Limit':VL.cur.v+' km/h'}${VL.cur.cond?' (zeitlich)':''}${VL.cur.imp?' (aus Zone)':''}`:' · jetzt unbekannt'):'aus'],['Ampeln geladen',`${SIG.size} gesamt · Online-Abruf: ${DIAG.load}`],
   ['Nächste Ampel',(()=>{if(!cur||!SIG.size)return '–';let b=1e9;for(const x of SIG.values()){const d=dist(cur,x);if(d<b)b=d}return fmt(b)+' entfernt'})()],
   ['Fahrtrichtung',heading==null?'noch unbekannt (erst losfahren)':Math.round(heading)+'°'],
   ['Navigation',R?`aktiv, ${(R.onRoute||[]).length} Ampeln auf der Route`:'aus (Ampeln werden per Fahrtrichtung erkannt)'],
@@ -1245,7 +1269,7 @@ async function checkUpdate(){try{const r=await fetch('./?v='+Date.now(),{cache:'
   let n=0;try{n=+sessionStorage.getItem('gw_upd')||0}catch(e){}if(n>2)return;try{sessionStorage.setItem('gw_upd',n+1)}catch(e){}
   location.replace(location.pathname+'?v='+encodeURIComponent(m[1]))}}catch(e){}}
 setTimeout(checkUpdate,1500);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});drawSignals();drawReps();renderLearn();loadFile();setBlitz();loadWorks();loadTrams();
-if(location.hostname=='gw.test')window.__gw={VL,condMs,wayLimit,OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr,map,SIM};
+if(location.hostname=='gw.test')window.__gw={VL,ANN:()=>ANN,annAt,condMs,wayLimit,OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr,map,SIM};
 $('startInfo').textContent=(Object.keys(OBS).length?`Bisher gelernt: ${Object.keys(OBS).length} Ampel-Richtungen. `:'')+'Version '+APP_VERSION;
 
 }

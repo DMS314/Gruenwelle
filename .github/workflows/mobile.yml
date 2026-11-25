@@ -1,0 +1,37 @@
+name: Angekündigte mobile Blitzer
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/mobile.yml
+      - tools/build_mobile.py
+  schedule:
+    - cron: '17 3 * * *'
+    - cron: '17 13 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mobile
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Amtliche Wochenlisten laden und Straßen zuordnen
+        run: python3 tools/build_mobile.py mobile.json
+      - name: Committen, wenn sich etwas geändert hat
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          [ -f mobile.json ] && git add mobile.json
+          if git diff --cached --quiet; then echo "Keine Änderung"; exit 0; fi
+          git commit -m "Angekündigte mobile Blitzer aktualisiert"
+          git pull --rebase -X theirs || true
+          git push
