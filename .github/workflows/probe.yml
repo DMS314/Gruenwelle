@@ -25,6 +25,25 @@ jobs:
             roles=collections.Counter(m['role'] for m in r['members']);print('Rel',r['id'],r['tags'].get('enforcement'),dict(roles),r['tags'].get('direction',''))
             for m in r['members']:
               if m['role']=='device':inrel[m['ref']]+=1
+          import math
+          N={e['id']:e for e in E if e['type']=='node'}
+          def brg(a,b):
+            y=math.sin(math.radians(b['lon']-a['lon']))*math.cos(math.radians(b['lat']));x=math.cos(math.radians(a['lat']))*math.sin(math.radians(b['lat']))-math.sin(math.radians(a['lat']))*math.cos(math.radians(b['lat']))*math.cos(math.radians(b['lon']-a['lon']))
+            return (math.degrees(math.atan2(y,x))+360)%360
+          diffs=[]
+          for r in rels:
+            m={x['role']:x['ref'] for x in r['members']}
+            if not all(k in m for k in('device','from','to')):continue
+            d=N.get(m['device']);f=N.get(m['from']);t=N.get(m['to'])
+            if not(d and f and t):continue
+            tb=brg(f,t);tag=d.get('tags',{}).get('direction','')
+            for v in tag.split(';'):
+              try:dv=float(v)
+              except:continue
+              diffs.append(round(((dv-tb+540)%360)-180))
+            dt=((brg(d,t)-tb+540)%360)-180
+            print('Rel',r['id'],r['tags'].get('enforcement'),'Fahrt',round(tb),'Tag',tag,'Abstand Gerät-Messpunkt',round(math.hypot((d['lat']-t['lat'])*111000,(d['lon']-t['lon'])*70000)),'m')
+          print('DIFFS',sorted(diffs))
           print('Blitzer in Relation',sum(c['id'] in inrel for c in cams))
           print('Beispiele Tags',[c['tags'] for c in cams[:6]])
           P
