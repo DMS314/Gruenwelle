@@ -9,7 +9,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: pip install -q playwright && python -m playwright install --with-deps chromium >/dev/null
-      - run: (python3 -m http.server 8000 >/dev/null 2>&1 &) && sleep 2 && timeout 300 python3 .github/probe/live.py
+      - run: (python3 -m http.server 8000 >/dev/null 2>&1 &) && sleep 2 && timeout 400 python3 -u .github/probe/live.py
       - name: Overpass direkt
         run: |
           Q='[out:json][timeout:25];way(around:1200,51.3250,12.3747)[highway~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|service)(_link)?$"];out tags geom;'
