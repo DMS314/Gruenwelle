@@ -92,16 +92,16 @@ html{background:var(--card)}body{background:var(--bg)}
 #nav .stp{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid color-mix(in srgb,var(--ink) 6%,transparent);font-size:14px}
 #nav .stp svg{width:22px;height:22px;flex:none;color:var(--blue)}#nav .stp em{font-style:normal;margin-left:auto;color:var(--mute);white-space:nowrap;padding-left:8px}
 #nav .stp div{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#nav .main{position:relative;z-index:1}
-#nav .lanes{display:flex;align-items:center;gap:10px;max-height:0;opacity:0;overflow:hidden;padding:0 12px 0 68px;transition:max-height .35s cubic-bezier(.2,.8,.2,1),opacity .25s,padding .35s cubic-bezier(.2,.8,.2,1)}
-#nav .lanes.on{max-height:64px;opacity:1;padding-bottom:10px}
+#nav .main{position:relative;z-index:1;display:flex;flex-direction:column}
+#nav .lanes{order:-1;display:flex;align-items:center;gap:12px;max-height:0;opacity:0;overflow:hidden;padding:0 14px 0 8px;transition:max-height .35s cubic-bezier(.2,.8,.2,1),opacity .25s,padding .35s cubic-bezier(.2,.8,.2,1)}
+#nav .lanes.on{max-height:64px;opacity:1;padding-top:9px;padding-bottom:1px}
 #nav .head{position:relative;z-index:1}#nav .lanes{position:relative;z-index:1}
 #nav .lanes .ln{display:flex;gap:2px;background:color-mix(in srgb,var(--ink) 9%,transparent);border-radius:11px;padding:3px;flex:none}
 #nav .lanes .l{width:30px;height:36px;border-radius:8px;display:grid;place-items:center;color:color-mix(in srgb,var(--ink) 30%,transparent);position:relative}
 #nav .lanes .l+.l::before{content:'';position:absolute;left:-2px;top:8px;bottom:8px;border-left:2px dashed color-mix(in srgb,var(--ink) 18%,transparent)}
 #nav .lanes .l.rec+.l::before,#nav .lanes .l+.l.rec::before{display:none}
 #nav .lanes .l svg{width:25px;height:25px}#nav .lanes .l.ok{color:var(--ink)}#nav .lanes .l.rec{background:var(--blue);color:var(--onblue);box-shadow:0 2px 8px -3px color-mix(in srgb,var(--blue) 80%,transparent)}
-#nav .lanes .lt{flex:1;font-size:13px;line-height:1.2;color:var(--mute);min-width:0}#nav .lanes .lt b{display:block;font-size:15px;font-weight:800;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#nav .lanes .lt{flex:1;font-size:13px;line-height:1.2;color:var(--mute);min-width:0}#nav .lanes .lt b{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;font-size:15px;font-weight:800;line-height:1.15;color:var(--ink);overflow:hidden;text-wrap:balance}
 #nav .lanes .lt span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#nav .lanes .lt span:empty{display:none}
 #nav .acts{display:flex;gap:8px;margin-top:10px}#nav .acts button{flex:1;min-height:44px}
 #nav.on{display:flex}
@@ -317,7 +317,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='25.11.2026 · 24';
+const APP_VERSION='25.11.2026 · 25';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -1070,6 +1070,9 @@ function crossBefore(R,Ds){if(!R.onRoute)return null;let x=null;
 // Welche Seite verschwindet kurz nach der Kreuzung? (aus turn:lanes merge_to_left/right)
 function sideEnds(R,a,b){if(!R.lp)return{};const o={};for(const x of R.lp)if(x.s>a&&x.s<=b){if(x.endL)o.left=1;if(x.endR)o.right=1}return o}
 const SIDETXT={left:'Linke Spur',middle:'Mittlere Spur',right:'Rechte Spur'},SIDEPL={left:'Linke Spuren',middle:'Mittlere Spuren',right:'Rechte Spuren'};
+// „Auf rechter Spur einordnen“ (weiter weg) / „Auf rechter Spur bleiben“ (kurz davor), Mehrzahl „Auf rechten Spuren …“
+const SIDEADJ={left:'linke',middle:'mittlere',right:'rechte'};
+const laneSay=(side,pl,far)=>`Auf ${SIDEADJ[side]}${pl?'n Spuren':'r Spur'} ${far?'einordnen':'bleiben'}`;
 // Spurfenster: bei Empfehlung nach oben über die Abbiegeanzeige gleiten, danach wieder nach unten und ausblenden
 let laneUp=false;
 const setNavh=()=>document.documentElement.style.setProperty('--navh',$('nav').offsetHeight+'px');
@@ -1078,9 +1081,9 @@ function updateLanes(R){const el=$('lanes'),a=laneAdvice(R);
  if(!a||a.d>Math.max(1000,v*45)){laneMove(false);return}
  const n=a.D.lanes.length,several=a.lanes.length>1&&a.lanes.length<n;
  $('laneBox').innerHTML=a.D.lanes.map((l,i)=>`<div class="l ${a.lanes.includes(i)?'rec':l.ok?'ok':''}"><svg viewBox="0 0 48 48">${laneIcon(l.ind,laneUse(l,a.D,a.M))}</svg></div>`).join('');
- $('laneT').textContent=(several?SIDEPL[a.side]:SIDETXT[a.side])+(a.d>250?' wählen':' halten');
+ $('laneT').textContent=laneSay(a.side,several,a.d>250);
  {const nx=R.next>0?R.next:R.steps.length-1,cs=R.steps[nx],same=cs&&Math.abs(cs.s-a.M.s)<2;$('laneS').textContent=same?'':`für ${lf(a.M.text)} in ${fmt(Math.max(0,a.M.s-R.s))}`}laneMove(true);
- const trig=Math.max(350,v*22);if(!a.D.said&&a.d<=trig){a.D.said=1;announce('lane',`${SIDETXT[a.side]} ${a.d>200?'wählen':'halten'}`,a.side==='left'?-0.8:a.side==='right'?0.8:0)}}
+ const trig=Math.max(350,v*22);if(!a.D.said&&a.d<=trig){a.D.said=1;announce('lane',laneSay(a.side,several,a.d>200),a.side==='left'?-0.8:a.side==='right'?0.8:0)}}
 function renderNav(){const R=NAV;if(!R)return;const el=$('nav');el.classList.add('on');el.classList.toggle('off',R.offN>0);requestAnimationFrame(()=>document.documentElement.style.setProperty('--navh',el.offsetHeight+'px'));
  updateLanes(R);
  const nx=R.next>0?R.next:R.steps.length-1,st=R.steps[nx];
