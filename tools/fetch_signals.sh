@@ -14,9 +14,10 @@ try_pbf () {
   osmium tags-filter region.osm.pbf n/highway=traffic_signals n/crossing=traffic_signals -o sig.osm.pbf --overwrite || return 1
   osmium export sig.osm.pbf -f geojsonseq --add-unique-id=type_id -o sig.geojsonseq --overwrite || return 1
   python3 tools/build_signals.py sig.geojsonseq signals.json "$BBOX" || return 1
-  osmium tags-filter region.osm.pbf n/highway=speed_camera -o cam.osm.pbf --overwrite || return 0
-  osmium export cam.osm.pbf -f geojsonseq --add-unique-id=type_id -o cam.geojsonseq --overwrite || return 0
-  python3 tools/build_cameras.py cam.geojsonseq cameras.json || true
+  # Blitzer samt Überwachungs-Relationen (Fahrtrichtung von „from“ nach „to“); Mitgliedsknoten kommen automatisch mit
+  osmium tags-filter region.osm.pbf n/highway=speed_camera r/type=enforcement -o cam.osm.pbf --overwrite \
+    && osmium cat cam.osm.pbf -f opl -o cam.opl --overwrite \
+    && python3 tools/build_cameras.py cam.opl cameras.json || true
   osmium tags-filter region.osm.pbf w/highway=construction -o cons.osm.pbf --overwrite \
     && osmium export cons.osm.pbf -f geojsonseq --add-unique-id=type_id -o cons.geojsonseq --overwrite \
     && python3 tools/build_roadworks.py cons.geojsonseq roadworks.json "$BBOX" || python3 tools/build_roadworks.py - roadworks.json "$BBOX" || true
@@ -31,7 +32,7 @@ try_overpass () {
   echo "  HTTP $code"
   [ "$code" = "200" ] || return 1
   python3 tools/build_signals.py sig.json signals.json "$BBOX" || return 1
-  local qc="[out:json][timeout:120];node[\"highway\"=\"speed_camera\"]($S,$W,$N,$E);out body;"
+  local qc="[out:json][timeout:120];node[\"highway\"=\"speed_camera\"]($S,$W,$N,$E)->.c;.c out body;rel(bn.c)[type=enforcement]->.r;.r out body;node(r.r)->.m;.m out skel;"
   curl -sS --max-time 180 -A "$UA" -o cam.json --data-urlencode "data=$qc" "$url" && python3 tools/build_cameras.py cam.json cameras.json || true
   python3 tools/build_roadworks.py - roadworks.json "$BBOX" || true
 }
