@@ -1,7 +1,7 @@
 """Baut closures.json: Verkehrsraumeinschränkungen der Stadt Leipzig (Verkehrs- und Tiefbauamt, opendata.leipzig.de, WFS).
 Nur heute gültige Einträge, die den Autoverkehr betreffen. Vollsperrungen: blocked=True (die App umfährt sie bei jeder Route).
 Aufruf: build_closures.py <ziel.json>"""
-import json, sys, re, datetime, urllib.request, math
+import json, sys, re, datetime, urllib.request, urllib.parse, math
 
 URL = ('https://geodienste.leipzig.de/l3/OpenData/wfs?VERSION=1.3.0&REQUEST=getFeature'
        '&typeName=OpenData%3Averkehrsraumeinschraenkungen&outputFormat=application/json&srsName=EPSG:4326')
@@ -62,6 +62,61 @@ for f in data.get('features', []):
                   'sub': sub, 'desc': desc, 'lon': round(lon, 6), 'lat': round(lat, 6),
                   'line': thin(ring), 'poly': thin(ring), 'blocked': bool(full), 'end': e})
     n_block += bool(full)
+
+# ---- Lage prüfen: „Knoten X/Y“ muss an der Kreuzung von X und Y liegen (Datensatz der Stadt hat teils versetzte Flächen,
+# z. B. Stöhrerstraße/Brahestraße 540 m daneben). Kreuzung aus OpenStreetMap (gemeinsamer Knoten beider Straßen).
+OVERPASS = ['https://maps.mail.ru/osm/tools/overpass/api/interpreter', 'https://overpass.private.coffee/api/interpreter',
+            'https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter']
+
+def street_names(addr):
+    parts = [re.sub(r'\s+\d.*$', '', re.sub(r'\(.*?\)', '', x)).strip(' ,.') for x in re.split(r'\s*/\s*|\s+Ecke\s+', addr)]
+    return [x for x in parts if len(x) > 3]
+
+def mdist(a, b):  # a, b = (lon, lat)
+    return math.hypot((a[0] - b[0]) * 69600, (a[1] - b[1]) * 111000)
+
+def ring(lon, lat, r=25, n=10):
+    return [[round(lon + r / 69600 * math.cos(2 * math.pi * i / n), 6), round(lat + r / 111000 * math.sin(2 * math.pi * i / n), 6)] for i in range(n)] + \
+           [[round(lon + r / 69600, 6), round(lat, 6)]]
+
+knots = [(it, street_names(it['title'].split(': ', 1)[1])) for it in items]
+knots = [(it, nm) for it, nm in knots if len(nm) >= 2]
+fixed = 0
+if knots:
+    names = sorted({n for _, nm in knots for n in nm[:2]})
+    rx = '|'.join(re.escape(n) for n in names)
+    q = f'[out:json][timeout:120];way["highway"]["name"~"^({rx})$"](51.20,12.15,51.48,12.62);out body geom;'
+    ways = None
+    for url in OVERPASS:
+        try:
+            req = urllib.request.Request(url, data=urllib.parse.urlencode({'data': q}).encode(), headers={'User-Agent': UA})
+            with urllib.request.urlopen(req, timeout=150) as r:
+                ways = json.load(r).get('elements', [])
+            break
+        except Exception as e:
+            print('Overpass', url, e)
+    if ways is not None:
+        nodes = {}  # name -> {node_id: (lon, lat)}
+        for w in ways:
+            nm = w.get('tags', {}).get('name')
+            for nid, g in zip(w.get('nodes', []), w.get('geometry', [])):
+                nodes.setdefault(nm, {})[nid] = (g['lon'], g['lat'])
+        for it, nm in knots:
+            a, b = nodes.get(nm[0], {}), nodes.get(nm[1], {})
+            shared = [a[k] for k in a.keys() & b.keys()]
+            if not shared:
+                continue
+            c = (it['lon'], it['lat'])
+            k = min(shared, key=lambda x: mdist(x, c))
+            dpoly = min(mdist(k, tuple(p)) for p in it['poly'])
+            if dpoly > 60:
+                print(f"Lage korrigiert: {it['title']} – Fläche der Stadt lag {dpoly:.0f} m neben der Kreuzung")
+                it['poly'] = it['line'] = ring(*k)
+                it['lon'], it['lat'] = round(k[0], 6), round(k[1], 6)
+                it['desc'].append(f'Lage auf die Kreuzung laut OpenStreetMap gesetzt (Fläche der Stadt lag {dpoly:.0f} m daneben)')
+                it['fix'] = round(dpoly)
+                fixed += 1
+    print(f'{len(knots)} Kreuzungs-Sperrungen geprüft, {fixed} Lage korrigiert')
 
 out = {'updated': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M UTC'),
        'source': 'Stadt Leipzig, Verkehrs- und Tiefbauamt: Verkehrsraumeinschränkungen (opendata.leipzig.de)',
