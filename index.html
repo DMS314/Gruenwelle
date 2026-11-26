@@ -177,6 +177,16 @@ input[type=search]{width:100%;font:inherit;font-size:17px;border:1px solid var(-
 .res button .dk{float:right;color:var(--mute);font-size:13px;margin-left:8px}
 .savebtn{display:flex;align-items:center;gap:8px;width:100%;margin-top:10px;font-size:15px}
 .pin{width:30px;height:40px;pointer-events:none}.pin svg{width:30px;height:40px;filter:drop-shadow(0 2px 3px #0006)}
+.rcrit{display:flex;gap:6px;overflow-x:auto;margin:10px -4px 8px;padding:0 4px 4px;scrollbar-width:none}.rcrit::-webkit-scrollbar{display:none}.rcrit .chip{flex:none;min-height:36px;padding:0 12px;font-size:14px}
+.rlist{display:flex;flex-direction:column;gap:8px;margin:4px 0 10px}
+.rcard{font:inherit;text-align:left;color:var(--ink);background:none;border:1px solid var(--line);border-radius:14px;padding:10px 12px;cursor:pointer;display:block;width:100%}
+.rcard[aria-pressed=true]{border:2px solid #33ccff;padding:9px 11px;background:rgba(51,204,255,.08)}
+.rcard .r1{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}.rcard .r1 b{font-size:20px}.rcard .r1 span{color:var(--mute);font-size:15px}
+.rcard .bd{display:inline-block;font-style:normal;font-size:12px;border-radius:9px;padding:1px 7px;background:var(--ink);color:var(--bg);margin-left:auto}
+.rcard .bd+.bd{margin-left:0}
+.rcard .r2{font-size:13px;color:var(--mute);margin-top:3px;line-height:1.35}.rcard .r2 .w{color:#e8590c;display:block}
+.rlist{max-height:40vh;overflow-y:auto}
+#prevSheet .rcard{padding:8px 12px}#prevSheet .rcard[aria-pressed=true]{padding:7px 11px}#prevSheet .rcard .r1 b{font-size:18px}
 .kv{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:12px 0}.kv b{font-size:22px;display:block}.kv span{font-size:13px;color:var(--mute)}
 textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--line);border-radius:12px;padding:8px;background:var(--bg);color:var(--ink)}
 
@@ -247,7 +257,8 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
  <button class="btn big" data-close style="margin-top:8px">Schließen</button></div>
 
 <div class="sheet" id="prevSheet"><h2 id="pvName">Route</h2><p class="small" id="pvAddr"></p>
- <div class="kv"><div><b id="pvTime">–</b><span>Fahrzeit</span></div><div><b id="pvDist">–</b><span>Strecke</span></div><div><b id="pvSig">–</b><span>Ampeln auf der Route</span></div></div>
+ <div class="rcrit" id="pvCrit"></div>
+ <div class="rlist" id="pvRoutes"></div>
  <p class="small" id="pvLearn"></p>
  <div class="row"><button class="btn pri big" id="pvGo" style="flex:1">Los</button><button class="btn big" id="pvSim" style="flex:none;width:auto;padding:0 16px">Simulieren</button></div>
  <button class="btn big" id="pvCancel" style="margin-top:8px">Abbrechen</button></div>
@@ -285,6 +296,8 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
  <p class="small">Zeigt feste Blitzer aus OpenStreetMap von Nutzern gemeldete mobile Blitzer (3 Stunden sichtbar, länger wenn bestätigt) sowie amtlich angekündigte Kontrollen des Tages als rot gestrichelte Straße (bisher nur Stadt Bonn, für Sachsen gibt es keine freie Quelle) und warnt beim Annähern: immer auf dem Bildschirm, mit Ton nur, wenn du schneller als erlaubt fährst. <b>In Deutschland ist die Nutzung während der Fahrt für Fahrer verboten (§ 23 Abs. 1c StVO, Bußgeld und Punkt), auch über das Handy des Beifahrers.</b> Einschalten auf eigene Verantwortung, z. B. zur Planung vor der Fahrt.</p>
  <h3>Farben</h3><div class="row"><button class="chip" data-theme="auto">Automatisch</button><button class="chip" data-theme="day">Tag</button><button class="chip" data-theme="night">Nacht</button></div>
  <h3>Fahrzeug</h3><div class="row"><button class="chip" data-mode="auto">Auto</button><button class="chip" data-mode="rad">Rad</button></div>
+ <h3>Routenwahl</h3><div class="row" id="rcritSet" style="flex-wrap:wrap"></div>
+ <p class="small">Welche Route bei der Zielwahl vorausgewählt ist und nach welchem Merkmal bei Abweichung neu geplant wird. Die anderen Vorschläge kannst du vor dem Losfahren antippen.</p>
  <h3>Verkehrsmeldungen</h3><div class="row"><button class="chip" data-vwd="1">An</button><button class="chip" data-vwd="0">Aus</button></div>
  <p class="small">Stau, Unfälle und Gefahren auf den Autobahnen rund um Leipzig und in Sachsen (A4, A9, A13, A14, A17, A38, A72, A143), live vom Verkehrswarndienst über die Autobahn GmbH: dieselben Meldungen wie im Radio-Verkehrsfunk. Liegt eine Meldung bis 3 km vor dir, erscheint ein Hinweis. Für Straßen in der Stadt gibt es keine offene Quelle.</p>
  <h3>Tempolimit anzeigen</h3><div class="row"><button class="chip" data-vlim="1">An</button><button class="chip" data-vlim="0">Aus</button></div>
@@ -331,7 +344,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='26.11.2026 · 5';
+const APP_VERSION='26.11.2026 · 6';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -356,6 +369,10 @@ map.on('error',e=>{mapErr=(e&&e.error&&e.error.message)||'Kartenfehler'});
 map.on('load',()=>{
  const before=map.getStyle().layers.find(l=>l.type==='symbol')?.id;
  map.addSource('route',{type:'geojson',data:EMPTY});
+ map.addSource('alts',{type:'geojson',data:EMPTY});
+ map.addLayer({id:'alt-case',type:'line',source:'alts',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#5f7486','line-width':['interpolate',['linear'],['zoom'],12,6,18,20],'line-opacity':.55}},before);
+ map.addLayer({id:'alt-line',type:'line',source:'alts',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#a9bccb','line-width':['interpolate',['linear'],['zoom'],12,4,18,14],'line-opacity':.8}},before);
+ map.on('click','alt-line',e=>{const f=e.features&&e.features[0];if(f&&PREVIEW)pickRoute(+f.properties.i)});
  map.addLayer({id:'route-case',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#127fb0','line-width':['interpolate',['linear'],['zoom'],12,6,18,22]}},before);
  map.addLayer({id:'route-line',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#33ccff','line-width':['interpolate',['linear'],['zoom'],12,4,18,15]}},before);
  for(const id of['works','worksPt'])map.addSource(id,{type:'geojson',data:EMPTY});
@@ -374,7 +391,7 @@ map.on('load',()=>{
  map.addSource('favs',{type:'geojson',data:EMPTY});
  map.addLayer({id:'favs',type:'symbol',source:'favs',layout:{'icon-image':'ico-fav','icon-size':['interpolate',['linear'],['zoom'],11,0.4,16,0.62],'icon-allow-overlap':true,'icon-pitch-alignment':'viewport','icon-rotation-alignment':'viewport'}});
  map.on('click','favs',e=>{const f=e.features&&e.features[0];if(f)showFav(f.properties.id)});
- map.on('click',e=>{const hit=map.queryRenderedFeatures([[e.point.x-10,e.point.y-10],[e.point.x+10,e.point.y+10]],{layers:['favs','reps','vwd','vwd-line','trams','works','works-line','cams','sigs'].filter(id=>map.getLayer(id))});if(!hit.length)showPoint(e.lngLat.lat,e.lngLat.lng)});
+ map.on('click',e=>{const hit=map.queryRenderedFeatures([[e.point.x-10,e.point.y-10],[e.point.x+10,e.point.y+10]],{layers:['alt-line','favs','reps','vwd','vwd-line','trams','works','works-line','cams','sigs'].filter(id=>map.getLayer(id))});if(!hit.length)showPoint(e.lngLat.lat,e.lngLat.lng)});
  map.on('click','reps',e=>{const f=e.features&&e.features[0];if(f)showRep(f.properties.rid)});
  map.on('click','trams',e=>{const f=e.features&&e.features[0];if(f)showTram(f.properties.i)});
  for(const id of['works','trams','reps','favs'])map.on('mouseenter',id,()=>map.getCanvas().style.cursor='pointer');
@@ -880,7 +897,7 @@ function renderVL(){const el=$('vlim'),x=set.vlim&&cur&&VL.cur?VL.cur.v:null,kmh
 
 // ---------- Navigation ----------
 let NAV=null;
-const clearRoute=()=>{src('route',EMPTY);src('dest',EMPTY)};
+const clearRoute=()=>{src('route',EMPTY);src('dest',EMPTY);src('alts',EMPTY)};
 const ROUTERS={auto:['https://routing.openstreetmap.de/routed-car/route/v1/driving/','https://router.project-osrm.org/route/v1/driving/'],rad:['https://routing.openstreetmap.de/routed-bike/route/v1/driving/']};
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 // Stimmenwahl: beste deutsche Stimme des Geräts. Premium/Erweitert klingen natürlich; Kompakt- und Eloquence-Stimmen (Eddy, Flo, Grandma …) blechern
@@ -968,15 +985,77 @@ function buildRoute(route,dest){
  const R={dest,ll,xy,cum,total:cum[cum.length-1],duration:route.duration,s:0,i:0,off:0,offN:0,last:0,onRoute:null,steps:[]};
  const steps=route.legs.flatMap(l=>l.steps);let from=0;
  R.lanes=[];
- for(const st of steps){const[lon,lat]=st.maneuver.location;const q=snap(R,lat,lon,from);from=q.i;R.steps.push({st,s:q.s,text:stepText(st),said:{}});
+ for(const st of steps){if(!st.name&&st.ref)st.name=st.ref;const[lon,lat]=st.maneuver.location;const q=snap(R,lat,lon,from);from=q.i;R.steps.push({st,s:q.s,text:stepText(st),said:{}});
   let f2=Math.max(0,from-2);for(const it of(st.intersections||[])){if(!it.lanes||!it.lanes.length||!it.location)continue;const qi=snap(R,it.location[1],it.location[0],f2,f2+400);f2=qi.i;
    if(qi.d<30)R.lanes.push({s:qi.s,lanes:it.lanes.map(l=>({ind:(l.indications||['none']),ok:!!l.valid,vi:l.valid_indication||null})),said:0})}}
  R.lanes.sort((a,b)=>a.s-b.s);
  return R}
-async function fetchRoute(a,b){
- for(const base of ROUTERS[set.mode]){try{const r=await tfetch(`${base}${a.lon.toFixed(6)},${a.lat.toFixed(6)};${b.lon.toFixed(6)},${b.lat.toFixed(6)}?overview=full&geometries=geojson&steps=true&alternatives=false`);
-  if(!r.ok)throw new Error(r.status);const j=await r.json();if(j.code!=='Ok'||!j.routes||!j.routes.length)throw new Error(j.code);return j.routes[0]}catch(e){}}
+async function fetchOsrm(a,b,alt=0,ms=20000){
+ for(const base of ROUTERS[set.mode]){try{const r=await tfetch(`${base}${a.lon.toFixed(6)},${a.lat.toFixed(6)};${b.lon.toFixed(6)},${b.lat.toFixed(6)}?overview=full&geometries=geojson&steps=true&alternatives=${alt||'false'}`,{},ms);
+  if(!r.ok)throw new Error(r.status);const j=await r.json();if(j.code!=='Ok'||!j.routes||!j.routes.length)throw new Error(j.code);j.routes.forEach(x=>x._src='osrm');return j.routes}catch(e){}}
  return null}
+async function fetchRoute(a,b){const L=await fetchOsrm(a,b);return L&&L[0]}
+// Valhalla (FOSSGIS): kann kürzeste Strecke, ohne Autobahn, Bereiche umfahren; Antwort im OSRM-Format (gleiche Schritte und Spuren). GET statt POST: kein CORS-Vorabcheck.
+const VALHALLA='https://valhalla1.openstreetmap.de/route';
+async function fetchValhalla(a,b,o={},ms=15000){const cost=set.mode==='rad'?'bicycle':'auto',co={};
+ if(cost==='auto'){if(o.shortest)co.shortest=true;if(o.noHw)co.use_highways=0}
+ const l0={lat:+a.lat.toFixed(6),lon:+a.lon.toFixed(6)};if(o.heading!=null){l0.heading=Math.round(o.heading);l0.heading_tolerance=60}
+ const body={locations:[l0,{lat:+b.lat.toFixed(6),lon:+b.lon.toFixed(6)}],costing:cost,costing_options:{[cost]:co},format:'osrm',shape_format:'geojson',language:'de-DE'};
+ if(o.alt)body.alternates=o.alt;if(o.excl&&o.excl.length)body.exclude_polygons=o.excl;
+ const r=await tfetch(VALHALLA+'?json='+encodeURIComponent(JSON.stringify(body)),{},ms);if(!r.ok)throw new Error('valhalla '+r.status);
+ const j=await r.json();if(j.code!=='Ok'||!j.routes||!j.routes.length)throw new Error(j.message||j.code||'leer');j.routes.forEach(x=>x._src='valhalla');return j.routes}
+// ---------- Routenvorschläge und Merkmale ----------
+const CRITS=[['fast','Schnellste'],['short','Kürzeste'],['sig','Wenigste Ampeln'],['green','Grüne Welle'],['calm','Entspannt'],['nohw','Ohne Autobahn'],['avoid','Störungen meiden'],['eco','Sparsam']];
+const critN=k=>(CRITS.find(c=>c[0]===k)||CRITS[0])[1];
+const critsNow=()=>CRITS.filter(([k])=>set.mode!=='rad'||(k!=='nohw'&&k!=='eco'));
+const rcrit=()=>critsNow().some(c=>c[0]===set.rcrit)?set.rcrit:'fast';
+function renderCritSet(){const el=$('rcritSet');if(el)el.innerHTML=critsNow().map(([k,n])=>`<button class="chip" data-rcrit="${k}" aria-pressed="${k===rcrit()}">${n}</button>`).join('')}
+// Störungen: Meldungen (Unfall, Stau, Gefahr, Baustelle), Baustellen-Datei, Autobahn-Verkehrswarndienst. w = geschätzte Verzögerung in s
+function incidents(){const L=[],now=Date.now();
+ for(const r of allReps())if(visRep(r)&&/^(unf|stau|gef|bau)$/.test(r.type)&&now-r.t<TYPES[r.type].h*3600e3)L.push({lat:r.lat,lon:r.lon,k:r.type,w:{stau:300,unf:300,gef:60,bau:120}[r.type],n:TYPES[r.type].n,hard:r.type!=='gef'});
+ if(set.works&&WORKS)for(const w of WORKS)L.push({lat:w.lat,lon:w.lon,pts:w.line,k:'bau',w:w.blocked?900:90,n:w.blocked?'Sperrung':'Baustelle',hard:!!w.blocked});
+ if(set.vwd)for(const x of VWD)L.push({lat:x.lat,lon:x.lon,pts:x.line,k:x.type,w:Math.max((x.delay||0)*60,x.type==='gef'?60:300),n:x.type==='stau'?'Stau':x.type==='unf'?'Unfall':'Gefahr',hard:x.type!=='gef'});
+ return L.filter(x=>isFinite(x.lat)&&isFinite(x.lon))}
+function incOn(R,L){const la=R.ll.map(c=>c[0]),lo=R.ll.map(c=>c[1]),b=[Math.min(...la)-.004,Math.max(...la)+.004,Math.min(...lo)-.006,Math.max(...lo)+.006],out=[];
+ for(const x of L){const pts=(x.pts&&x.pts.length?x.pts.filter((p,i,A)=>i%Math.max(1,Math.floor(A.length/8))==0||i==A.length-1).map(([o,a])=>({lat:a,lon:o})):[]);pts.push({lat:x.lat,lon:x.lon});
+  if(!pts.some(p=>p.lat>b[0]&&p.lat<b[1]&&p.lon>b[2]&&p.lon<b[3]))continue;if(pts.some(p=>snap(R,p.lat,p.lon).d<35))out.push(x)}
+ return out}
+function exclPolys(a,b,L){const mid={lat:(a.lat+b.lat)/2,lon:(a.lon+b.lon)/2},R0=dist(a,b)/2+4000;
+ return L.filter(x=>x.hard&&dist(x,mid)<R0&&dist(x,a)>150&&dist(x,b)>150).sort((p,q)=>dist(p,mid)-dist(q,mid)).slice(0,15)
+  .map(x=>{const dy=.0004,dx=.0006;return[[x.lon-dx,x.lat-dy],[x.lon+dx,x.lat-dy],[x.lon+dx,x.lat+dy],[x.lon-dx,x.lat+dy],[x.lon-dx,x.lat-dy]]})}
+const isHw=st=>/^A ?\d/.test(st.ref||st.name||'')||(st.intersections||[]).some(it=>(it.classes||[]).includes('motorway'));
+function routeMetrics(R,L){const now=Date.now()/1000,st=R.steps.map(x=>x.st);
+ const on=R.onRoute||[],learned=on.filter(o=>fit(o.sig.id+'_'+sector(o.brg),now).ok).length;
+ let turns=0,left=0,hw=0,fuel=0;
+ for(const x of st){const m=x.maneuver||{},ty=m.type,mod=m.modifier||'';
+  if(!/^(depart|arrive|new name|notification)$/.test(ty)&&!(ty==='continue'&&/straight/.test(mod))&&mod!=='straight'){turns++;if(/left|uturn/.test(mod))left++}
+  if(isHw(x))hw+=x.distance||0;
+  const d=x.distance||0,t=x.duration||0,kmh=t>0?d/t*3.6:40;fuel+=d/1000*(kmh<30?7.5:kmh<60?6:kmh<95?5.2:kmh<115?5.9:7)/100}
+ const inc=incOn(R,L),incW=inc.reduce((a,x)=>a+x.w,0),stops=(on.length-learned)*.45+learned*.25+left*.4+inc.filter(x=>x.k==='stau').length*3;
+ fuel+=stops*.02;
+ return R.m={t:R.duration,km:R.total/1000,sig:on.length,learned,sigKnown:!!R.onRoute,turns,left,hw,inc,incW,fuel:set.mode==='rad'?null:fuel}}
+function critScore(k,m){switch(k){case'short':return m.km;case'sig':return m.sig*600+m.t;case'green':return m.t+15*(m.sig-m.learned)+5*m.learned;
+ case'calm':return m.t+20*m.turns+25*m.left;case'nohw':return m.hw*10+m.t;case'avoid':return m.incW*3+m.inc.length*120+m.t;case'eco':return(m.fuel||0)*3600+m.t*.2;default:return m.t}}
+function sameRoute(A,B){if(Math.abs(A.total-B.total)>Math.max(150,A.total*.04))return false;let n=0,h=0;for(let s=0;s<A.total;s+=120){n++;const p=routeAt(A,s);if(snap(B,p.lat,p.lon).d<25)h++}return n?h/n>.92:true}
+async function routeCands(a,b,o={}){const crit=o.crit,ms=o.ms||15000,jobs=[];
+ const L=incidents(),ex=exclPolys(a,b,L);
+ const want=k=>!crit||crit===k;
+ if(!crit||!/^(short|nohw|avoid)$/.test(crit))jobs.push(fetchValhalla(a,b,{alt:2,heading:o.heading},ms));
+ if(want('short'))jobs.push(fetchValhalla(a,b,{shortest:1,heading:o.heading},ms));
+ if(set.mode!=='rad'&&want('nohw'))jobs.push(fetchValhalla(a,b,{noHw:1,alt:1,heading:o.heading},ms));
+ if(want('avoid')&&ex.length)jobs.push(fetchValhalla(a,b,{excl:ex,alt:1,heading:o.heading},ms));
+ else if(crit==='avoid')jobs.push(fetchValhalla(a,b,{alt:2,heading:o.heading},ms));
+ jobs.push(fetchOsrm(a,b,2,ms));
+ const res=await Promise.allSettled(jobs),val=[],osrm=[];
+ res.forEach((r,i)=>{if(r.status!=='fulfilled'||!r.value)return;(i==res.length-1?osrm:val).push(...r.value)});
+ // OSRM-Zeiten an Valhalla angleichen (Valhalla rechnet Stadtverkehr vorsichtiger), damit „schnellste“ fair verglichen wird
+ if(val.length&&osrm.length){const f=Math.min(...val.map(r=>r.duration))/Math.min(...osrm.map(r=>r.duration));if(f>.6&&f<2.5)osrm.forEach(r=>r.duration*=f)}
+ return{list:[...val,...osrm],L}}
+function rankRoutes(Rs,L){Rs.forEach(R=>routeMetrics(R,L));const tMin=Math.min(...Rs.map(R=>R.m.t)),best={};
+ for(const[k]of critsNow()){let b=null;for(const R of Rs){if(k!=='fast'&&R.m.t>tMin*1.6+120)continue;if(!b||critScore(k,R.m)<critScore(k,b.m))b=R}if(b)best[k]=b}
+ Rs.forEach(R=>R.best=critsNow().map(c=>c[0]).filter(k=>best[k]===R));return best}
+// Vorschau: Kandidaten holen, doppelte entfernen, je Merkmal die beste Route kennzeichnen
+let PVR=[],PVC='fast';
 function drawRoute(R){src('route',{type:'Feature',geometry:{type:'LineString',coordinates:R.ll.map(c=>[c[1],c[0]])},properties:{}});
  src('dest',{type:'Feature',geometry:{type:'Point',coordinates:[R.dest.lon,R.dest.lat]},properties:{}})}
 // Ampeln entlang der Route
@@ -986,29 +1065,49 @@ function computeOnRoute(R){if(!R)return;const out=[];
  // mehrere Knoten derselben Kreuzung: nur den ersten behalten
  R.onRoute=out.filter((o,k)=>k==0||o.s-out[k-1].s>25)}
 let routeSigLoading=false;
-async function loadRouteSignals(R){if(routeSigLoading||R.total>60000)return;if(FILEBOX&&R.ll.every(c=>inBox({lat:c[0],lon:c[1]},0.003)))return;routeSigLoading=true;
- const pts=[];let next=0;for(let i=0;i<R.ll.length;i++)if(R.cum[i]>=next||i==R.ll.length-1){pts.push(R.ll[i][0].toFixed(5)+','+R.ll[i][1].toFixed(5));next=R.cum[i]+120}
- const ar=`(around:25,${pts.slice(0,450).join(',')})`,q=`[out:json][timeout:25];(node["highway"="traffic_signals"]${ar};node["crossing"="traffic_signals"]${ar};);out body;`;
+async function loadRouteSignals(R0){const Rs=(Array.isArray(R0)?R0:[R0]).filter(R=>R.total<=60000&&!(FILEBOX&&R.ll.every(c=>inBox({lat:c[0],lon:c[1]},0.003))));if(routeSigLoading||!Rs.length)return;routeSigLoading=true;
+ const pts=[],seen=new Set(),step=Rs.length>1?160:120;for(const R of Rs){let next=0;for(let i=0;i<R.ll.length;i++)if(R.cum[i]>=next||i==R.ll.length-1){const k=R.ll[i][0].toFixed(5)+','+R.ll[i][1].toFixed(5),g=R.ll[i][0].toFixed(3)+R.ll[i][1].toFixed(3);next=R.cum[i]+step;if(Rs.length>1&&seen.has(g))continue;seen.add(g);pts.push(k)}}
+ const ar=`(around:25,${pts.slice(0,700).join(',')})`,q=`[out:json][timeout:25];(node["highway"="traffic_signals"]${ar};node["crossing"="traffic_signals"]${ar};);out body;`;
  {try{const j=await overpass(q);
    for(const e of j.elements||[])if(e.type=='node'&&isFinite(e.lat))SIG.set(e.id,{id:e.id,lat:+e.lat,lon:+e.lon});LS.set('gw_sig',[...SIG.values()].filter(s=>!s.f).slice(-4000))}catch(e){}}
- routeSigLoading=false;drawSignals()}
-function onSignalsChanged(){const R=NAV||PREVIEW;if(R){computeOnRoute(R);if(R===PREVIEW)renderPreview()}}
+ routeSigLoading=false;drawSignals();onSignalsChanged()}
+function onSignalsChanged(){if(NAV)computeOnRoute(NAV);if(PREVIEW&&!NAV){PVR.forEach(computeOnRoute);renderPreview()}}
 function learnedOn(R){const now=Date.now()/1000;return(R.onRoute||[]).filter(o=>fit(o.sig.id+'_'+sector(o.brg),now).ok).length}
 // Vorschau
 let PREVIEW=null;
 const fmtDur=s=>{const m=Math.max(1,Math.round(s/60));return m<60?m+' Min':Math.floor(m/60)+' h '+String(m%60).padStart(2,'0')};
-function renderPreview(){const R=PREVIEW;if(!R)return;$('pvTime').textContent=fmtDur(R.duration);$('pvDist').textContent=fmt(R.total);
- $('pvSig').textContent=R.onRoute?R.onRoute.length:'…';const n=learnedOn(R);
- const wn=worksOn(R);$('pvLearn').textContent=(R.onRoute?(R.onRoute.length?`${n} davon mit gelernten Schaltzeiten. Die übrigen lernt die App auf dieser Fahrt mit.`:'Keine Ampeln auf dieser Route gefunden.'):'Ampeln entlang der Route werden geladen …')+(wn?` Achtung: ${wn} bekannte Baustelle${wn==1?'':'n'} auf der Route.`:'')}
-async function preview(dest){if(!cur){toast('Erst Fahrt starten');return}closeSheets();toast('Route wird berechnet …');
- const r=await fetchRoute(cur,dest);if(!r){toast('Keine Route gefunden');return}
- PREVIEW=buildRoute(r,dest);computeOnRoute(PREVIEW);drawRoute(PREVIEW);follow=false;{const la=PREVIEW.ll.map(c=>c[0]),lo=PREVIEW.ll.map(c=>c[1]);map.fitBounds([[Math.min(...lo),Math.min(...la)],[Math.max(...lo),Math.max(...la)]],{padding:{top:60,bottom:Math.round($('map').clientHeight*0.1)+60,left:40,right:40},bearing:0,pitch:0,duration:700})}
- $('toast').classList.remove('on');$('pvName').textContent=dest.name;$('pvAddr').textContent=dest.sub||'';renderPreview();$('prevSheet').classList.add('on');loadRouteSignals(PREVIEW)}
-$('pvGo').onclick=()=>{if(!PREVIEW)return;NAV=PREVIEW;PREVIEW=null;closeSheets();follow=true;setTimeout(()=>applyView(true),0);document.querySelector('.top').classList.remove('open');document.getElementById('app').classList.add('app-nav');document.body.classList.add('nav-on');
+function renderPreview(){const R=PREVIEW;if(!R)return;const L=incidents();const best=rankRoutes(PVR,L);
+ $('pvCrit').innerHTML=critsNow().map(([k,n])=>`<button class="chip" data-pcrit="${k}" aria-pressed="${k===PVC}">${n}</button>`).join('');
+ const loading=PVR.some(x=>!x.onRoute);
+ $('pvRoutes').innerHTML=PVR.map((x,i)=>{const m=x.m,inc=m.inc.length;
+  const r2=[m.sigKnown||x.onRoute?`${m.sig} Ampel${m.sig==1?'':'n'}${m.learned?` (${m.learned} gelernt)`:''}`:'Ampeln …',`${m.turns} Abbiegung${m.turns==1?'':'en'}${m.left?` (${m.left} links)`:''}`,
+   m.hw>500?`${(m.hw/1000).toFixed(m.hw<10000?1:0).replace('.',',')} km Autobahn`:'',m.fuel!=null?`≈ ${m.fuel.toFixed(1).replace('.',',')} l`:''].filter(Boolean).join(' · ');
+  return `<button class="rcard" data-ri="${i}" aria-pressed="${x===R}"><div class="r1"><b>${fmtDur(m.t)}</b><span>${fmt(x.total)}</span>${x.best.map(k=>`<i class="bd">${esc(critN(k))}</i>`).join('')}</div>
+   <div class="r2">${esc(r2)}${inc?`<span class="w">${inc} Störung${inc==1?'':'en'}: ${esc([...new Set(m.inc.map(y=>y.n))].join(', '))}</span>`:''}</div></button>`}).join('');
+ const n=R.m?R.m.learned:0;
+ $('pvLearn').textContent=loading?'Ampeln entlang der Routen werden geladen …':R.onRoute&&R.onRoute.length?`${n} von ${R.onRoute.length} Ampeln mit gelernten Schaltzeiten. Die übrigen lernt die App auf dieser Fahrt mit.`:'Keine Ampeln auf dieser Route gefunden.';
+ drawAlts()}
+function drawAlts(){src('alts',{type:'FeatureCollection',features:PVR.map((x,i)=>x===PREVIEW?null:{type:'Feature',geometry:{type:'LineString',coordinates:x.ll.map(c=>[c[1],c[0]])},properties:{i}}).filter(Boolean)});if(PREVIEW)drawRoute(PREVIEW)}
+function pickRoute(i,byCrit){const R=PVR[i];if(!R)return;PREVIEW=R;if(!byCrit){const k=R.best[0];PVC=R.best.includes(PVC)?PVC:(k||'')}renderPreview()}
+function pickCrit(k){PVC=k;const best=rankRoutes(PVR,incidents());if(best[k])pickRoute(PVR.indexOf(best[k]),true);else renderPreview()}
+$('pvCrit').onclick=e=>{const b=e.target.closest('[data-pcrit]');if(b)pickCrit(b.dataset.pcrit)};
+$('pvRoutes').onclick=e=>{const b=e.target.closest('[data-ri]');if(b)pickRoute(+b.dataset.ri)};
+async function preview(dest){if(!cur){toast('Erst Fahrt starten');return}closeSheets();toast('Routen werden berechnet …');
+ const{list}=await routeCands(cur,dest,{heading:v>3?heading:null});if(!list.length){toast('Keine Route gefunden');return}
+ PVR=[];for(const r of list){try{const R=buildRoute(r,dest);R.src=r._src;if(!PVR.some(x=>sameRoute(x,R)))PVR.push(R)}catch(e){}}
+ PVR.sort((x,y)=>x.duration-y.duration);PVR=PVR.slice(0,6);PVR.forEach(computeOnRoute);
+ const best=rankRoutes(PVR,incidents());PVR=PVR.filter((R,i)=>R.best.length||i<3);
+ PVC=rcrit();PREVIEW=best[PVC]||PVR[0];tripEv('routes',PVR.map(R=>[R.src,Math.round(R.total),Math.round(R.duration),R.best.join('+')]));
+ drawAlts();follow=false;
+ $('toast').classList.remove('on');$('pvName').textContent=dest.name;$('pvAddr').textContent=dest.sub||'';renderPreview();$('prevSheet').classList.add('on');requestAnimationFrame(fitPreview);loadRouteSignals(PVR)}
+// alle Vorschläge oberhalb des Auswahlfensters zeigen
+function fitPreview(){if(!PVR.length)return;const la=PVR.flatMap(R=>R.ll.map(c=>c[0])),lo=PVR.flatMap(R=>R.ll.map(c=>c[1])),H=$('map').clientHeight,sh=Math.min(H*.7,$('prevSheet').offsetHeight||0);
+ map.fitBounds([[Math.min(...lo),Math.min(...la)],[Math.max(...lo),Math.max(...la)]],{padding:{top:Math.min(90,H*.1),bottom:Math.max(60,sh+20),left:30,right:30},bearing:0,pitch:0,duration:700})}
+$('pvGo').onclick=()=>{if(!PREVIEW)return;NAV=PREVIEW;NAV.crit=PREVIEW.best.includes(PVC)?PVC:(PREVIEW.best[0]||rcrit());PREVIEW=null;PVR=[];src('alts',EMPTY);drawRoute(NAV);closeSheets();follow=true;setTimeout(()=>applyView(true),0);document.querySelector('.top').classList.remove('open');document.getElementById('app').classList.add('app-nav');document.body.classList.add('nav-on');
  const rec=LS.get('gw_recent',[]).filter(x=>x.name!==NAV.dest.name);rec.unshift(NAV.dest);LS.set('gw_recent',rec.slice(0,6));
  appr=null;setTimeout(()=>syncShared(true),500);const first=NAV.steps[1];announce('start','Route gestartet. '+(first?`${inDist(first.s)} ${farText(first)}`:''),0);if(first&&first.s<Math.max(180,v*14))first.said.far=1;if(cur)updateNav(cur);renderNav()};
-$('pvCancel').onclick=()=>{PREVIEW=null;clearRoute();closeSheets();follow=true;applyView(true)};
-function endNav(silent){if(SIM.on&&NAV&&!SIM.ending){SIM.ending=true;try{simEnd(true)}finally{SIM.ending=false}}if(!NAV&&!PREVIEW)return;$('nav').classList.remove('open');document.body.classList.remove('nav-open');NAV=null;PREVIEW=null;clearRoute();laneUp=false;$('lanes').classList.remove('on');$('nav').classList.remove('lanes-on');blitzHome(false);
+$('pvCancel').onclick=()=>{PREVIEW=null;PVR=[];clearRoute();closeSheets();follow=true;applyView(true)};
+function endNav(silent){if(SIM.on&&NAV&&!SIM.ending){SIM.ending=true;try{simEnd(true)}finally{SIM.ending=false}}if(!NAV&&!PREVIEW)return;$('nav').classList.remove('open');document.body.classList.remove('nav-open');NAV=null;PREVIEW=null;PVR=[];clearRoute();laneUp=false;$('lanes').classList.remove('on');$('nav').classList.remove('lanes-on');blitzHome(false);
  document.getElementById('app').classList.remove('app-nav');document.body.classList.remove('nav-on');$('nav').classList.remove('on');appr=null;if(!silent)toast('Navigation beendet')}
 $('navX').onclick=()=>{$('nav').classList.remove('open');document.body.classList.remove('nav-open');endNav()};
 $('navHead').onclick=()=>{const o=$('nav').classList.toggle('open');document.body.classList.toggle('nav-open',o);$('navHead').setAttribute('aria-expanded',o);renderNav()};
@@ -1019,7 +1118,9 @@ $('navOv').onclick=()=>{if(!NAV)return;$('nav').classList.remove('open');documen
 // laufende Navigation
 let rerouting=false;
 async function reroute(p){if(rerouting||!NAV)return;rerouting=true;NAV.last=p.t;announce('reroute','Route wird neu berechnet',0);$('navT').textContent='Route wird neu berechnet …';
- const r=await fetchRoute(p,NAV.dest);rerouting=false;if(!r||!NAV)return;const d=NAV.dest;NAV=buildRoute(r,d);computeOnRoute(NAV);drawRoute(NAV);appr=null;loadRouteSignals(NAV);updateNav(p)}
+ const crit=NAV.crit||'fast';let r=null;
+ try{const{list,L}=await routeCands(p,NAV.dest,{crit,heading,ms:9000});if(list.length&&NAV){const Rs=list.map(x=>{const R=buildRoute(x,NAV.dest);R.src=x._src;computeOnRoute(R);return R});const best=rankRoutes(Rs,L);r=best[crit]||Rs[0]}}catch(e){}
+ rerouting=false;if(!r||!NAV)return;const d=NAV.dest;tripEv('reroute',crit,r.src,Math.round(r.total),Math.round(r.duration));r.crit=crit;NAV=r;NAV.dest=d;computeOnRoute(NAV);drawRoute(NAV);appr=null;loadRouteSignals(NAV);updateNav(p)}
 const lf=t=>t?t[0].toLowerCase()+t.slice(1):'';
 const inDist=d=>'In '+(d>=1000?(Math.round(d/100)/10).toString().replace('.',',')+' Kilometern':(d>=100?Math.round(d/50)*50:Math.max(10,Math.round(d/10)*10))+' Metern');
 const farText=st=>st.st.maneuver.type=='arrive'?'erreichst du dein Ziel':lf(st.text);
@@ -1240,7 +1341,7 @@ function tripRec(p,c){try{const now=Date.now();if(!TRIP||now-TRIP.end>10*60000)t
  const R=NAV;if(L){const d=dist({lat:L[1],lon:L[2]},p);if(d<2000)TRIP.km+=d/1000}
  TRIP.fx.push([rt,+p.lat.toFixed(6),+p.lon.toFixed(6),Math.round(p.acc||0),Math.round(v*36)/10,heading==null?null:Math.round(heading),c&&c.heading!=null&&!isNaN(c.heading)?Math.round(c.heading):null,R?Math.round(R.s):null,R?R.offN||0:null]);
  TRIP.end=now;
- if(R!==tripNav){tripNav=R;if(R)tripEv('route',R.dest&&(R.dest.name||R.dest.label)||'',Math.round(R.total),R.ll.filter((x,i)=>i%2==0||i==R.ll.length-1).map(x=>[+x[0].toFixed(5),+x[1].toFixed(5)]),R.steps.map(x=>[Math.round(x.s),x.text]));else tripEv('route','ende')}
+ if(R!==tripNav){tripNav=R;if(R)tripEv('route',R.dest&&(R.dest.name||R.dest.label)||'',Math.round(R.total),R.crit||'',R.src||'',R.ll.filter((x,i)=>i%2==0||i==R.ll.length-1).map(x=>[+x[0].toFixed(5),+x[1].toFixed(5)]),R.steps.map(x=>[Math.round(x.s),x.text]));else tripEv('route','ende')}
  const ca=camAhead(p),ui={nav:$('nav').classList.contains('on')?$('navT').textContent:'',lane:$('laneT')&&$('nav').classList.contains('lanes-on')?$('laneT').textContent:'',
   blitz:($('blitz').classList.contains('on')?$('bT').textContent.replace(/ in \d.*$/,''):'aus')+(ca?' · voraus '+ca.c.id:''),lim:VL.cur?(VL.cur.v+(VL.cur.imp?' vermutet':''))+' · Weg '+(VL.way||'?'):'',cam:camState,sim:SIM.on?'an':''};
  for(const k in ui)if(ui[k]!==tripUI[k]){tripUI[k]=ui[k];tripEv('ui',k,ui[k])}
@@ -1344,10 +1445,11 @@ const renderSet=()=>{document.querySelectorAll('[data-mode]').forEach(b=>b.setAt
  document.querySelectorAll('[data-wx]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.wx==set.wx));
  document.querySelectorAll('[data-vwd]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.vwd==set.vwd));
  document.querySelectorAll('[data-vlim]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.vlim==set.vlim));
- renderVoices();
+ renderVoices();renderCritSet();
  $('audioInfo').textContent={ton:'Kurze Töne über dem Radio, das Radio läuft weiter. Links abbiegen klingt von links, rechts von rechts.',sprache:'Gesprochene Hinweise. Achtung: iOS hält dabei das Radio oder die Musik an und startet sie danach nicht wieder.',aus:'Keine Ansagen, nur Anzeige.'}[set.audio];
  $('limits').innerHTML=MODES[set.mode].limits.map(l=>`<button class="chip" data-lim="${l}" aria-pressed="${l==set.limit}">${l} km/h</button>`).join('')};
-document.addEventListener('click',e=>{const m=e.target.closest('[data-mode]');if(m){set.mode=m.dataset.mode;set.limit=MODES[set.mode].def;saveSet();renderSet();render()}
+document.addEventListener('click',e=>{const rc=e.target.closest('[data-rcrit]');if(rc){set.rcrit=rc.dataset.rcrit;saveSet();renderCritSet()}
+ const m=e.target.closest('[data-mode]');if(m){set.mode=m.dataset.mode;set.limit=MODES[set.mode].def;saveSet();renderSet();render()}
  const au=e.target.closest('[data-audio]');if(au){set.audio=au.dataset.audio;if(set.audio!=='aus')set.audioLast=set.audio;renderVol();saveSet();renderSet();unlockSpeech();announce('test','Sprachansagen an',0)}
  const sh=e.target.closest('[data-share]');if(sh){set.share=+sh.dataset.share;saveSet();renderSet();drawReps();if(set.share){syncShared(true);fetchReports(true)}}
  const wk=e.target.closest('[data-works]');if(wk){set.works=+wk.dataset.works;saveSet();renderSet();loadWorks()}
@@ -1488,7 +1590,7 @@ async function checkUpdate(){try{const r=await fetch('./?v='+Date.now(),{cache:'
   let n=0;try{n=+sessionStorage.getItem('gw_upd')||0}catch(e){}if(n>2)return;try{sessionStorage.setItem('gw_upd',n+1)}catch(e){}
   location.replace(location.pathname+'?v='+encodeURIComponent(m[1]))}}catch(e){}}
 setTimeout(checkUpdate,1500);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});drawSignals();drawReps();renderLearn();loadFile();setBlitz();loadWorks();loadTrams();
-if(location.hostname=='gw.test')window.__gw={OPS,trips:()=>(tripSave(),TRIPS),renderTrips,cam:()=>({camState,n:CAMS?CAMS.length:0}),camReset:()=>{camTry=0},actx:()=>actx,audioState,WX:()=>WX,drawWx,VWD:()=>VWD,loadVwd,vwdAhead,VL,ANN:()=>ANN,annAt,condMs,wayLimit,OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr,map,SIM};
+if(location.hostname=='gw.test')window.__gw={OPS,pvr:()=>PVR.map(R=>({km:R.total,t:R.duration,src:R.src,best:R.best,m:R.m&&{sig:R.m.sig,turns:R.m.turns,left:R.m.left,hw:R.m.hw,inc:R.m.inc.length,fuel:R.m.fuel},sel:R===PREVIEW})),navCrit:()=>NAV&&NAV.crit,navKm:()=>NAV&&NAV.total,reroute,preview,trips:()=>(tripSave(),TRIPS),renderTrips,cam:()=>({camState,n:CAMS?CAMS.length:0}),camReset:()=>{camTry=0},actx:()=>actx,audioState,WX:()=>WX,drawWx,VWD:()=>VWD,loadVwd,vwdAhead,VL,ANN:()=>ANN,annAt,condMs,wayLimit,OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr,map,SIM};
 $('startInfo').textContent=(Object.keys(OBS).length?`Bisher gelernt: ${Object.keys(OBS).length} Ampel-Richtungen. `:'')+'Version '+APP_VERSION;
 
 }
