@@ -330,7 +330,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='26.11.2026 · 1';
+const APP_VERSION='26.11.2026 · 2';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -594,7 +594,7 @@ function showAnn(n,el){const lim=roadLim()||set.limit,kmh=Math.round(v*3.6),fast
 function camAhead(p){if(!set.blitz||heading==null)return null;let best=null;
  for(const c of[...(CAMS||[]),...mobCams()])for(const pt of c.m){let d;
   if(NAV){const q=snap(NAV,pt.lat,pt.lon);if(q.d>(pt.dir==null?25:35))continue;d=q.s-NAV.s;if(d<-15||d>500)continue;
-   if(pt.dir!=null&&Math.abs(adiff(bearing(routeAt(NAV,Math.max(0,q.s-12)),routeAt(NAV,q.s+12)),pt.dir))>50)continue}
+   if(pt.dir!=null&&Math.abs(adiff(bearing(routeAt(NAV,Math.max(0,q.s-35)),routeAt(NAV,Math.max(0,q.s-3))),pt.dir))>50)continue}   // Zufahrtsrichtung (Messpunkt liegt oft auf dem Kreuzungsknoten)
   else{d=dist(p,pt);if(d>500)continue;const df=Math.abs(adiff(bearing(p,pt),heading));if(d>30&&(df>30||d*Math.sin(df*RAD)>30))continue;if(df>100)continue;
    if(pt.dir!=null&&Math.abs(adiff(heading,pt.dir))>50)continue}
   if(!best||d<best.d)best={c,d}}return best}
