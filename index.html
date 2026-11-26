@@ -304,6 +304,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
  <h3>Vollbild</h3><div class="row"><button class="btn" id="fsSet"><svg width="20" height="20" style="vertical-align:-4px;margin-right:6px" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Vollbild ohne Leisten</button></div><p class="small" id="fsInfo"></p>
  <h3>Fahrt</h3><div class="row"><button class="btn" id="stop">Fahrt beenden</button></div>
  <h3>Diagnose</h3><div id="diag" class="small" style="line-height:1.5"></div>
+ <h3>Fahrtprotokoll</h3><p class="small">Zeichnet jede Fahrt auf (Position, Tempo, Anzeigen, Ansagen, Ladefehler). Bleibt nur auf diesem Gerät, bis du es teilst. Die letzten 3 Fahrten werden aufgehoben.</p><div id="trips" class="small" style="line-height:1.6"></div>
  <p class="small" style="margin-top:14px">Karte, Ampelstandorte und Routen: © OpenStreetMap-Mitwirkende. Suche: Photon (komoot). Routing: OSRM über FOSSGIS. Straßenbahn-Fahrplan: DELFI e.V. über gtfs.de, CC BY 4.0. Wetterwarnungen: Deutscher Wetterdienst über Bright Sky. Angekündigte Kontrollen: Stadt Bonn, Open Data (CC0). Verkehrsmeldungen: Verkehrswarndienst über die Autobahn GmbH des Bundes. Gelernte Daten und Meldungen verlassen das Gerät nur, wenn „Daten mit allen teilen“ an ist.</p>
  <button class="btn big" data-close style="margin-top:8px">Schließen</button></div>
 
@@ -330,7 +331,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='26.11.2026 · 3';
+const APP_VERSION='26.11.2026 · 4';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -491,7 +492,7 @@ const drawReps=()=>{const now=Date.now();REPS=REPS.filter(r=>now-r.t<TYPES[r.typ
  src('reps',{type:'FeatureCollection',features:allReps().filter(visRep).map(r=>({type:'Feature',geometry:{type:'Point',coordinates:[r.lon,r.lat]},properties:{icon:'ico-'+r.type,rid:String(r.id)}}))});if($('setSheet').classList.contains('on'))renderMyReps()};
 const renderTypes=()=>{$('types').innerHTML=Object.entries(TYPES).filter(([k])=>k!=='mob'||set.blitz).map(([k,t])=>`<button data-t="${k}"><img src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(ICONS['ico-'+k])}" width="40" height="40" alt="">${t.n}</button>`).join('')};renderTypes();
 // ---------- Ampeln laden (Overpass) ----------
-const tfetch=(url,opt={},ms=20000)=>{const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),ms);return fetch(url,{...opt,signal:ac.signal}).finally(()=>clearTimeout(tm))};
+const tfetch=(url,opt={},ms=20000)=>{const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),ms),t0=Date.now();return fetch(url,{...opt,signal:ac.signal}).then(r=>{if(!r.ok)tripEv('net',String(url).split('?')[0].slice(0,90),r.status,Date.now()-t0);return r},e=>{tripEv('net',String(url).split('?')[0].slice(0,90),ac.signal.aborted?'timeout':String(e&&e.message||e).slice(0,60),Date.now()-t0);throw e}).finally(()=>clearTimeout(tm))};
 const OVERPASS=['https://maps.mail.ru/osm/tools/overpass/api/interpreter','https://overpass.private.coffee/api/interpreter','https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter'];
 // Overpass-Abfrage gestaffelt: zuletzt erfolgreicher Server zuerst, nach je 4 s ohne Antwort zusätzlich der nächste; erste gültige Antwort gewinnt.
 // (11/2026: overpass-api.de, kumi und private.coffee antworteten oft gar nicht, maps.mail.ru in ~7 s)
@@ -771,7 +772,7 @@ function onFix(pos){
   if(appr.stopT&&!appr.departT&&(gv>1.5||dist(appr.sp,p)>4))appr.departT=t;
   if(appr.stopT&&appr.departT&&v<1&&d>15&&t-appr.departT>3){appr.stopT=t;appr.stopD=d;appr.sp=p;appr.departT=0}}
  tgt=appr?{s:SIG.get(appr.id),key:appr.key,rs:appr.rs}:null;
- checkAlerts(p);checkCams(p);render();if(set.wx)fetchWx(p)}
+ checkAlerts(p);checkCams(p);render();if(set.wx)fetchWx(p);tripRec(p,c)}
 // ---------- Anzeige ----------
 const fmt=m=>m<1000?Math.max(10,Math.round(m/10)*10)+' m':(m/1000).toFixed(1).replace('.',',')+' km';
 let lastTgt=null;
@@ -909,7 +910,7 @@ const TONES={wx:[[740,0,.2],[740,.3,.2],[740,.6,.2]],lane:[[660,0,.12],[660,.16,
 // Stummschaltung (Seitenmenü): lautlos / nur wichtige / alle. Wichtig: jetzt abbiegen, Blitzer, Wetterwarnung, Stau voraus, Test
 const WICHTIG=new Set(['near','blitz','wx','vwd','test']);
 const volNow=()=>set.audio==='aus'?'aus':set.vol||'alle';
-function announce(kind,text,pan){if(set.audio==='aus'||set.vol==='aus')return;if(set.vol==='wichtig'&&!WICHTIG.has(kind))return;if(set.audio==='ton'){beep(TONES[kind]||TONES.far,pan);return}say(text)}
+function announce(kind,text,pan){tripEv('say',kind,text,set.audio==='aus'||set.vol==='aus'||(set.vol==='wichtig'&&!WICHTIG.has(kind))?'stumm':set.audio);if(set.audio==='aus'||set.vol==='aus')return;if(set.vol==='wichtig'&&!WICHTIG.has(kind))return;if(set.audio==='ton'){beep(TONES[kind]||TONES.far,pan);return}say(text)}
 const panOf=st=>{const m=(st&&st.st.maneuver.modifier)||'';return /left/.test(m)?-0.8:/right/.test(m)?0.8:0};
 function say(text){if(set.audio!=='sprache'||!('speechSynthesis' in window))return;try{const u=new SpeechSynthesisUtterance(text);u.lang='de-DE';voices=voices||pickVoice();if(voices){u.voice=voices;u.lang=voices.lang};u.rate=set.voice||(voices&&vQual(voices)>=2)?1:0.97;u.pitch=1;if(speechSynthesis.paused)speechSynthesis.resume();
  if(speechSynthesis.speaking||speechSynthesis.pending){speechSynthesis.cancel();setTimeout(()=>speechSynthesis.speak(u),120)}else speechSynthesis.speak(u)}catch(e){}}  // iOS verschluckt speak() direkt nach cancel()
@@ -1224,7 +1225,46 @@ function renderDiag(){const now=Date.now()/1000,R=NAV;
  const lg=LOG.slice(-12).reverse().map(e=>{const tm=new Date(e.t).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
   if(e.miss)return `${tm} · Ampel ${e.id}: nicht nah genug vorbeigefahren (${e.minD} m), nicht gezählt`;
   return `${tm} · Ampel ${e.id}: ${e.stop?'mit Halt':'ohne Halt'} · ${e.ok?'Schätzung bereit':`${Math.min(e.g,3)} von 3 Halten, ${e.p} Durchfahrten`}`});
- $('diag').innerHTML=rows.map(([k,v])=>`<div><b>${esc(k)}:</b> ${esc(v)}</div>`).join('')+'<div style="margin-top:8px"><b>Letzte Ampeln:</b></div>'+(lg.length?lg.map(x=>`<div>${esc(x)}</div>`).join(''):'<div>Noch keine Ampel erfasst.</div>')}
+ renderTrips();$('diag').innerHTML=rows.map(([k,v])=>`<div><b>${esc(k)}:</b> ${esc(v)}</div>`).join('')+'<div style="margin-top:8px"><b>Letzte Ampeln:</b></div>'+(lg.length?lg.map(x=>`<div>${esc(x)}</div>`).join(''):'<div>Noch keine Ampel erfasst.</div>')}
+// ---------- Fahrtprotokoll (für die Fehlersuche, bleibt lokal bis zum Teilen) ----------
+var TRIP=null,TRIPS=null,tripSaveT=0,tripUI={};
+function tripLoad(){if(TRIPS)return;TRIPS=LS.get('gw_trips',[]);if(!Array.isArray(TRIPS))TRIPS=[]}
+function tripNew(){tripLoad();const now=Date.now(),last=TRIPS[TRIPS.length-1];
+ if(!TRIP&&last&&last.end&&now-last.end<5*60000){TRIP=last;tripEv('app','neu gestartet',APP_VERSION);return}   // iOS lädt die Web-App neu: gleiche Fahrt fortsetzen
+ TRIP={v:1,app:APP_VERSION,ua:navigator.userAgent,start:now,end:now,km:0,set:JSON.parse(JSON.stringify(set)),fx:[],ev:[]};TRIPS.push(TRIP);tripUI={};tripNav=undefined;
+ tripEv('app','start',APP_VERSION)}
+function tripEv(...a){try{if(!TRIP)tripNew();if(TRIP.ev.length>20000)return;TRIP.ev.push([Date.now()-TRIP.start,...a]);TRIP.end=Date.now()}catch(e){}}
+var tripNav;
+function tripRec(p,c){try{const now=Date.now();if(!TRIP||now-TRIP.end>10*60000)tripNew();
+ const L=TRIP.fx[TRIP.fx.length-1],rt=now-TRIP.start;if(L&&rt-L[0]<900)return;if(TRIP.fx.length>4*3600)return;
+ const R=NAV;if(L){const d=dist({lat:L[1],lon:L[2]},p);if(d<2000)TRIP.km+=d/1000}
+ TRIP.fx.push([rt,+p.lat.toFixed(6),+p.lon.toFixed(6),Math.round(p.acc||0),Math.round(v*36)/10,heading==null?null:Math.round(heading),c&&c.heading!=null&&!isNaN(c.heading)?Math.round(c.heading):null,R?Math.round(R.s):null,R?R.offN||0:null]);
+ TRIP.end=now;
+ if(R!==tripNav){tripNav=R;if(R)tripEv('route',R.dest&&(R.dest.name||R.dest.label)||'',Math.round(R.total),R.ll.filter((x,i)=>i%2==0||i==R.ll.length-1).map(x=>[+x[0].toFixed(5),+x[1].toFixed(5)]),R.steps.map(x=>[Math.round(x.s),x.text]));else tripEv('route','ende')}
+ const ca=camAhead(p),ui={nav:$('nav').classList.contains('on')?$('navT').textContent:'',lane:$('laneT')&&$('nav').classList.contains('lanes-on')?$('laneT').textContent:'',
+  blitz:($('blitz').classList.contains('on')?$('bT').textContent.replace(/ in \d.*$/,''):'aus')+(ca?' · voraus '+ca.c.id:''),lim:VL.cur?(VL.cur.v+(VL.cur.imp?' vermutet':''))+' · Weg '+(VL.way||'?'):'',cam:camState,sim:SIM.on?'an':''};
+ for(const k in ui)if(ui[k]!==tripUI[k]){tripUI[k]=ui[k];tripEv('ui',k,ui[k])}
+ if(now-tripSaveT>20000)tripSave()}catch(e){}}
+function tripSave(){if(!TRIPS||!TRIP)return;tripSaveT=Date.now();
+ const keep=TRIPS.filter(t=>t===TRIP||t.fx.length>=10).slice(-3);TRIPS=keep;
+ for(let i=0;i<3;i++){try{localStorage.setItem('gw_trips',JSON.stringify(TRIPS));return}catch(e){if(TRIPS.length>1)TRIPS.shift();else return}}}
+addEventListener('visibilitychange',()=>{if(document.hidden){tripEv('app','im Hintergrund');tripSave()}else tripEv('app','wieder vorne')});
+addEventListener('pagehide',()=>tripSave());
+addEventListener('error',e=>tripEv('err',String(e.message).slice(0,200),(e.filename||'').split('/').pop()+':'+e.lineno));
+addEventListener('unhandledrejection',e=>tripEv('err','Promise: '+String(e.reason&&e.reason.message||e.reason).slice(0,200)));
+function tripName(t){const d=new Date(t.start);return d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}
+async function tripShare(i){tripSave();const t=TRIPS[i];if(!t)return;
+ const out={...t,diag:{cam:camState,file:typeof fileState!=='undefined'?fileState:'',ops:OPS,vwd:typeof vwdState!=='undefined'?vwdState:''},
+  hint:'fx=[ms seit Start, lat, lon, Genauigkeit m, km/h, Richtung genutzt, GPS-Richtung, Routenmeter, abseits]; ev=[ms, Art, …]'};
+ const name='gruenwelle-fahrt-'+new Date(t.start).toISOString().slice(0,16).replace(/[:T]/g,'-')+'.json',txt=JSON.stringify(out);
+ try{const f=new File([txt],name,{type:'application/json'});if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:'Grünwelle Fahrtprotokoll'});return}}catch(e){if(e&&e.name==='AbortError')return}
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'application/json'}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000)}
+function renderTrips(){tripLoad();const el=$('trips');if(!el)return;
+ const list=TRIPS.map((t,i)=>[t,i]).filter(([t])=>t.fx.length).reverse();
+ el.innerHTML=(list.length?list.map(([t,i])=>`<div class="row" style="align-items:center;gap:8px;margin:4px 0"><span style="flex:1">${esc(tripName(t))} · ${Math.round((t.end-t.start)/60000)} Min · ${t.km.toFixed(1).replace('.',',')} km${t===TRIP?' · läuft':''}</span><button class="btn" data-trip="${i}">Teilen</button></div>`).join(''):'<div>Noch keine Fahrt aufgezeichnet.</div>')
+  +(list.length?'<div class="row"><button class="btn" id="tripDel">Protokolle löschen</button></div>':'');
+ el.querySelectorAll('[data-trip]').forEach(b=>b.onclick=()=>tripShare(+b.dataset.trip));
+ const d=$('tripDel');if(d)d.onclick=()=>{TRIPS=[];TRIP=null;LS.set('gw_trips',[]);renderTrips()}}
 // ---------- Gemeinsame Daten (Supabase) ----------
 const SB={url:'https://mevgfarshklqbszhtabr.supabase.co',key:'sb_publishable_09RKPV31BB101hGl7DsklA_yTGApL25'};
 async function rpc(fn,body){if(SIM.on&&/^(add_obs|add_report|vote_report)$/.test(fn))throw new Error('Simulation: nicht geteilt');const r=await tfetch(SB.url+'/rest/v1/rpc/'+fn,{method:'POST',headers:{apikey:SB.key,'Content-Type':'application/json'},body:JSON.stringify(body||{})},15000);
@@ -1444,7 +1484,7 @@ async function checkUpdate(){try{const r=await fetch('./?v='+Date.now(),{cache:'
   let n=0;try{n=+sessionStorage.getItem('gw_upd')||0}catch(e){}if(n>2)return;try{sessionStorage.setItem('gw_upd',n+1)}catch(e){}
   location.replace(location.pathname+'?v='+encodeURIComponent(m[1]))}}catch(e){}}
 setTimeout(checkUpdate,1500);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});drawSignals();drawReps();renderLearn();loadFile();setBlitz();loadWorks();loadTrams();
-if(location.hostname=='gw.test')window.__gw={OPS,cam:()=>({camState,n:CAMS?CAMS.length:0}),camReset:()=>{camTry=0},actx:()=>actx,audioState,WX:()=>WX,drawWx,VWD:()=>VWD,loadVwd,vwdAhead,VL,ANN:()=>ANN,annAt,condMs,wayLimit,OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr,map,SIM};
+if(location.hostname=='gw.test')window.__gw={OPS,trips:()=>(tripSave(),TRIPS),renderTrips,cam:()=>({camState,n:CAMS?CAMS.length:0}),camReset:()=>{camTry=0},actx:()=>actx,audioState,WX:()=>WX,drawWx,VWD:()=>VWD,loadVwd,vwdAhead,VL,ANN:()=>ANN,annAt,condMs,wayLimit,OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr,map,SIM};
 $('startInfo').textContent=(Object.keys(OBS).length?`Bisher gelernt: ${Object.keys(OBS).length} Ampel-Richtungen. `:'')+'Version '+APP_VERSION;
 
 }
