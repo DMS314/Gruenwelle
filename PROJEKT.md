@@ -9,7 +9,15 @@ und Waze (Navigation, Meldungen der Nutzer). Teststadt Leipzig. Für viele Nutze
 
 - Live: https://dms314.github.io/Gruenwelle/ (GitHub Pages, Branch `main`, Wurzelordner)
 - Repo: DMS314/Gruenwelle
-- Nutzer: kein Mac, keine native App/CarPlay vorerst. Spricht Deutsch, testet auf dem iPhone im Auto.
+- Nutzer: kein Mac. Spricht Deutsch, testet auf dem iPhone im Auto.
+
+## Ziel: native iOS-App (Vorgabe des Nutzers, 26.11.2026)
+Die Web-App ist die Testphase, am Ende soll eine native App entstehen (geplant: Capacitor-Hülle um diese Web-App, Build ohne Mac über GitHub Actions/Cloud, Verteilung per TestFlight; später CarPlay, Hintergrund-GPS, alle Stimmen, iCloud-Sicherung). Jede Änderung so bauen, dass dieser Wechsel leicht bleibt:
+- Gerätezugriffe nur über wenige eigene Funktionen bündeln, damit sie später gegen native Plugins tauschbar sind: Speicher (`LS`), Position (`onFix`/watchPosition), Sprache/Ton (`say`, `beep`, `announce`), Teilen/Dateien (`tripShare`, Export), Wachhalten/Vollbild. Keine neuen direkten Aufrufe von `localStorage`, `speechSynthesis`, `navigator.geolocation` quer im Code.
+- Keine Lösungen, die nur im Safari-Browser funktionieren (Lesezeichen-/Homebildschirm-Tricks, Adressleisten-Hacks), ohne Fallback; relative Pfade für eigene Dateien (`cameras.json` usw.), damit sie im App-Paket liegen können.
+- Daten, die der Nutzer behalten will, sauber getrennt halten (Orte, Einstellungen, gelernte Ampeln) → später iCloud. Geteilte Daten bleiben bei Supabase.
+- Externe Dienste nur mit offener CORS-/Nutzungsfreigabe, die auch aus einer App heraus gilt; Lizenzhinweise (OSM, DELFI, DWD …) beibehalten, App-Store braucht sie.
+- Bei neuen Funktionen kurz notieren, was nativ besser/anders ginge (z. B. Hintergrund, CarPlay).
 
 ## Dateien
 | Datei | Inhalt |
