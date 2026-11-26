@@ -297,8 +297,8 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
  <p class="small">Meldungen anderer entfernst du, indem du sie auf der Karte antippst und „Nicht mehr da“ wählst.</p>
  <h3>Testfahrt</h3><div class="row"><button class="btn" id="simRnd" style="flex:1">Testfahrt simulieren</button></div>
  <p class="small">Fährt eine Route mit erfundener Position ab, um Navigation, Ampelanzeige, Spurassistent und Warnungen zu testen. Ziel über „Wohin?“ wählen und „Simulieren“ tippen, oder hier ein zufälliges Ziel 2 bis 4 km entfernt. Während der Simulation lernt die App nichts und teilt nichts.</p>
- <h3>Gelernte Daten</h3>
- <p class="small" id="dataInfo"></p>
+ <h3>Daten sichern</h3>
+ <p class="small" id="dataInfo"></p><p class="small">Gespeicherte Orte, gelernte Ampeln, eigene Meldungen und Einstellungen. Achtung: Wer das Symbol auf dem Homebildschirm löscht, löscht bei iOS auch alle diese Daten. Vorher „Exportieren“ und die Datei in „Dateien“ sichern, danach in der neuen Verknüpfung „Importieren“.</p>
  <div class="row"><button class="btn" id="exp">Exportieren</button><button class="btn" id="copy">Kopieren</button><label class="btn" style="display:inline-flex;align-items:center">Importieren<input type="file" id="imp" accept=".json,application/json" hidden></label></div>
  <h3>Ampeln</h3><div class="row"><button class="btn" id="reload">Ampeln neu laden</button><button class="btn" id="wipe">Alle Daten löschen</button></div>
  <h3>Vollbild</h3><div class="row"><button class="btn" id="fsSet"><svg width="20" height="20" style="vertical-align:-4px;margin-right:6px" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Vollbild ohne Leisten</button></div><p class="small" id="fsInfo"></p>
@@ -331,7 +331,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='26.11.2026 · 4';
+const APP_VERSION='26.11.2026 · 5';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -1374,13 +1374,17 @@ $('voiceTry').onclick=()=>{voices=null;unlockSpeech();say('In 300 Metern rechts 
  let sx=null;
  document.addEventListener('touchstart',e=>{if(!inNav())return;const t=e.touches[0];sx=t.clientX<22||top.classList.contains('open')?{x:t.clientX,y:t.clientY}:null},{passive:true});
  document.addEventListener('touchend',e=>{if(!sx)return;const t=e.changedTouches[0],dx=t.clientX-sx.x,dy=Math.abs(t.clientY-sx.y);if(dy<60){if(dx>50)drawer(true);else if(dx<-50)drawer(false)}sx=null},{passive:true})}
-const exportText=()=>JSON.stringify({version:1,exported:new Date().toISOString(),obs:OBS,reports:REPS});
-$('exp').onclick=()=>{const blob=new Blob([exportText()],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='gruenwelle-daten.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000)};
+const exportText=()=>JSON.stringify({version:2,app:APP_VERSION,exported:new Date().toISOString(),favs:FAV,set,obs:OBS,reports:REPS});
+$('exp').onclick=async()=>{const name='gruenwelle-daten-'+new Date().toISOString().slice(0,10)+'.json',txt=exportText();
+ try{const f=new File([txt],name,{type:'application/json'});if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:'Grünwelle Daten'});return}}catch(e){if(e&&e.name==='AbortError')return}
+ const blob=new Blob([txt],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000)};
 $('copy').onclick=async()=>{try{await navigator.clipboard.writeText(exportText());toast('Daten kopiert')}catch(e){toast('Kopieren nicht erlaubt')}};
 $('imp').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const j=JSON.parse(await f.text());
  for(const k in j.obs||{}){const o=OBS[k]||(OBS[k]={g:[],p:[],r:[]}),n=j.obs[k];for(const x of['g','p','r'])if(Array.isArray(n[x]))o[x]=[...new Map([...o[x],...n[x]].map(v=>[JSON.stringify(v),v])).values()].slice(-200)}
  for(const r of j.reports||[])if(TYPES[r.type]&&!REPS.some(x=>x.id===r.id))REPS.push(r);
- saveObs();saveReps();fitCache.clear();drawReps();renderLearn();toast('Daten importiert')}catch(err){toast('Datei nicht lesbar')}};
+ let nf=0;for(const f of j.favs||[])if(f&&isFinite(f.lat)&&isFinite(f.lon)&&!FAV.some(x=>x.id===f.id||dist(x,f)<15)){FAV.push(f);nf++}
+ const ns=j.set&&typeof j.set==='object';if(ns){Object.assign(set,j.set);saveSet()}
+ saveObs();saveReps();saveFav();fitCache.clear();drawReps();renderLearn();toast(`Daten importiert${nf?` · ${nf} Ort${nf==1?'':'e'}`:''}`);if(ns&&!NAV)setTimeout(()=>location.reload(),1500)}catch(err){toast('Datei nicht lesbar')}};
 $('reload').onclick=()=>{if(cur)loadSignals(cur,true);else toast('Erst Fahrt starten')};
 $('wipe').onclick=()=>{if($('wipe').dataset.sure){OBS={};REPS=[];saveObs();saveReps();fitCache.clear();drawReps();renderLearn();LEARNED=new Set();updateSigs();toast('Gelöscht');delete $('wipe').dataset.sure;$('wipe').textContent='Alle Daten löschen'}
  else{$('wipe').dataset.sure=1;$('wipe').textContent='Wirklich löschen?';setTimeout(()=>{delete $('wipe').dataset.sure;$('wipe').textContent='Alle Daten löschen'},4000)}};
