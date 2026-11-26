@@ -318,7 +318,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
  <h3>Fahrt</h3><div class="row"><button class="btn" id="stop">Fahrt beenden</button></div>
  <h3>Diagnose</h3><div id="diag" class="small" style="line-height:1.5"></div>
  <h3>Fahrtprotokoll</h3><p class="small">Zeichnet jede Fahrt auf (Position, Tempo, Anzeigen, Ansagen, Ladefehler). Bleibt nur auf diesem Gerät, bis du es teilst. Die letzten 3 Fahrten werden aufgehoben.</p><div id="trips" class="small" style="line-height:1.6"></div>
- <p class="small" style="margin-top:14px">Karte, Ampelstandorte und Routen: © OpenStreetMap-Mitwirkende. Suche: Photon (komoot). Routing: OSRM über FOSSGIS. Straßenbahn-Fahrplan: DELFI e.V. über gtfs.de, CC BY 4.0. Wetterwarnungen: Deutscher Wetterdienst über Bright Sky. Angekündigte Kontrollen: Stadt Bonn, Open Data (CC0). Verkehrsmeldungen: Verkehrswarndienst über die Autobahn GmbH des Bundes. Gelernte Daten und Meldungen verlassen das Gerät nur, wenn „Daten mit allen teilen“ an ist.</p>
+ <p class="small" style="margin-top:14px">Karte, Ampelstandorte und Routen: © OpenStreetMap-Mitwirkende. Suche: Photon (komoot). Routing: OSRM und Valhalla über FOSSGIS. Sperrungen und Baustellen in Leipzig: Stadt Leipzig, Verkehrs- und Tiefbauamt (opendata.leipzig.de). Straßenbahn-Fahrplan: DELFI e.V. über gtfs.de, CC BY 4.0. Wetterwarnungen: Deutscher Wetterdienst über Bright Sky. Angekündigte Kontrollen: Stadt Bonn, Open Data (CC0). Verkehrsmeldungen: Verkehrswarndienst über die Autobahn GmbH des Bundes. Gelernte Daten und Meldungen verlassen das Gerät nur, wenn „Daten mit allen teilen“ an ist.</p>
  <button class="btn big" data-close style="margin-top:8px">Schließen</button></div>
 
 <div class="start" id="start"><div class="in">
@@ -344,7 +344,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='26.11.2026 · 6';
+const APP_VERSION='26.11.2026 · 7';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -377,7 +377,7 @@ map.on('load',()=>{
  map.addLayer({id:'route-line',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#33ccff','line-width':['interpolate',['linear'],['zoom'],12,4,18,15]}},before);
  for(const id of['works','worksPt'])map.addSource(id,{type:'geojson',data:EMPTY});
  map.addLayer({id:'works-case',type:'line',source:'works',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#ffffff','line-width':['interpolate',['linear'],['zoom'],12,3,18,10],'line-opacity':.9}});
- map.addLayer({id:'works-line',type:'line',source:'works',layout:{'line-cap':'butt','line-join':'round'},paint:{'line-color':'#ff8a00','line-width':['interpolate',['linear'],['zoom'],12,2,18,7],'line-dasharray':[1.2,1]}});
+ map.addLayer({id:'works-line',type:'line',source:'works',layout:{'line-cap':'butt','line-join':'round'},paint:{'line-color':['case',['==',['get','b'],1],'#e5484d','#ff8a00'],'line-width':['interpolate',['linear'],['zoom'],12,2,18,7],'line-dasharray':[1.2,1]}});
  map.addLayer({id:'works',type:'symbol',source:'worksPt',minzoom:11,layout:{'icon-image':'ico-bau','icon-size':['interpolate',['linear'],['zoom'],11,0.4,16,0.7,18,0.9],'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-pitch-alignment':'viewport','icon-rotation-alignment':'viewport'}});
  map.addSource('vwd',{type:'geojson',data:EMPTY});map.addSource('vwdLine',{type:'geojson',data:EMPTY});
  map.addLayer({id:'vwd-line',type:'line',source:'vwdLine',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':['get','c'],'line-width':['interpolate',['linear'],['zoom'],8,3,12,5,18,12],'line-opacity':.8}},before);
@@ -528,17 +528,22 @@ let FILEBOX=null,fileState='lädt';
 const inBox=(p,m=0.02)=>FILEBOX&&p.lat>FILEBOX[0]+m&&p.lat<FILEBOX[2]-m&&p.lon>FILEBOX[1]+m*1.6&&p.lon<FILEBOX[3]-m*1.6;
 // ---------- Baustellen ----------
 let WORKS=null,workState='lädt …',worksUpd='';
-async function loadWorks(){if(!set.works){drawWorks();workState='ausgeblendet';return}if(WORKS){drawWorks();return}
- try{const r=await tfetch('roadworks.json',{cache:'no-cache'},30000);if(!r.ok)throw new Error(r.status);const j=await r.json();WORKS=j.items||[];worksUpd=j.updated||'';
-  const ab=WORKS.filter(w=>w.src==='autobahn').length;workState=`${WORKS.length} Baustellen (${ab} Autobahn, ${WORKS.length-ab} Stadt/OSM), Stand ${worksUpd}`}
- catch(e){WORKS=null;workState='Baustellen-Datei nicht verfügbar'}drawWorks()}
+// Baustellen: roadworks.json (OSM + Autobahn GmbH, täglich) und closures.json (Stadt Leipzig, alle 2 h). Immer geladen: Vollsperrungen gelten für die Routenwahl auch bei ausgeblendeten Baustellen.
+let worksT=0;
+async function loadWorks(){if(WORKS&&Date.now()-worksT<30*60000){drawWorks();return}worksT=Date.now();
+ const get=async f=>{try{const r=await tfetch(f,{cache:'no-cache'},30000);if(!r.ok)throw new Error(r.status);return await r.json()}catch(e){return null}};
+ const[a,b]=await Promise.all([get('roadworks.json'),get('closures.json')]);
+ if(!a&&!b){if(!WORKS)workState='Baustellen-Datei nicht verfügbar';drawWorks();return}
+ WORKS=[...(a&&a.items||[]),...(b&&b.items||[])];worksUpd=[a&&a.updated,b&&b.updated].filter(Boolean).sort().pop()||'';
+ const ab=WORKS.filter(w=>w.src==='autobahn').length,lz=WORKS.filter(w=>w.src==='leipzig').length,bl=WORKS.filter(w=>w.blocked&&w.src!=='osm').length;
+ workState=`${WORKS.length} Baustellen (${lz} Stadt Leipzig, ${ab} Autobahn, ${WORKS.length-ab-lz} OSM), ${bl} Vollsperrungen${set.works?'':' · Anzeige aus, Sperrungen gelten trotzdem für Routen'}${b?' · Stadt Stand '+b.updated:' · Stadt-Datei fehlt'}`;drawWorks()}
 function drawWorks(){const on=set.works&&WORKS;
- src('works',{type:'FeatureCollection',features:on?WORKS.filter(w=>w.line&&w.line.length>1).map(w=>({type:'Feature',geometry:{type:'LineString',coordinates:w.line},properties:{}})):[]});
+ src('works',{type:'FeatureCollection',features:on?WORKS.filter(w=>w.line&&w.line.length>1).map(w=>({type:'Feature',geometry:{type:'LineString',coordinates:w.line},properties:{b:w.blocked?1:0}})):[]});
  src('worksPt',{type:'FeatureCollection',features:on?WORKS.map((w,i)=>({type:'Feature',geometry:{type:'Point',coordinates:[w.lon,w.lat]},properties:{i}})):[]})}
 function showWork(i){const w=WORKS&&WORKS[i];if(!w)return;closeSheets();
  $('wkT').textContent=w.title||'Baustelle';$('wkS').textContent=[w.sub,w.blocked?'Sperrung':''].filter(Boolean).join(' · ');
  $('wkD').innerHTML=(w.desc||[]).map(d=>`<div>${esc(d)}</div>`).join('')||'<div>Keine weiteren Angaben.</div>';
- $('wkSrc').textContent=(w.src==='autobahn'?'Quelle: Autobahn GmbH des Bundes':'Quelle: OpenStreetMap')+(worksUpd?' · Stand '+worksUpd:'');$('workSheet').classList.add('on')}
+ $('wkSrc').textContent=(w.src==='autobahn'?'Quelle: Autobahn GmbH des Bundes':w.src==='leipzig'?'Quelle: Stadt Leipzig, Verkehrs- und Tiefbauamt':'Quelle: OpenStreetMap')+(worksUpd?' · Stand '+worksUpd:'');$('workSheet').classList.add('on')}
 // ---------- Verkehrsmeldungen der Autobahn GmbH (Verkehrswarndienst, live; das, was im Radio-Verkehrsfunk läuft) ----------
 const ABROADS=['A4','A9','A13','A14','A17','A38','A72','A143'];
 let VWD=[],vwdState='noch nicht geladen',vwdT=0,vwdBusy=false;const vwdSaid=new Set();
@@ -1013,16 +1018,22 @@ function renderCritSet(){const el=$('rcritSet');if(el)el.innerHTML=critsNow().ma
 // Störungen: Meldungen (Unfall, Stau, Gefahr, Baustelle), Baustellen-Datei, Autobahn-Verkehrswarndienst. w = geschätzte Verzögerung in s
 function incidents(){const L=[],now=Date.now();
  for(const r of allReps())if(visRep(r)&&/^(unf|stau|gef|bau)$/.test(r.type)&&now-r.t<TYPES[r.type].h*3600e3)L.push({lat:r.lat,lon:r.lon,k:r.type,w:{stau:300,unf:300,gef:60,bau:120}[r.type],n:TYPES[r.type].n,hard:r.type!=='gef'});
- if(set.works&&WORKS)for(const w of WORKS)L.push({lat:w.lat,lon:w.lon,pts:w.line,k:'bau',w:w.blocked?900:90,n:w.blocked?'Sperrung':'Baustelle',hard:!!w.blocked});
+ // „Straße im Bau“ aus OSM ist kein befahrbarer Weg (Router kennen ihn nicht) → nur Anzeige, keine Sperre fürs Routing
+ if(WORKS)for(const w of WORKS){const bl=!!w.blocked&&w.src!=='osm';if(bl||set.works)L.push({lat:w.lat,lon:w.lon,pts:w.poly||w.line,k:'bau',w:bl?900:90,n:bl?'Vollsperrung':'Baustelle',hard:bl,block:bl,title:w.title})}
  if(set.vwd)for(const x of VWD)L.push({lat:x.lat,lon:x.lon,pts:x.line,k:x.type,w:Math.max((x.delay||0)*60,x.type==='gef'?60:300),n:x.type==='stau'?'Stau':x.type==='unf'?'Unfall':'Gefahr',hard:x.type!=='gef'});
  return L.filter(x=>isFinite(x.lat)&&isFinite(x.lon))}
 function incOn(R,L){const la=R.ll.map(c=>c[0]),lo=R.ll.map(c=>c[1]),b=[Math.min(...la)-.004,Math.max(...la)+.004,Math.min(...lo)-.006,Math.max(...lo)+.006],out=[];
  for(const x of L){const pts=(x.pts&&x.pts.length?x.pts.filter((p,i,A)=>i%Math.max(1,Math.floor(A.length/8))==0||i==A.length-1).map(([o,a])=>({lat:a,lon:o})):[]);pts.push({lat:x.lat,lon:x.lon});
-  if(!pts.some(p=>p.lat>b[0]&&p.lat<b[1]&&p.lon>b[2]&&p.lon<b[3]))continue;if(pts.some(p=>snap(R,p.lat,p.lon).d<35))out.push(x)}
+  if(!pts.some(p=>p.lat>b[0]&&p.lat<b[1]&&p.lon>b[2]&&p.lon<b[3]))continue;const lim=x.block?14:35;if(pts.some(p=>snap(R,p.lat,p.lon).d<lim))out.push(x)}
  return out}
 function exclPolys(a,b,L){const mid={lat:(a.lat+b.lat)/2,lon:(a.lon+b.lon)/2},R0=dist(a,b)/2+4000;
  return L.filter(x=>x.hard&&dist(x,mid)<R0&&dist(x,a)>150&&dist(x,b)>150).sort((p,q)=>dist(p,mid)-dist(q,mid)).slice(0,15)
   .map(x=>{const dy=.0004,dx=.0006;return[[x.lon-dx,x.lat-dy],[x.lon+dx,x.lat-dy],[x.lon+dx,x.lat+dy],[x.lon-dx,x.lat+dy],[x.lon-dx,x.lat-dy]]})}
+function blockPolys(L,a,b){const out=[];let per=0;
+ for(const x of L){if(a&&dist(x,a)<120||b&&dist(x,b)<120)continue;const P=(x.pts&&x.pts.length?x.pts:[[x.lon,x.lat]]).map(([o,t])=>({lat:t,lon:o})),pick=[];
+  for(const p of P)if(!pick.some(q=>dist(p,q)<30))pick.push(p);
+  for(const p of pick){if(per>9000)return out;const dy=.00011,dx=.00017;out.push([[p.lon-dx,p.lat-dy],[p.lon+dx,p.lat-dy],[p.lon+dx,p.lat+dy],[p.lon-dx,p.lat+dy],[p.lon-dx,p.lat-dy]]);per+=100}}
+ return out}
 const isHw=st=>/^A ?\d/.test(st.ref||st.name||'')||(st.intersections||[]).some(it=>(it.classes||[]).includes('motorway'));
 function routeMetrics(R,L){const now=Date.now()/1000,st=R.steps.map(x=>x.st);
  const on=R.onRoute||[],learned=on.filter(o=>fit(o.sig.id+'_'+sector(o.brg),now).ok).length;
@@ -1031,27 +1042,33 @@ function routeMetrics(R,L){const now=Date.now()/1000,st=R.steps.map(x=>x.st);
   if(!/^(depart|arrive|new name|notification)$/.test(ty)&&!(ty==='continue'&&/straight/.test(mod))&&mod!=='straight'){turns++;if(/left|uturn/.test(mod))left++}
   if(isHw(x))hw+=x.distance||0;
   const d=x.distance||0,t=x.duration||0,kmh=t>0?d/t*3.6:40;fuel+=d/1000*(kmh<30?7.5:kmh<60?6:kmh<95?5.2:kmh<115?5.9:7)/100}
- const inc=incOn(R,L),incW=inc.reduce((a,x)=>a+x.w,0),stops=(on.length-learned)*.45+learned*.25+left*.4+inc.filter(x=>x.k==='stau').length*3;
+ const inc=incOn(R,L),block=inc.filter(x=>x.block),incW=inc.reduce((a,x)=>a+x.w,0),stops=(on.length-learned)*.45+learned*.25+left*.4+inc.filter(x=>x.k==='stau').length*3;
  fuel+=stops*.02;
- return R.m={t:R.duration,km:R.total/1000,sig:on.length,learned,sigKnown:!!R.onRoute,turns,left,hw,inc,incW,fuel:set.mode==='rad'?null:fuel}}
+ return R.m={block,t:R.duration,km:R.total/1000,sig:on.length,learned,sigKnown:!!R.onRoute,turns,left,hw,inc,incW,fuel:set.mode==='rad'?null:fuel}}
 function critScore(k,m){switch(k){case'short':return m.km;case'sig':return m.sig*600+m.t;case'green':return m.t+15*(m.sig-m.learned)+5*m.learned;
  case'calm':return m.t+20*m.turns+25*m.left;case'nohw':return m.hw*10+m.t;case'avoid':return m.incW*3+m.inc.length*120+m.t;case'eco':return(m.fuel||0)*3600+m.t*.2;default:return m.t}}
 function sameRoute(A,B){if(Math.abs(A.total-B.total)>Math.max(150,A.total*.04))return false;let n=0,h=0;for(let s=0;s<A.total;s+=120){n++;const p=routeAt(A,s);if(snap(B,p.lat,p.lon).d<25)h++}return n?h/n>.92:true}
-async function routeCands(a,b,o={}){const crit=o.crit,ms=o.ms||15000,jobs=[];
- const L=incidents(),ex=exclPolys(a,b,L);
- const want=k=>!crit||crit===k;
- if(!crit||!/^(short|nohw|avoid)$/.test(crit))jobs.push(fetchValhalla(a,b,{alt:2,heading:o.heading},ms));
- if(want('short'))jobs.push(fetchValhalla(a,b,{shortest:1,heading:o.heading},ms));
- if(set.mode!=='rad'&&want('nohw'))jobs.push(fetchValhalla(a,b,{noHw:1,alt:1,heading:o.heading},ms));
- if(want('avoid')&&ex.length)jobs.push(fetchValhalla(a,b,{excl:ex,alt:1,heading:o.heading},ms));
- else if(crit==='avoid')jobs.push(fetchValhalla(a,b,{alt:2,heading:o.heading},ms));
- jobs.push(fetchOsrm(a,b,2,ms));
- const res=await Promise.allSettled(jobs),val=[],osrm=[];
- res.forEach((r,i)=>{if(r.status!=='fulfilled'||!r.value)return;(i==res.length-1?osrm:val).push(...r.value)});
+// Kandidaten holen. Liegt eine Vollsperrung auf einem Vorschlag, wird sie als Sperrfläche an Valhalla gegeben und neu gerechnet (höchstens 2 Runden).
+async function routeCands(a,b,o={}){const crit=o.crit,ms=o.ms||15000,L=incidents(),ex=exclPolys(a,b,L),want=k=>!crit||crit===k,BL=L.filter(x=>x.block);
+ const build=list=>{const Rs=[];for(const r of list){try{const R=buildRoute(r,b);R.src=r._src;Rs.push(R)}catch(e){}}return Rs};
+ let osrm=null,val=[],blocked=[],t0=Date.now();
+ for(let round=0;round<3;round++){const bp=blockPolys(blocked,a,b),jobs=[],E=x=>bp.length?[...bp,...(x||[])]:x,hd=o.heading;
+  if(!crit||!/^(short|nohw|avoid)$/.test(crit))jobs.push(fetchValhalla(a,b,{alt:2,heading:hd,excl:E()},ms));
+  if(want('short'))jobs.push(fetchValhalla(a,b,{shortest:1,heading:hd,excl:E()},ms));
+  if(set.mode!=='rad'&&want('nohw'))jobs.push(fetchValhalla(a,b,{noHw:1,alt:1,heading:hd,excl:E()},ms));
+  if(want('avoid')&&ex.length)jobs.push(fetchValhalla(a,b,{excl:E(ex),alt:1,heading:hd},ms));
+  else if(crit==='avoid')jobs.push(fetchValhalla(a,b,{alt:2,heading:hd,excl:E()},ms));
+  if(!osrm)jobs.push(fetchOsrm(a,b,2,ms));
+  const res=await Promise.allSettled(jobs),nv=[];
+  res.forEach((r,i)=>{if(r.status!=='fulfilled'||!r.value)return;if(!osrm&&i==res.length-1)osrm=build(r.value);else nv.push(...r.value)});
+  if(!osrm)osrm=[];
+  if(nv.length||!val.length)val=build(nv);
+  const hit=new Set(blocked);for(const R of val)for(const x of incOn(R,BL))hit.add(x);
+  if(hit.size===blocked.length||!val.length||Date.now()-t0>ms*1.5)break;blocked=[...hit];tripEv('sperre',blocked.map(x=>x.title||x.n))}
  // OSRM-Zeiten an Valhalla angleichen (Valhalla rechnet Stadtverkehr vorsichtiger), damit „schnellste“ fair verglichen wird
- if(val.length&&osrm.length){const f=Math.min(...val.map(r=>r.duration))/Math.min(...osrm.map(r=>r.duration));if(f>.6&&f<2.5)osrm.forEach(r=>r.duration*=f)}
+ if(val.length&&osrm.length){const f=Math.min(...val.map(r=>r.duration))/Math.min(...osrm.map(r=>r.duration));if(f>.6&&f<2.5)osrm.forEach(R=>R.duration*=f)}
  return{list:[...val,...osrm],L}}
-function rankRoutes(Rs,L){Rs.forEach(R=>routeMetrics(R,L));const tMin=Math.min(...Rs.map(R=>R.m.t)),best={};
+function rankRoutes(Rs0,L){Rs0.forEach(R=>routeMetrics(R,L));const free=Rs0.filter(R=>!R.m.block.length),Rs=free.length?free:Rs0;Rs0.forEach(R=>R.best=[]);const tMin=Math.min(...Rs.map(R=>R.m.t)),best={};
  for(const[k]of critsNow()){let b=null;for(const R of Rs){if(k!=='fast'&&R.m.t>tMin*1.6+120)continue;if(!b||critScore(k,R.m)<critScore(k,b.m))b=R}if(b)best[k]=b}
  Rs.forEach(R=>R.best=critsNow().map(c=>c[0]).filter(k=>best[k]===R));return best}
 // Vorschau: Kandidaten holen, doppelte entfernen, je Merkmal die beste Route kennzeichnen
@@ -1083,7 +1100,7 @@ function renderPreview(){const R=PREVIEW;if(!R)return;const L=incidents();const 
   const r2=[m.sigKnown||x.onRoute?`${m.sig} Ampel${m.sig==1?'':'n'}${m.learned?` (${m.learned} gelernt)`:''}`:'Ampeln …',`${m.turns} Abbiegung${m.turns==1?'':'en'}${m.left?` (${m.left} links)`:''}`,
    m.hw>500?`${(m.hw/1000).toFixed(m.hw<10000?1:0).replace('.',',')} km Autobahn`:'',m.fuel!=null?`≈ ${m.fuel.toFixed(1).replace('.',',')} l`:''].filter(Boolean).join(' · ');
   return `<button class="rcard" data-ri="${i}" aria-pressed="${x===R}"><div class="r1"><b>${fmtDur(m.t)}</b><span>${fmt(x.total)}</span>${x.best.map(k=>`<i class="bd">${esc(critN(k))}</i>`).join('')}</div>
-   <div class="r2">${esc(r2)}${inc?`<span class="w">${inc} Störung${inc==1?'':'en'}: ${esc([...new Set(m.inc.map(y=>y.n))].join(', '))}</span>`:''}</div></button>`}).join('');
+   <div class="r2">${esc(r2)}${m.block.length?`<span class="w" style="color:#e5484d;font-weight:600">Führt durch Vollsperrung: ${esc(m.block.map(y=>(y.title||'').replace(/^Sperrung: /,'')).join(', '))}</span>`:''}${inc?`<span class="w">${inc} Störung${inc==1?'':'en'}: ${esc([...new Set(m.inc.map(y=>y.n))].join(', '))}</span>`:''}</div></button>`}).join('');
  const n=R.m?R.m.learned:0;
  $('pvLearn').textContent=loading?'Ampeln entlang der Routen werden geladen …':R.onRoute&&R.onRoute.length?`${n} von ${R.onRoute.length} Ampeln mit gelernten Schaltzeiten. Die übrigen lernt die App auf dieser Fahrt mit.`:'Keine Ampeln auf dieser Route gefunden.';
  drawAlts()}
@@ -1092,11 +1109,11 @@ function pickRoute(i,byCrit){const R=PVR[i];if(!R)return;PREVIEW=R;if(!byCrit){c
 function pickCrit(k){PVC=k;const best=rankRoutes(PVR,incidents());if(best[k])pickRoute(PVR.indexOf(best[k]),true);else renderPreview()}
 $('pvCrit').onclick=e=>{const b=e.target.closest('[data-pcrit]');if(b)pickCrit(b.dataset.pcrit)};
 $('pvRoutes').onclick=e=>{const b=e.target.closest('[data-ri]');if(b)pickRoute(+b.dataset.ri)};
-async function preview(dest){if(!cur){toast('Erst Fahrt starten');return}closeSheets();toast('Routen werden berechnet …');
+async function preview(dest){if(!cur){toast('Erst Fahrt starten');return}closeSheets();toast('Routen werden berechnet …');await loadWorks();
  const{list}=await routeCands(cur,dest,{heading:v>3?heading:null});if(!list.length){toast('Keine Route gefunden');return}
- PVR=[];for(const r of list){try{const R=buildRoute(r,dest);R.src=r._src;if(!PVR.some(x=>sameRoute(x,R)))PVR.push(R)}catch(e){}}
+ PVR=[];for(const R of list)if(!PVR.some(x=>sameRoute(x,R)))PVR.push(R);
  PVR.sort((x,y)=>x.duration-y.duration);PVR=PVR.slice(0,6);PVR.forEach(computeOnRoute);
- const best=rankRoutes(PVR,incidents());PVR=PVR.filter((R,i)=>R.best.length||i<3);
+ let best=rankRoutes(PVR,incidents());PVR=PVR.filter((R,i)=>R.best.length||(i<3&&!R.m.block.length));best=rankRoutes(PVR,incidents());
  PVC=rcrit();PREVIEW=best[PVC]||PVR[0];tripEv('routes',PVR.map(R=>[R.src,Math.round(R.total),Math.round(R.duration),R.best.join('+')]));
  drawAlts();follow=false;
  $('toast').classList.remove('on');$('pvName').textContent=dest.name;$('pvAddr').textContent=dest.sub||'';renderPreview();$('prevSheet').classList.add('on');requestAnimationFrame(fitPreview);loadRouteSignals(PVR)}
@@ -1119,7 +1136,7 @@ $('navOv').onclick=()=>{if(!NAV)return;$('nav').classList.remove('open');documen
 let rerouting=false;
 async function reroute(p){if(rerouting||!NAV)return;rerouting=true;NAV.last=p.t;announce('reroute','Route wird neu berechnet',0);$('navT').textContent='Route wird neu berechnet …';
  const crit=NAV.crit||'fast';let r=null;
- try{const{list,L}=await routeCands(p,NAV.dest,{crit,heading,ms:9000});if(list.length&&NAV){const Rs=list.map(x=>{const R=buildRoute(x,NAV.dest);R.src=x._src;computeOnRoute(R);return R});const best=rankRoutes(Rs,L);r=best[crit]||Rs[0]}}catch(e){}
+ try{const{list,L}=await routeCands(p,NAV.dest,{crit,heading,ms:9000});if(list.length&&NAV){const Rs=list;Rs.forEach(computeOnRoute);const best=rankRoutes(Rs,L);r=best[crit]||Rs[0]}}catch(e){}
  rerouting=false;if(!r||!NAV)return;const d=NAV.dest;tripEv('reroute',crit,r.src,Math.round(r.total),Math.round(r.duration));r.crit=crit;NAV=r;NAV.dest=d;computeOnRoute(NAV);drawRoute(NAV);appr=null;loadRouteSignals(NAV);updateNav(p)}
 const lf=t=>t?t[0].toLowerCase()+t.slice(1):'';
 const inDist=d=>'In '+(d>=1000?(Math.round(d/100)/10).toString().replace('.',',')+' Kilometern':(d>=100?Math.round(d/50)*50:Math.max(10,Math.round(d/10)*10))+' Metern');
@@ -1586,11 +1603,11 @@ $('goSim').onclick=simRandom;
 fitApp();setTimeout(()=>{fitApp();healViewport()},500);fsState();
 // Automatische Aktualisierung: aktuelle index.html ohne Cache holen und bei neuer Version neu laden
 async function checkUpdate(){try{const r=await fetch('./?v='+Date.now(),{cache:'no-store'});if(!r.ok)return;const t=await r.text();
- const m=t.match(/APP_VERSION='([^']+)'/);if(m&&m[1]!==APP_VERSION){if(cur&&(NAV||v>3)){toast('Neue Version verfügbar, wird nach der Fahrt geladen');return}
+ const m=t.match(/APP_VERSION='26.11.2026 · 7']+)'/);if(m&&m[1]!==APP_VERSION){if(cur&&(NAV||v>3)){toast('Neue Version verfügbar, wird nach der Fahrt geladen');return}
   let n=0;try{n=+sessionStorage.getItem('gw_upd')||0}catch(e){}if(n>2)return;try{sessionStorage.setItem('gw_upd',n+1)}catch(e){}
   location.replace(location.pathname+'?v='+encodeURIComponent(m[1]))}}catch(e){}}
 setTimeout(checkUpdate,1500);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});drawSignals();drawReps();renderLearn();loadFile();setBlitz();loadWorks();loadTrams();
-if(location.hostname=='gw.test')window.__gw={OPS,pvr:()=>PVR.map(R=>({km:R.total,t:R.duration,src:R.src,best:R.best,m:R.m&&{sig:R.m.sig,turns:R.m.turns,left:R.m.left,hw:R.m.hw,inc:R.m.inc.length,fuel:R.m.fuel},sel:R===PREVIEW})),navCrit:()=>NAV&&NAV.crit,navKm:()=>NAV&&NAV.total,reroute,preview,trips:()=>(tripSave(),TRIPS),renderTrips,cam:()=>({camState,n:CAMS?CAMS.length:0}),camReset:()=>{camTry=0},actx:()=>actx,audioState,WX:()=>WX,drawWx,VWD:()=>VWD,loadVwd,vwdAhead,VL,ANN:()=>ANN,annAt,condMs,wayLimit,OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr,map,SIM};
+if(location.hostname=='gw.test')window.__gw={OPS,works:()=>WORKS&&WORKS.length,workState:()=>workState,pvr:()=>PVR.map(R=>({km:R.total,t:R.duration,src:R.src,best:R.best,m:R.m&&{sig:R.m.sig,turns:R.m.turns,left:R.m.left,hw:R.m.hw,inc:R.m.inc.length,fuel:R.m.fuel},sel:R===PREVIEW})),navCrit:()=>NAV&&NAV.crit,navKm:()=>NAV&&NAV.total,reroute,preview,trips:()=>(tripSave(),TRIPS),renderTrips,cam:()=>({camState,n:CAMS?CAMS.length:0}),camReset:()=>{camTry=0},actx:()=>actx,audioState,WX:()=>WX,drawWx,VWD:()=>VWD,loadVwd,vwdAhead,VL,ANN:()=>ANN,annAt,condMs,wayLimit,OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr,map,SIM};
 $('startInfo').textContent=(Object.keys(OBS).length?`Bisher gelernt: ${Object.keys(OBS).length} Ampel-Richtungen. `:'')+'Version '+APP_VERSION;
 
 }
