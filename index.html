@@ -330,7 +330,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='26.11.2026 · 2';
+const APP_VERSION='26.11.2026 · 3';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -562,10 +562,14 @@ const worksOn=R=>!WORKS||!set.works?0:WORKS.filter(w=>{const pts=w.line&&w.line.
 // ---------- Feste Blitzer (nur wenn eingeschaltet) ----------
 let CAMS=null,camState='aus',camWarned=new Map(),camCur=null,mobLast=null,mobAsk=null;
 const mobCams=()=>set.blitz?allReps().filter(r=>r.type==='mob'&&!HIDE[r.sid]).map(r=>({id:'m'+r.id,lat:r.lat,lon:r.lon,max:0,rep:r,m:[{lat:r.lat,lon:r.lon,dir:null}]})):[];
-async function loadCams(){if(CAMS)return;camState='lädt …';try{const r=await tfetch('cameras.json',{cache:'no-cache'},30000);if(!r.ok)throw new Error(r.status);const j=await r.json();
+// Blitzerdatei: bei Fehler gespeicherte Fassung nutzen und jede Minute neu versuchen (vorher: ein Fehlversuch beim Start = keine Blitzer für die ganze Fahrt)
+let camTry=0,camFresh=false;
+const camParse=j=>(j.cameras||[]).map(([id,lat,lon,max,rot,m])=>({id,lat,lon,max,rot:!!rot,m:(m&&m.length?m:[[lat,lon,null]]).map(([a,b,c])=>({lat:a,lon:b,dir:c}))}));
+async function loadCams(){if(camFresh||Date.now()-camTry<60000)return;camTry=Date.now();if(!CAMS){const o=LS.get('gw_cams',null);if(o&&o.cameras){CAMS=camParse(o);camState=`${CAMS.length} feste Blitzer (gespeichert, Stand ${o.updated}), lädt neu …`;drawCams()}}
+ try{const r=await tfetch('cameras.json',{cache:'no-cache'},30000);if(!r.ok)throw new Error(r.status);const j=await r.json();camFresh=true;LS.set('gw_cams',j);
  // [id,lat,lon,max,rot,[[lat,lon,fahrtrichtung|null]]]; ältere Datei ohne Richtung: [id,lat,lon,max]
- CAMS=(j.cameras||[]).map(([id,lat,lon,max,rot,m])=>({id,lat,lon,max,rot:!!rot,m:(m&&m.length?m:[[lat,lon,null]]).map(([a,b,c])=>({lat:a,lon:b,dir:c}))}));
- camState=`${CAMS.length} feste Blitzer, ${CAMS.filter(c=>c.m.some(x=>x.dir!=null)).length} mit Fahrtrichtung, Stand ${j.updated}`}catch(e){CAMS=null;camState='Blitzer-Datei nicht verfügbar'}drawCams()}
+ CAMS=camParse(j);
+ camState=`${CAMS.length} feste Blitzer, ${CAMS.filter(c=>c.m.some(x=>x.dir!=null)).length} mit Fahrtrichtung, Stand ${j.updated}`}catch(e){camState=CAMS?`${CAMS.length} feste Blitzer (gespeicherte Fassung), Neuladen fehlgeschlagen um ${hm()}`:`Blitzer-Datei nicht verfügbar (${hm()}), neuer Versuch in 1 Min`}drawCams()}
 function drawCams(){src('cams',set.blitz&&CAMS?{type:'FeatureCollection',features:CAMS.map(c=>({type:'Feature',geometry:{type:'Point',coordinates:[c.lon,c.lat]},properties:{}}))}:EMPTY)}
 function setBlitz(){if(set.blitz){loadCams();loadAnn()}else{camState='aus';$('blitz').classList.remove('on');camCur=null}drawCams();drawAnn();renderTypes();drawReps()}
 // ---------- Amtlich angekündigte mobile Kontrollen (Tag + Straße, mobile.json aus tools/build_mobile.py) ----------
@@ -598,7 +602,7 @@ function camAhead(p){if(!set.blitz||heading==null)return null;let best=null;
   else{d=dist(p,pt);if(d>500)continue;const df=Math.abs(adiff(bearing(p,pt),heading));if(d>30&&(df>30||d*Math.sin(df*RAD)>30))continue;if(df>100)continue;
    if(pt.dir!=null&&Math.abs(adiff(heading,pt.dir))>50)continue}
   if(!best||d<best.d)best={c,d}}return best}
-function checkCams(p){const a=camAhead(p),el=$('blitz');
+function checkCams(p){if(set.blitz&&!camFresh)loadCams();const a=camAhead(p),el=$('blitz');
  // Nach dem Vorbeifahren an einem gemeldeten mobilen Blitzer kurz fragen, ob er noch da ist
  if(mobLast&&(!a||a.c.id!==mobLast.id)){if(dist(p,mobLast.rep)<150&&!answered.has(mobLast.rep.id))mobAsk={r:mobLast.rep,until:Date.now()+20000};mobLast=null}
  if(a&&a.c.rep)mobLast=a.c;
@@ -1440,7 +1444,7 @@ async function checkUpdate(){try{const r=await fetch('./?v='+Date.now(),{cache:'
   let n=0;try{n=+sessionStorage.getItem('gw_upd')||0}catch(e){}if(n>2)return;try{sessionStorage.setItem('gw_upd',n+1)}catch(e){}
   location.replace(location.pathname+'?v='+encodeURIComponent(m[1]))}}catch(e){}}
 setTimeout(checkUpdate,1500);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});drawSignals();drawReps();renderLearn();loadFile();setBlitz();loadWorks();loadTrams();
-if(location.hostname=='gw.test')window.__gw={OPS,actx:()=>actx,audioState,WX:()=>WX,drawWx,VWD:()=>VWD,loadVwd,vwdAhead,VL,ANN:()=>ANN,annAt,condMs,wayLimit,OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr,map,SIM};
+if(location.hostname=='gw.test')window.__gw={OPS,cam:()=>({camState,n:CAMS?CAMS.length:0}),camReset:()=>{camTry=0},actx:()=>actx,audioState,WX:()=>WX,drawWx,VWD:()=>VWD,loadVwd,vwdAhead,VL,ANN:()=>ANN,annAt,condMs,wayLimit,OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr,map,SIM};
 $('startInfo').textContent=(Object.keys(OBS).length?`Bisher gelernt: ${Object.keys(OBS).length} Ampel-Richtungen. `:'')+'Version '+APP_VERSION;
 
 }
