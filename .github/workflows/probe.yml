@@ -1,0 +1,26 @@
+name: probe
+on: {push: {paths: ['.github/workflows/probe.yml']}, workflow_dispatch: {}}
+jobs:
+  p:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python3 - <<'P'
+          import json,math,urllib.request,urllib.parse
+          C=[i for i in json.load(open('closures.json'))['items'] if 'Brahe' in i['title']][0];poly=C['poly']
+          def d(a,b):return math.hypot((a[0]-b[0])*69600,(a[1]-b[1])*111000)
+          def run(A,B,excl):
+              body={'locations':[{'lat':A[1],'lon':A[0]},{'lat':B[1],'lon':B[0]}],'costing':'auto','format':'osrm','shape_format':'geojson'}
+              if excl:body['exclude_polygons']=excl
+              u='https://valhalla1.openstreetmap.de/route?json='+urllib.parse.quote(json.dumps(body))
+              j=json.load(urllib.request.urlopen(u,timeout=60));r=j['routes'][0];g=r['geometry']['coordinates']
+              near=min(d(p,q) for p in poly for q in g)
+              return round(r['distance']),round(r['duration']),round(near,1),[s['name'] for s in r['legs'][0]['steps']][:8]
+          pick=[]
+          for p in poly:
+              if not any(d(p,q)<30 for q in pick):pick.append(p)
+          sq=[[[p[0]-.00017,p[1]-.00011],[p[0]+.00017,p[1]-.00011],[p[0]+.00017,p[1]+.00011],[p[0]-.00017,p[1]+.00011],[p[0]-.00017,p[1]-.00011]] for p in pick]
+          for A,B,n in [((12.4306,51.3615),(12.4300,51.3700),'Brahe S->N'),((12.4260,51.3658),(12.4345,51.3672),'Stoehrer W->O'),((12.4306,51.3615),(12.4345,51.3672),'Brahe S->Stoehrer O')]:
+              print(n,'ohne',run(A,B,None));print(n,'mit Sperre',run(A,B,sq))
+          P
