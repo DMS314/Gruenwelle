@@ -84,7 +84,7 @@ knots = [(it, nm) for it, nm in knots if len(nm) >= 2]
 fixed = 0
 if knots:
     names = sorted({n for _, nm in knots for n in nm[:2]})
-    rx = '|'.join(re.escape(n) for n in names)
+    rx = '|'.join(re.sub(r'([.$*+?(){}|])', r'[\1]', n) for n in names if not re.search(r'[\\\[\]^"]', n))  # Sonderzeichen als [x], ohne Backslash (Overpass-Zeichenkette)
     q = f'[out:json][timeout:120];way["highway"]["name"~"^({rx})$"](51.20,12.15,51.48,12.62);out body geom;'
     ways = None
     for url in OVERPASS:
@@ -96,6 +96,7 @@ if knots:
         except Exception as e:
             print('Overpass', url, e)
     if ways is not None:
+        print(f'{len(ways)} Straßenabschnitte aus OpenStreetMap für {len(names)} Namen')
         nodes = {}  # name -> {node_id: (lon, lat)}
         for w in ways:
             nm = w.get('tags', {}).get('name')
