@@ -23,7 +23,7 @@ jobs:
           for p in poly:
               if not any(d(p,q)<30 for q in pick):pick.append(p)
           sq=[[[p[0]-.00017,p[1]-.00011],[p[0]+.00017,p[1]-.00011],[p[0]+.00017,p[1]+.00011],[p[0]-.00017,p[1]+.00011],[p[0]-.00017,p[1]-.00011]] for p in pick]
-          A=(12.43896,51.39296);B=(12.4154,51.31948)
+          A=(12.4412,51.3670);B=(12.4382,51.3628)
           for x in run(A,B,None):print('ohne Sperrdaten',x)
           for x in run(A,B,sq):print('mit Sperrdaten ',x)
           P
