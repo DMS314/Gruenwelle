@@ -344,7 +344,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='26.11.2026 · 8';
+const APP_VERSION='26.11.2026 · 9';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -731,27 +731,59 @@ async function loadSignals(p,force){
  loading=false;DIAG.load=`fehlgeschlagen um ${hm()}, neuer Versuch in 30 s`;$('sigs').textContent=SIG.size?`${SIG.size.toLocaleString('de-DE')} · offline`:'Fehler';setTimeout(()=>{if(cur)loadSignals(cur,true)},30000)}
 // ---------- Lernmodell ----------
 const sector=h=>Math.round(mod(h,360)/45)%8;
-const band=ts=>{const h=new Date(ts*1000).getHours();return h<6?0:h<10?1:h<15?2:h<19?3:h<23?4:0};
+// Beobachtungen je Ampel-Richtung: g = Grünbeginn nach Halt (sicher), q = Grünbeginn beim Heranrollen ohne Halt (unsicher, halbes Gewicht),
+// p = Durchfahrt bei Grün, r = Rot-Intervall [Haltebeginn, Grünbeginn]. Alle Zeiten in Sekunden (Unixzeit).
+// Schätzung: Umlaufzeit über die Fourier-Komponente der Grünbeginne (alle Tage in einen Umlauf gefaltet), robuste Verfeinerung,
+// Grünzeit aus Durchfahrten, Prüfung gegen Halte und Wartezeiten. Tageszeit-Programme getrennt, neuere Beobachtungen zählen mehr.
+const BANDS=['Nacht','Morgen','Tag','Nachmittag','Abend','Wochenende'];
+const band=ts=>{const d=new Date(ts*1000),h=d.getHours()+d.getMinutes()/60,we=d.getDay()==0||d.getDay()==6;if(h<6||h>=22)return 0;if(we)return 5;return h<9.5?1:h<15?2:h<19?3:4};
+const ageW=(ts,now)=>Math.pow(.5,Math.max(0,now-ts)/(45*86400));   // Halbwertszeit 45 Tage
 const fitCache=new Map();
 function merged(key){const a=OBS[key],b=set.share?SHOBS[key]:null;if(!b)return a;if(!a)return b;
- const u=(x,y)=>{const m=new Map();for(const v of[...x,...y])m.set(JSON.stringify(v),v);return[...m.values()]};return{g:u(a.g,b.g),p:u(a.p,b.p),r:u(a.r,b.r)}}
+ const u=(x=[],y=[])=>{const m=new Map();for(const v of[...x,...y])m.set(JSON.stringify(v),v);return[...m.values()]};return{g:u(a.g,b.g),p:u(a.p,b.p),r:u(a.r,b.r),q:u(a.q,b.q)}}
+function fitCore(Gs,Ps,Rs){const W=Gs.reduce((s,x)=>s+x[1],0);if(W<1.4)return null;
+ const PI2=2*Math.PI;let best=null,second=null;const all=[];
+ for(let C=40;C<=150;C++){let sx=0,sy=0;for(const[t,w]of Gs){const a=t/C*PI2;sx+=w*Math.cos(a);sy+=w*Math.sin(a)}
+  if(Math.hypot(sx,sy)/W<.4)continue;let g0=mod(Math.atan2(sy,sx)/PI2*C,C),wi=0;
+  for(let it=0;it<2;it++){sx=0;sy=0;wi=0;for(const[t,w]of Gs){let d=mod(t-g0,C);if(d>C/2)d-=C;if(Math.abs(d)<=6){const a=t/C*PI2;sx+=w*Math.cos(a);sy+=w*Math.sin(a);wi+=w}}if(!wi)break;g0=mod(Math.atan2(sy,sx)/PI2*C,C)}
+  if(wi<1.2)continue;let v2=0;for(const[t,w]of Gs){let d=mod(t-g0,C);if(d>C/2)d-=C;if(Math.abs(d)<=6)v2+=w*d*d}
+  const sd=Math.sqrt(v2/wi),R=Math.hypot(sx,sy)/W;
+  // Grünzeit: 90 % der Durchfahrten liegen darin, begrenzt durch beobachtete Haltebeginne
+  const rel=Ps.map(([t])=>mod(t-g0,C)).filter(x=>x<C-4).sort((a,b)=>a-b);
+  let G=rel.length>=4?rel[Math.floor(rel.length*.9)]+2:rel.length?rel[rel.length-1]+2:Math.min(25,C*.4);
+  const rs=Rs.map(([a])=>mod(a-g0,C)).filter(x=>x>6).sort((a,b)=>a-b);if(rs.length>=2)G=Math.min(G,rs[1]);else if(rs.length)G=Math.min(G,rs[0]+3);
+  G=Math.max(8,Math.min(C-12,G));
+  // Widersprüche: Durchfahrt bei Rot, Halt bei Grün, Wartezeit länger als die Rotzeit (entlarvt halbe Umlaufzeiten)
+  let bad=0,chk=0;for(const[t,w]of Ps){chk+=w;if(mod(t-g0,C)>G+3)bad+=w}
+  for(const[a,z,w]of Rs){let k=0,n=0;for(let x=a+.5;x<z-1;x+=2){n++;if(mod(x-g0,C)<G-1.5)k++}if(n){chk+=w;bad+=w*k/n}if(z-a>C-G+4){chk+=w;bad+=w}}
+  const cons=chk?1-bad/chk:.85,score=R*cons-(C<55?.12:C<60?.05:0)-(C>130?.05:0)-C*.0003;
+  const cand={C,g0,G,score,R,cons,sd,wi,inl:wi/W};all.push(cand);
+  if(!best||score>best.score){if(best&&Math.abs(best.C-C)>1)second=best;best=cand}else if(Math.abs(best.C-C)>1&&(!second||score>second.score))second=cand}
+ if(!best)return null;const Pw=Ps.reduce((s,x)=>s+x[1],0);
+ let conf=best.score*Math.min(1,(best.wi+.15*Pw)/4.5);if(best.sd>3)conf*=Math.max(.5,1-(best.sd-3)*.08);
+ // Bei wenigen Beobachtungen passt oft zufällig auch eine andere Umlaufzeit: Anzahl ähnlich guter, nicht verwandter Kandidaten senkt die Sicherheit
+ const rival=all.filter(c=>Math.abs(c.C-best.C)>1&&c.score>best.score*.9&&best.C%c.C!==0&&c.C%best.C!==0).map(c=>c.C);
+ const nr=rival.filter((c,i)=>!rival.some((d,j)=>j<i&&Math.abs(d-c)<=1)).length,amb=nr>0;conf/=1+.35*nr;
+ return{...best,conf:Math.max(0,Math.min(.97,conf)),amb,nr}}
 function fit(key,now){
- const o=merged(key);if(!o)return{n:0};
- const n=o.g.length+o.p.length;const ck=key+':'+n+':'+band(now);if(fitCache.has(ck))return fitCache.get(ck);
- const b=band(now),sel=a=>{const f=a.filter(x=>band(Array.isArray(x)?x[0]:x)==b);return f.length>=3?f:a};
- const g=sel(o.g),p=sel(o.p),r=sel(o.r);
+ const o=merged(key);if(!o)return{n:0};const Q=o.q||[];
+ const n=o.g.length+o.p.length+Q.length,b=band(now),ck=key+':'+n+':'+b+':'+Math.floor(now/21600);if(fitCache.has(ck))return fitCache.get(ck);
+ const mk=f=>({G:[...o.g.filter(f).map(t=>[t,ageW(t,now)]),...Q.filter(f).map(t=>[t,.5*ageW(t,now)])],P:o.p.filter(f).map(t=>[t,ageW(t,now)]),R:o.r.filter(x=>f(x[0])).map(([a,z])=>[a,z,ageW(a,now)])});
+ // Kandidaten: gleiche Tageszeit-Gruppe, gleiche Uhrzeit (±2 h) an beliebigen Tagen, alle Beobachtungen. Spezifischere werden leicht bevorzugt.
+ const hr=ts=>{const d=new Date(ts*1000);return d.getHours()+d.getMinutes()/60},hn=hr(now),near=t=>{const x=Math.abs(hr(t)-hn);return Math.min(x,24-x)<=2};
+ const wsum=X=>X.G.reduce((s,x)=>s+x[1],0),C=[];
+ const inB=mk(t=>band(t)===b);if(wsum(inB)>=2.5)C.push([fitCore(inB.G,inB.P,inB.R),BANDS[b],1]);
+ const inH=mk(near);if(wsum(inH)>=2.5)C.push([fitCore(inH.G,inH.P,inH.R),'um '+Math.round(hn)+' Uhr',.97]);
+ const all=mk(()=>true);const fa=fitCore(all.G,all.P,all.R);C.push([fa,'alle Zeiten',.9]);
+ let f=null,prog='',bs=-1;for(const[x,pn,k]of C)if(x&&x.conf*k>bs){bs=x.conf*k;f=x;prog=pn}
+ // weicht die Umlaufzeit zur jetzigen Uhrzeit von der Gesamtschätzung ab, läuft vermutlich ein anderes Programm: Gesamtschätzung abwerten
+ if(f===fa&&C.some(([x])=>x&&x!==fa&&Math.abs(x.C-fa.C)>1&&x.conf>.3))f={...fa,conf:fa.conf*.8};
  let res={n,ok:false};
- if(g.length>=3){let best=null;
-  for(let C=40;C<=140;C++){const ph=g.map(t=>mod(t,C));let bi=0,bc=-1;
-   for(let i=0;i<ph.length;i++){let c=0;for(const q of ph){const dd=Math.abs(q-ph[i]);if(Math.min(dd,C-dd)<=3.5)c++}if(c>bc){bc=c;bi=i}}
-   const R=bc/ph.length;if(R<0.6)continue;let sx=0,sy=0;
-   for(const q of ph){const dd=Math.abs(q-ph[bi]);if(Math.min(dd,C-dd)<=3.5){const an=q/C*2*Math.PI;sx+=Math.cos(an);sy+=Math.sin(an)}}
-   const g0=mod(Math.atan2(sy,sx)/(2*Math.PI)*C,C);
-   const rel=p.map(t=>mod(t-g0,C)).sort((a,b)=>a-b);let G=rel.length>=4?rel[rel.length-2]+2:rel.length>=2?rel[rel.length-1]+2:20;const rs=r.map(([a])=>mod(a-g0,C)).filter(x=>x>8);if(rs.length>=2){rs.sort((x,y)=>x-y);G=Math.min(G,rs[1])}G=Math.max(12,Math.min(C-15,G));
-   let bad=0,chk=0;for(const[a,z]of r){let k=0,n=0;for(let x=a+0.5;x<z;x+=1){n++;if(mod(x-g0,C)<G-1.5)k++}if(n){chk++;bad+=k/n}}for(const x of rel){chk++;if(x>G+3)bad++}
-   const cons=chk?1-bad/chk:0.8,score=R*cons-(C<55?0.1:0)-(C>120?0.05:0)-C*0.0001;if(!best||score>best.score)best={C,g0,G,score,R,cons}}
-  if(best){const conf=Math.max(0,Math.min(0.97,best.score*Math.min(1,g.length/6)));res={n,ok:conf>0.35,conf,C:best.C,g0:best.g0,G:best.G}}}
- fitCache.set(ck,res);if(fitCache.size>300)fitCache.clear();return res}
+ if(f){res={n,ok:f.conf>.35&&f.wi>=1.8,conf:f.conf,C:f.C,g0:f.g0,G:f.G,sd:f.sd,inl:f.inl,wi:f.wi,amb:f.amb,prog}}
+ fitCache.set(ck,res);if(fitCache.size>400)fitCache.clear();return res}
+// Tempoempfehlung nur, wenn die Ampel regelmäßig schaltet und die Schätzung sicher genug ist
+const canAdvise=m=>!!(m&&m.ok&&m.conf>=.55&&m.sd<=3.5&&m.inl>=.7&&m.wi>=2.5&&!m.amb);
+const relText=m=>!m.ok?'':canAdvise(m)?(m.conf>=.75?'zuverlässig':'brauchbar'):m.sd>3.5||m.inl<.7?'schaltet unregelmäßig':'noch unsicher';
 const phaseOf=(m,t)=>{const ph=mod(t-m.g0,m.C);const st=ph<m.G?'g':ph<m.G+3?'y':'r';return{st,left:st=='g'?m.G-ph:m.C-ph}};
 function advice(m,d,t){const lim=effLim()/3.6,vmin=MODES[set.mode].vmin/3.6,mg=1.5+(1-m.conf)*6,ph=mod(t-m.g0,m.C);
  for(let k=0;k<4;k++){const a=k*m.C-ph+mg,b=k*m.C-ph+m.G-mg;if(b<=1)continue;const hi=Math.min(lim,a<=0?lim:d/a),lo=Math.max(vmin,d/b);if(lo<=hi)return{lo,hi}}return null}
@@ -770,8 +802,11 @@ function finishAppr(t){const a=appr;appr=null;if(!a)return;if(a.minD>40){logEv({
  drive.pass++;
  if(a.stopT&&a.departT&&a.stopD<60){const gs=a.departT-1-Math.max(0,(a.stopD-12)/7)*2;o.g.push(+gs.toFixed(1));o.r.push([+a.stopT.toFixed(1),+(gs-0.5).toFixed(1)])}
  if(!a.stopT){drive.green++;o.p.push(+t.toFixed(1))}else if(a.departT)o.p.push(+t.toFixed(1));
- for(const k of['g','p','r'])if(o[k].length>200)o[k]=o[k].slice(-200);
- saveObs();queueObs(a,t);renderLearn();const o2=OBS[a.key];logEv({t:Date.now(),id:a.id,key:a.key,stop:!!a.stopT,g:o2.g.length,p:o2.p.length,ok:fit(a.key,Date.now()/1000).ok})}
+ // Ohne Halt, aber vorher fast stehen geblieben und geradeaus weiter: die Ampel wurde vermutlich gerade grün (unsichere Beobachtung)
+ if(!a.stopT&&a.vmin!=null&&a.vmin<2.2&&(a.v0||0)>6&&a.dmin<45&&a.h0!=null&&heading!=null&&Math.abs(adiff(heading,a.h0))<30){
+  const q=a.tmin-1-Math.max(0,(a.dmin-12)/7)*2;/* langsamster Moment = Grün + ca. 1 s Reaktion */(o.q||(o.q=[])).push(+q.toFixed(1));a.soft=q}
+ for(const k of['g','p','r','q'])if(o[k]&&o[k].length>200)o[k]=o[k].slice(-200);
+ saveObs();queueObs(a,t);renderLearn();const o2=OBS[a.key];logEv({t:Date.now(),id:a.id,key:a.key,stop:!!a.stopT,soft:!!a.soft,g:o2.g.length,p:o2.p.length,ok:fit(a.key,Date.now()/1000).ok});tripEv('ampel',a.id,a.key,a.stopT?'halt':a.soft?'rollend':'durch')}
 function onFix(pos){
  const c=pos.coords,t=pos.timestamp/1000,p={lat:c.latitude,lon:c.longitude,acc:c.accuracy,t};
  let gv=v;if(prev){const dt=t-prev.t;if(dt>0){const dd=dist(prev,p);gv=c.speed!=null&&c.speed>=0?c.speed:dd/dt;v=v*0.4+gv*0.6}}
@@ -788,11 +823,12 @@ function onFix(pos){
   appr.minD=Math.min(appr.minD,d);
   if(appr.minD<40&&(behind||d>appr.minD+10))finishAppr(t);
   else if(d>500||(f&&f.s.id!==appr.id&&appr.minD>40)){logEv({t:Date.now(),id:appr.id,miss:1,minD:Math.round(appr.minD)});appr=null}}
- if(f&&(!appr||appr.id!==f.s.id)&&!(appr&&appr.minD<40))appr={id:f.s.id,key:f.key||f.s.id+'_'+sector(heading),rs:f.rs,minD:f.d,stopT:0,stopD:0,departT:0};
+ if(f&&(!appr||appr.id!==f.s.id)&&!(appr&&appr.minD<40))appr={id:f.s.id,key:f.key||f.s.id+'_'+sector(heading),rs:f.rs,minD:f.d,stopT:0,stopD:0,departT:0,h0:heading,v0:0,vmin:null};
  if(appr){const s=SIG.get(appr.id),d=dist(p,s);
   if(v<1&&d<80&&!appr.stopT){appr.stopT=t;appr.stopD=d;appr.sp=p}
   if(appr.stopT&&!appr.departT&&(gv>1.5||dist(appr.sp,p)>4))appr.departT=t;
-  if(appr.stopT&&appr.departT&&v<1&&d>15&&t-appr.departT>3){appr.stopT=t;appr.stopD=d;appr.sp=p;appr.departT=0}}
+  if(appr.stopT&&appr.departT&&v<1&&d>15&&t-appr.departT>3){appr.stopT=t;appr.stopD=d;appr.sp=p;appr.departT=0}
+  if(!appr.stopT){if(d>40&&d<250)appr.v0=Math.max(appr.v0,v);if(d<70){if(appr.vmin==null||v<appr.vmin-.15){appr.vmin=v;appr.tmin=t;appr.dmin=d}else if(v<=appr.vmin+.15){appr.vmin=Math.min(appr.vmin,v);appr.tmin=t;appr.dmin=d}}}}
  tgt=appr?{s:SIG.get(appr.id),key:appr.key,rs:appr.rs}:null;
  checkAlerts(p);checkCams(p);render();if(set.wx)fetchWx(p);tripRec(p,c)}
 // ---------- Anzeige ----------
@@ -806,15 +842,16 @@ function render(){
  if(!tgt||!tgt.s){sig.className='sig';lamps.forEach(e=>e.classList.remove('on'));$('cd').textContent='Keine Ampel voraus';$('hint').textContent=NAV?'Bis 500 m keine Ampel auf der Route':heading==null?'Richtung wird ermittelt, bitte losfahren':'Gute Fahrt';$('src').textContent='';$('band').style.width='0';lastTgt=null;return}
  const d=(tgt.rs!=null&&NAV)?Math.max(0,tgt.rs-NAV.s):dist(cur,tgt.s),m=fit(tgt.key,now);lastTgt=tgt.s.id;if(tgtId!==tgt.s.id){tgtId=tgt.s.id;updateSigs()}
  const waiting=appr&&appr.id===tgt.s.id&&appr.stopT&&!appr.departT&&d<60;
- if(!m.ok){const o=OBS[tgt.key]||{g:[],p:[]},gn=o.g.length,pn=o.p.length;
+ if(!m.ok){const o=OBS[tgt.key]||{g:[],p:[]},gn=o.g.length,pn=o.p.length,qn=(o.q||[]).length;
   if(waiting){sig.className='sig';lamps.forEach(e=>e.classList.toggle('on',e.classList.contains('r')));$('cd').textContent='Rot · du wartest';$('hint').textContent='Die App merkt sich, wann es grün wird'}
   else{sig.className='sig unk';lamps.forEach(e=>e.classList.remove('on'));$('cd').textContent='Ampel in '+fmt(d);$('hint').textContent='Noch keine Schaltzeiten · vorausschauend fahren'}
-  $('src').textContent=gn||pn?`Lernt: ${Math.min(gn,3)} von 3 Halten · ${pn} Durchfahrt${pn==1?'':'en'}`:'Erste Fahrt hier, App lernt mit';$('band').style.width='0';return}
+  $('src').textContent=gn||pn?`Lernt: ${gn} Halt${gn==1?'':'e'}${qn?` · ${qn}× angerollt`:''} · ${pn} Durchfahrt${pn==1?'':'en'}`:'Erste Fahrt hier, App lernt mit';$('band').style.width='0';return}
  const ph=phaseOf(m,now),lf=Math.max(1,Math.round(ph.left));sig.className='sig est';lamps.forEach(e=>e.classList.toggle('on',e.classList.contains(ph.st)));
  $('cd').textContent='ca. '+(ph.st=='g'?`Grün noch ${lf} s`:`Grün in ${lf} s`);
- const a=advice(m,d,now);
- {const own=OBS[tgt.key]?OBS[tgt.key].g.length+OBS[tgt.key].p.length:0,oth=Math.max(0,m.n-own);$('src').textContent=`Geschätzt aus ${m.n} Beobachtungen${oth?` (${oth} von anderen)`:''} · ${Math.round(m.conf*100)} % · Umlauf ${m.C} s`}
- if(a){const lo=Math.round(a.lo*3.6),hi=Math.round(a.hi*3.6);$('hint').textContent=`Ampel in ${fmt(d)} · ${lo==hi?lo:lo+'–'+hi} km/h für Grün`;
+ const ca=canAdvise(m),a=ca?advice(m,d,now):null;
+ {const oo=OBS[tgt.key],own=oo?oo.g.length+oo.p.length+(oo.q||[]).length:0,oth=Math.max(0,m.n-own);$('src').textContent=`Geschätzt aus ${m.n} Beobachtungen${oth?` (${oth} von anderen)`:''} · ${relText(m)} · Umlauf ${m.C} s${m.prog&&m.prog!=='alle Zeiten'?' · '+(m.prog.startsWith('um')?'gelernt '+m.prog:'Programm '+m.prog):''}`}
+ if(!ca){$('hint').textContent=`Ampel in ${fmt(d)} · ${m.sd>3.5||m.inl<.7?'schaltet unregelmäßig, keine Tempoempfehlung':'Schätzung noch unsicher, vorausschauend fahren'}`;$('band').style.width='0'}
+ else if(a){const lo=Math.round(a.lo*3.6),hi=Math.round(a.hi*3.6);$('hint').textContent=`Ampel in ${fmt(d)} · ${lo==hi?lo:lo+'–'+hi} km/h für Grün`;
   $('band').style.left=lo/max*100+'%';$('band').style.width=Math.max(2,(hi-lo)/max*100)+'%'}
  else{$('hint').textContent=`Ampel in ${fmt(d)} · ausrollen lassen`;$('band').style.width='0'}
  renderStats()}
@@ -1391,6 +1428,7 @@ let SHOBS={},SHREPS=[],PEND=LS.get('gw_pend',[]);const SHARE={up:0,down:0,last:'
 function queueObs(a,t){if(!set.share)return;const[sig,sec]=a.key.split('_').map(Number);const o=OBS[a.key];if(!o)return;
  const add=(kind,t1,t2)=>PEND.push({sig,sec,kind,t:+t1.toFixed(1),...(t2!=null?{t2:+t2.toFixed(1)}:{})});
  if(a.stopT&&a.departT&&a.stopD<60){const g=o.g[o.g.length-1],r=o.r[o.r.length-1];if(g)add('g',g);if(r)add('r',r[0],r[1])}
+ if(a.soft)add('r',a.soft-2.5,a.soft-.5);   // unsicherer Grünbeginn: als kurzes Rot-Intervall teilen (Server kennt nur g, p, r)
  const p=o.p[o.p.length-1];if(p&&Math.abs(p-t)<1)add('p',p);
  PEND=PEND.slice(-500);LS.set('gw_pend',PEND);setTimeout(flushObs,3000)}
 let flushing=false;
@@ -1499,7 +1537,7 @@ $('exp').onclick=async()=>{const name='gruenwelle-daten-'+new Date().toISOString
  const blob=new Blob([txt],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000)};
 $('copy').onclick=async()=>{try{await navigator.clipboard.writeText(exportText());toast('Daten kopiert')}catch(e){toast('Kopieren nicht erlaubt')}};
 $('imp').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const j=JSON.parse(await f.text());
- for(const k in j.obs||{}){const o=OBS[k]||(OBS[k]={g:[],p:[],r:[]}),n=j.obs[k];for(const x of['g','p','r'])if(Array.isArray(n[x]))o[x]=[...new Map([...o[x],...n[x]].map(v=>[JSON.stringify(v),v])).values()].slice(-200)}
+ for(const k in j.obs||{}){const o=OBS[k]||(OBS[k]={g:[],p:[],r:[]}),n=j.obs[k];for(const x of['g','p','r','q'])if(Array.isArray(n[x]))o[x]=[...new Map([...o[x],...n[x]].map(v=>[JSON.stringify(v),v])).values()].slice(-200)}
  for(const r of j.reports||[])if(TYPES[r.type]&&!REPS.some(x=>x.id===r.id))REPS.push(r);
  let nf=0;for(const f of j.favs||[])if(f&&isFinite(f.lat)&&isFinite(f.lon)&&!FAV.some(x=>x.id===f.id||dist(x,f)<15)){FAV.push(f);nf++}
  const ns=j.set&&typeof j.set==='object';if(ns){Object.assign(set,j.set);saveSet()}
@@ -1607,7 +1645,7 @@ async function checkUpdate(){try{const r=await fetch('./?v='+Date.now(),{cache:'
   let n=0;try{n=+sessionStorage.getItem('gw_upd')||0}catch(e){}if(n>2)return;try{sessionStorage.setItem('gw_upd',n+1)}catch(e){}
   location.replace(location.pathname+'?v='+encodeURIComponent(m[1]))}}catch(e){}}
 setTimeout(checkUpdate,1500);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});drawSignals();drawReps();renderLearn();loadFile();setBlitz();loadWorks();loadTrams();
-if(location.hostname=='gw.test')window.__gw={OPS,fitT:(o,ts)=>{OBS={'t_0':o};fitCache.clear();return ts.map(t=>{const m=fit('t_0',t);if(!m.ok)return null;return[phaseOf(m,t).st,m.C,typeof canAdvise==='function'?canAdvise(m):m.conf>0]})},works:()=>WORKS&&WORKS.length,workState:()=>workState,pvr:()=>PVR.map(R=>({km:R.total,t:R.duration,src:R.src,best:R.best,m:R.m&&{sig:R.m.sig,turns:R.m.turns,left:R.m.left,hw:R.m.hw,inc:R.m.inc.length,fuel:R.m.fuel},sel:R===PREVIEW})),navCrit:()=>NAV&&NAV.crit,navKm:()=>NAV&&NAV.total,reroute,preview,trips:()=>(tripSave(),TRIPS),renderTrips,cam:()=>({camState,n:CAMS?CAMS.length:0}),camReset:()=>{camTry=0},actx:()=>actx,audioState,WX:()=>WX,drawWx,VWD:()=>VWD,loadVwd,vwdAhead,VL,ANN:()=>ANN,annAt,condMs,wayLimit,OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr,map,SIM};
+if(location.hostname=='gw.test')window.__gw={OPS,onFix:x=>onFix(x),addSig:(id,lat,lon)=>SIG.set(id,{id,lat,lon}),obs:()=>OBS,sig1:(la,lo)=>{let b=null;for(const x of SIG.values()){const d=dist({lat:la,lon:lo},x);if(!b||d<b.d)b={d,id:x.id,lat:x.lat,lon:x.lon}}return b},fitT:(o,ts)=>{OBS={'t_0':o};fitCache.clear();return ts.map(t=>{const m=fit('t_0',t);if(!m.ok)return null;return[phaseOf(m,t).st,m.C,typeof canAdvise==='function'?canAdvise(m):m.conf>0]})},works:()=>WORKS&&WORKS.length,workState:()=>workState,pvr:()=>PVR.map(R=>({km:R.total,t:R.duration,src:R.src,best:R.best,m:R.m&&{sig:R.m.sig,turns:R.m.turns,left:R.m.left,hw:R.m.hw,inc:R.m.inc.length,fuel:R.m.fuel},sel:R===PREVIEW})),navCrit:()=>NAV&&NAV.crit,navKm:()=>NAV&&NAV.total,reroute,preview,trips:()=>(tripSave(),TRIPS),renderTrips,cam:()=>({camState,n:CAMS?CAMS.length:0}),camReset:()=>{camTry=0},actx:()=>actx,audioState,WX:()=>WX,drawWx,VWD:()=>VWD,loadVwd,vwdAhead,VL,ANN:()=>ANN,annAt,condMs,wayLimit,OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr,map,SIM};
 $('startInfo').textContent=(Object.keys(OBS).length?`Bisher gelernt: ${Object.keys(OBS).length} Ampel-Richtungen. `:'')+'Version '+APP_VERSION;
 
 }
