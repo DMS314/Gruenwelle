@@ -1,0 +1,21 @@
+name: probe
+on: {push: {paths: ['.github/workflows/probe.yml']}, workflow_dispatch: {}}
+jobs:
+  p:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          A="12.43500,51.32540"; B="12.38220,51.34510"; C="12.37,51.30"; D="12.47,51.40"
+          H='-H Origin:https://dms314.github.io'
+          echo "== OSRM alternatives=3"; curl -s -m 30 -D h1 $H "https://routing.openstreetmap.de/routed-car/route/v1/driving/$A;$B?overview=false&alternatives=3&steps=false" | python3 -c "import json,sys;j=json.load(sys.stdin);print(j.get('code'),[(round(r['distance']),round(r['duration'])) for r in j.get('routes',[])])"; grep -i access-control h1
+          echo "== OSRM long alternatives"; curl -s -m 30 "https://routing.openstreetmap.de/routed-car/route/v1/driving/$C;$D?overview=false&alternatives=3" | python3 -c "import json,sys;j=json.load(sys.stdin);print(j.get('code'),[(round(r['distance']),round(r['duration'])) for r in j.get('routes',[])])"
+          echo "== OSRM exclude=motorway"; curl -s -m 30 "https://routing.openstreetmap.de/routed-car/route/v1/driving/$C;$D?overview=false&exclude=motorway" | head -c 300; echo
+          echo "== OSRM project-osrm exclude=motorway"; curl -s -m 30 "https://router.project-osrm.org/route/v1/driving/$C;$D?overview=false&exclude=motorway" | head -c 300; echo
+          echo "== OSRM via point"; curl -s -m 30 "https://routing.openstreetmap.de/routed-car/route/v1/driving/$A;12.40,51.33;$B?overview=false" | head -c 200; echo
+          for V in valhalla1.openstreetmap.de valhalla.openstreetmap.de; do
+          echo "== Valhalla $V shortest"; curl -s -m 30 -D h2 $H "https://$V/route" -H 'Content-Type: application/json' -d '{"locations":[{"lat":51.3254,"lon":12.435},{"lat":51.3451,"lon":12.3822}],"costing":"auto","costing_options":{"auto":{"shortest":true}},"units":"km","language":"de-DE"}' | python3 -c "import json,sys;j=json.load(sys.stdin);s=j.get('trip',{}).get('summary',{});print(s.get('length'),s.get('time'),j.get('error'),str(j)[:200] if not s else '')"; grep -i 'access-control\|^HTTP' h2
+          echo "== Valhalla $V alternates"; curl -s -m 30 "https://$V/route" -H 'Content-Type: application/json' -d '{"locations":[{"lat":51.30,"lon":12.37},{"lat":51.40,"lon":12.47}],"costing":"auto","alternates":2,"units":"km"}' | python3 -c "import json,sys;j=json.load(sys.stdin);print(j.get('trip',{}).get('summary',{}).get('length'),[a['trip']['summary']['length'] for a in j.get('alternates',[])],j.get('error'))"
+          echo "== Valhalla $V use_highways 0"; curl -s -m 30 "https://$V/route" -H 'Content-Type: application/json' -d '{"locations":[{"lat":51.30,"lon":12.37},{"lat":51.40,"lon":12.47}],"costing":"auto","costing_options":{"auto":{"use_highways":0}},"units":"km"}' | python3 -c "import json,sys;j=json.load(sys.stdin);print(j.get('trip',{}).get('summary',{}),j.get('error'))"
+          echo "== Valhalla $V exclude_polygons + osrm format"; curl -s -m 30 "https://$V/route" -H 'Content-Type: application/json' -d '{"locations":[{"lat":51.3254,"lon":12.435},{"lat":51.3451,"lon":12.3822}],"costing":"auto","format":"osrm","shape_format":"geojson","banner_instructions":true,"exclude_polygons":[[[12.40,51.33],[12.41,51.33],[12.41,51.34],[12.40,51.34],[12.40,51.33]]],"units":"km","language":"de-DE"}' | python3 -c "
+          import json,sys;j=json.load(sys.stdin);r=(j.get('routes') or [{}])[0];print(j.get('code'),round(r.get('distance',0)),round(r.get('duration',0)));st=r.get('legs',[{}])[0].get('steps',[]);print(len(st),json.dumps(st[1] if len(st)>1 else {},ensure_ascii=False)[:900])"
+          done
