@@ -177,6 +177,7 @@ input[type=search]{width:100%;font:inherit;font-size:17px;border:1px solid var(-
 .res button .dk{float:right;color:var(--mute);font-size:13px;margin-left:8px}
 .savebtn{display:flex;align-items:center;gap:8px;width:100%;margin-top:10px;font-size:15px}
 .pin{width:30px;height:40px;pointer-events:none}.pin svg{width:30px;height:40px;filter:drop-shadow(0 2px 3px #0006)}
+.lnk{font:inherit;font-size:inherit;color:#33ccff;background:none;border:0;padding:0;text-decoration:underline;cursor:pointer}
 .rcrit{display:flex;gap:6px;overflow-x:auto;margin:10px -4px 8px;padding:0 4px 4px;scrollbar-width:none}.rcrit::-webkit-scrollbar{display:none}.rcrit .chip{flex:none;min-height:36px;padding:0 12px;font-size:14px}
 .rlist{display:flex;flex-direction:column;gap:8px;margin:4px 0 10px}
 .rcard{font:inherit;text-align:left;color:var(--ink);background:none;border:1px solid var(--line);border-radius:14px;padding:10px 12px;cursor:pointer;display:block;width:100%}
@@ -344,7 +345,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='27.11.2026 · 6';
+const APP_VERSION='27.11.2026 · 7';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -1090,6 +1091,26 @@ async function fetchOsrm(a,b,alt=0,ms=20000){
   if(!r.ok)throw new Error(r.status);const j=await r.json();if(j.code!=='Ok'||!j.routes||!j.routes.length)throw new Error(j.code);j.routes.forEach(x=>x._src='osrm');return j.routes}catch(e){}}
  return null}
 async function fetchRoute(a,b){const L=await fetchOsrm(a,b);return L&&L[0]}
+// Große Ziele (Einkaufszentrum, Klinik, Stadion, Messe …): Der Suchpunkt liegt oft irgendwo am Gebäude (Paunsdorf Center: Rückseite an
+// der Paunsdorfer Allee), die Route endet dann am Lieferhof. Stattdessen zum größten öffentlichen Parkplatz in der Nähe führen (Einfahrt, sonst Mitte).
+const BIGPOI=[['shop','mall|department_store'],['amenity','hospital|university|college|exhibition_centre|conference_centre|theatre|cinema'],['leisure','stadium|sports_centre|water_park'],['tourism','zoo|theme_park|museum']];
+async function parkingDest(dest){if(!dest||dest.noPark||dest.park||dest.hn||set.mode==='rad')return dest;
+ const kOk=dest.kind&&BIGPOI.some(([k,v])=>new RegExp('^'+k+'=('+v+')$').test(dest.kind));if(dest.kind&&!kOk)return dest;
+ const A=`(around:%R,${dest.lat.toFixed(6)},${dest.lon.toFixed(6)})`;
+ const q=`[out:json][timeout:15];(${BIGPOI.map(([k,v])=>`nwr["${k}"~"^(${v})$"]${A.replace('%R',kOk?60:120)};`).join('')})->.p;.p out tags center;(way[amenity=parking]${A.replace('%R',400)};relation[amenity=parking]${A.replace('%R',400)};node[amenity=parking_entrance]${A.replace('%R',450)};);out geom;`;
+ try{const j=await Promise.race([overpass(q,9000),new Promise((_,r)=>setTimeout(()=>r(new Error('Zeit')),9000))]);const E=j.elements||[];
+  const poi=E.find(e=>e.tags&&BIGPOI.some(([k,v])=>new RegExp('^('+v+')$').test(e.tags[k]||'')));if(!poi&&!kOk)return dest;
+  const P=e=>{const ring=(e.geometry||(e.members||[]).flatMap(m=>m.geometry||[])).map(g=>({lat:g.lat,lon:g.lon}));return ring};
+  const area=r=>{if(r.length<3)return 0;const o=r[0];let a=0;for(let i=1;i<r.length-1;i++){const x1=(r[i].lon-o.lon)*69600,y1=(r[i].lat-o.lat)*111000,x2=(r[i+1].lon-o.lon)*69600,y2=(r[i+1].lat-o.lat)*111000;a+=x1*y2-x2*y1}return Math.abs(a)/2};
+  let best=null;for(const e of E){const t=e.tags||{};if(t.amenity!=='parking'||e.type==='node')continue;if(/^(private|no|delivery|permit|employees)$/.test(t.access||''))continue;if(/^(street_side|lane|on_street)$/.test(t.parking||''))continue;
+   const r=P(e);const a=area(r)*(t.parking==='multi-storey'?1.5:1);if(a<800)continue;const c={lat:r.reduce((s,x)=>s+x.lat,0)/r.length,lon:r.reduce((s,x)=>s+x.lon,0)/r.length};
+   if(!best||a>best.a)best={a,r,c,t}}
+  if(!best)return dest;
+  let ent=null,ed=1e9;for(const e of E)if(e.type==='node'&&e.tags&&e.tags.amenity==='parking_entrance'){let d=1e9;for(let i=0;i<best.r.length-1;i++){const a=best.r[i],b=best.r[i+1],ax=0,ay=0,bx=(b.lon-a.lon)*69600,by=(b.lat-a.lat)*111000,px=(e.lon-a.lon)*69600,py=(e.lat-a.lat)*111000,L=bx*bx+by*by,t=L?Math.max(0,Math.min(1,(px*bx+py*by)/L)):0;d=Math.min(d,Math.hypot(px-t*bx,py-t*by))}if(d<40&&d<ed){ed=d;ent=e}}
+  const tgt=ent?{lat:ent.lat,lon:ent.lon}:best.c,nm=best.t.name||(best.t.parking==='multi-storey'?'Parkhaus':'Parkplatz');
+  tripEv('ziel','Parkplatz statt Gebäudepunkt',dest.name,nm,Math.round(dist(dest,tgt)));
+  return{...dest,lat:tgt.lat,lon:tgt.lon,park:{name:nm+(ent?' (Einfahrt)':''),orig:{lat:dest.lat,lon:dest.lon}}}}
+ catch(e){return dest}}
 // Valhalla (FOSSGIS): kann kürzeste Strecke, ohne Autobahn, Bereiche umfahren; Antwort im OSRM-Format (gleiche Schritte und Spuren). GET statt POST: kein CORS-Vorabcheck.
 const VALHALLA='https://valhalla1.openstreetmap.de/route';
 async function fetchValhalla(a,b,o={},ms=15000){const cost=set.mode==='rad'?'bicycle':'auto',co={};
@@ -1200,13 +1221,14 @@ function pickCrit(k){PVC=k;const best=rankRoutes(PVR,incidents());if(best[k])pic
 $('pvCrit').onclick=e=>{const b=e.target.closest('[data-pcrit]');if(b)pickCrit(b.dataset.pcrit)};
 $('pvRoutes').onclick=e=>{const b=e.target.closest('[data-ri]');if(b)pickRoute(+b.dataset.ri)};
 async function preview(dest){if(!cur){toast('Erst Fahrt starten');return}closeSheets();toast('Routen werden berechnet …');await loadWorks();
+ dest=await parkingDest(dest);
  const{list}=await routeCands(cur,dest,{heading:v>3?heading:null});if(!list.length){toast('Keine Route gefunden');return}
  PVR=[];for(const R of list)if(!PVR.some(x=>sameRoute(x,R)))PVR.push(R);
  PVR.sort((x,y)=>x.duration-y.duration);PVR=PVR.slice(0,6);PVR.forEach(computeOnRoute);
  let best=rankRoutes(PVR,incidents());PVR=PVR.filter((R,i)=>R.best.length||(i<3&&!R.m.block.length));best=rankRoutes(PVR,incidents());
  PVC=rcrit();PREVIEW=best[PVC]||PVR[0];tripEv('routes',PVR.map(R=>[R.src,Math.round(R.total),Math.round(R.duration),R.best.join('+')]));
  drawAlts();follow=false;
- $('toast').classList.remove('on');$('pvName').textContent=dest.name;$('pvAddr').textContent=dest.sub||'';renderPreview();$('prevSheet').classList.add('on');requestAnimationFrame(fitPreview);loadRouteSignals(PVR)}
+ $('toast').classList.remove('on');$('pvName').textContent=dest.name;$('pvAddr').innerHTML=dest.park?`Ziel: ${esc(dest.park.name)} · <button class="lnk" id="pvBldg">lieber direkt zum Gebäude</button>`:esc(dest.sub||'');if(dest.park)$('pvBldg').onclick=()=>preview({...dest.park.orig,name:dest.name,sub:dest.sub,noPark:true});renderPreview();$('prevSheet').classList.add('on');requestAnimationFrame(fitPreview);loadRouteSignals(PVR)}
 // alle Vorschläge oberhalb des Auswahlfensters zeigen
 function fitPreview(){if(!PVR.length)return;const la=PVR.flatMap(R=>R.ll.map(c=>c[0])),lo=PVR.flatMap(R=>R.ll.map(c=>c[1])),H=$('map').clientHeight,sh=Math.min(H*.7,$('prevSheet').offsetHeight||0);
  map.fitBounds([[Math.min(...lo),Math.min(...la)],[Math.max(...lo),Math.max(...la)]],{padding:{top:Math.min(90,H*.1),bottom:Math.max(60,sh+20),left:30,right:30},bearing:0,pitch:0,duration:700})}
@@ -1378,6 +1400,7 @@ function laneText(a,pl,far){if(!(a.narrow&&a.side==='middle'))return laneSay(a.s
 let laneUp=false;
 const setNavh=()=>document.documentElement.style.setProperty('--navh',$('nav').offsetHeight+'px');
 function laneMove(up){if(laneUp===up)return;laneUp=up;$('lanes').classList.toggle('on',up);$('nav').classList.toggle('lanes-on',up);requestAnimationFrame(setNavh);setTimeout(setNavh,400)}
+let laneSaid={t:'',at:0};
 function updateLanes(R){const el=$('lanes'),a=midNarrow(R)||laneAdvice(R);
  // Vorlauf: innerorts (Tempolimit bis 60) ab 300 m „einordnen“, ab 150 m „bleiben“; auf schnellen Straßen länger
  const town=effLim()<=60&&v<18,win=town?300:Math.max(600,v*25),farD=town?150:250;
@@ -1386,7 +1409,7 @@ function updateLanes(R){const el=$('lanes'),a=midNarrow(R)||laneAdvice(R);
  $('laneBox').innerHTML=a.D.lanes.map((l,i)=>`<div class="l ${a.lanes.includes(i)?'rec':l.ok?'ok':''}"><svg viewBox="0 0 48 48">${laneIcon(l.ind,laneUse(l,a.D,a.M))}</svg></div>`).join('');
  $('laneT').textContent=laneText(a,several,a.d>farD);
  {const nx=R.next>0?R.next:R.steps.length-1,cs=R.steps[nx],same=cs&&Math.abs(cs.s-a.M.s)<2;$('laneS').textContent=a.mid?(a.mid==1?'Danach einspurig':`Danach ${a.mid} Spuren`):same?'':`für ${lf(a.M.text)} in ${fmt(Math.max(0,a.M.s-R.s))}`}laneMove(true);
- const trig=town?290:Math.max(350,v*22);if(!a.D.said&&a.d<=trig){a.D.said=1;announce('lane',laneText(a,several,a.d>farD),a.side==='left'?-0.8:a.side==='right'?0.8:0)}}
+ const trig=town?290:Math.max(350,v*22);if(!a.D.said&&a.d<=trig){a.D.said=1;const lt=laneText(a,several,a.d>farD);if(lt===laneSaid.t&&Date.now()-laneSaid.at<20000)return;laneSaid={t:lt,at:Date.now()};announce('lane',lt,a.side==='left'?-0.8:a.side==='right'?0.8:0)}}
 // Blitzerwarnung während der Navigation in die Navi-Karte holen, danach zurück an ihren Platz
 function blitzHome(inNav){const b=$('blitz'),main=document.querySelector('#nav .main');if(inNav){if(b.parentNode!==main)main.appendChild(b)}else if(b.parentNode===main)$('simBar').before(b);requestAnimationFrame(setNavh)}
 new MutationObserver(()=>{if(NAV)requestAnimationFrame(setNavh)}).observe($('blitz'),{attributes:true,attributeFilter:['class']});
@@ -1443,7 +1466,7 @@ async function search(q){const my=++qn;$('resInfo').textContent='Suche …';cons
  const base=`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&lat=${c.lat.toFixed(4)}&lon=${c.lon.toFixed(4)}&lang=de&location_bias_scale=0.1&zoom=12`,
   bb=[c.lon-0.45,c.lat-0.28,c.lon+0.45,c.lat+0.28].map(x=>x.toFixed(3)).join(',');
  const conv=f=>{const p=f.properties||{},[lon,lat]=f.geometry.coordinates,street=[p.street,p.housenumber].filter(Boolean).join(' ');
-   const name=p.name||street||p.city||'Ort',sub=[p.name&&street?street:'',[p.postcode,p.city||p.town||p.village].filter(Boolean).join(' ')].filter(Boolean).join(', ');return{name,sub,lat:+lat,lon:+lon}};
+   const name=p.name||street||p.city||'Ort',sub=[p.name&&street?street:'',[p.postcode,p.city||p.town||p.village].filter(Boolean).join(' ')].filter(Boolean).join(', ');return{name,sub,lat:+lat,lon:+lon,kind:p.osm_key&&p.osm_value?p.osm_key+'='+p.osm_value:'',hn:!!p.housenumber}};
  const get=u=>tfetch(u,{},10000).then(r=>r.json()).then(j=>(j.features||[]).map(conv).filter(x=>isFinite(x.lat))).catch(()=>null);
  const[near,all]=await Promise.all([get(base+'&limit=12&bbox='+bb),get(base+'&limit=8')]);if(my!==qn)return;
  if(!near&&!all){$('resInfo').textContent='Suche gerade nicht erreichbar.';return}
