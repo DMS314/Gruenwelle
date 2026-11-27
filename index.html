@@ -344,7 +344,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='26.11.2026 · 10';
+const APP_VERSION='27.11.2026 · 1';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -1188,10 +1188,16 @@ async function reroute(p){if(rerouting||!NAV)return;rerouting=true;NAV.last=p.t;
 const lf=t=>t?t[0].toLowerCase()+t.slice(1):'';
 const inDist=d=>'In '+(d>=1000?(Math.round(d/100)/10).toString().replace('.',',')+' Kilometern':(d>=100?Math.round(d/50)*50:Math.max(10,Math.round(d/10)*10))+' Metern');
 const farText=st=>st.st.maneuver.type=='arrive'?'erreichst du dein Ziel':lf(st.text);
+let arrStill=0;
 function updateNav(p){const R=NAV;if(!R)return;
  let q=snap(R,p.lat,p.lon,Math.max(0,R.i-5),R.i+80);if(q.d>40){const g=snap(R,p.lat,p.lon);if(g.d<q.d)q=g}
  if(!R.lpBusy&&(R.lpEnd==null||(R.s>R.lpEnd-3000&&R.lpEnd<R.total))&&Date.now()-(R.lpTry||0)>60000)fetchLaneProfile(R);
  R.off=q.d;if(q.d>45&&(p.acc||0)<35)R.offN++;else{R.offN=0;R.i=q.i;R.s=Math.max(R.s-15,q.s)}
+ // Am Ziel angekommen, auch wenn der Zielpunkt nicht genau erreicht wird (Parkplatz, Werkstor): abseits der Route nahe am Ziel
+ // oder 60 s Stillstand in Zielnähe (länger als eine Rotphase) beendet die Navigation, statt immer wieder neu zu berechnen
+ const dD=dist(p,R.dest);if(dD<200&&v<1){arrStill=arrStill||p.t;if(p.t-arrStill>60){arrStill=0;announce('arrive','Du bist am Ziel',0);toast('Ziel erreicht');endNav(true);return}}else arrStill=0;
+ if(arrStill)return;   // steht in Zielnähe: nicht neu berechnen
+ if(R.offN>=3&&dD<300&&R.total-R.s<600){announce('arrive','Du bist in der Nähe deines Ziels. Navigation beendet',0);toast('Ziel in der Nähe, Navigation beendet');endNav(true);return}
  if(R.offN>=3&&p.t-R.last>12){reroute(p);return}
  const rem=R.total-R.s;
  if(rem<30||dist(p,R.dest)<30){announce('arrive','Du hast dein Ziel erreicht',0);toast('Ziel erreicht');endNav(true);return}
@@ -1304,14 +1310,14 @@ let laneUp=false;
 const setNavh=()=>document.documentElement.style.setProperty('--navh',$('nav').offsetHeight+'px');
 function laneMove(up){if(laneUp===up)return;laneUp=up;$('lanes').classList.toggle('on',up);$('nav').classList.toggle('lanes-on',up);requestAnimationFrame(setNavh);setTimeout(setNavh,400)}
 function updateLanes(R){const el=$('lanes'),a=laneAdvice(R);
- // Vorlauf: innerorts (Tempolimit bis 60) 250 m, auf schnellen Straßen länger
- const town=effLim()<=60&&v<18,win=town?250:Math.max(600,v*25),farD=town?120:250;
+ // Vorlauf: innerorts (Tempolimit bis 60) ab 300 m „einordnen“, ab 150 m „bleiben“; auf schnellen Straßen länger
+ const town=effLim()<=60&&v<18,win=town?300:Math.max(600,v*25),farD=town?150:250;
  if(!a||a.d>win){laneMove(false);return}
  const n=a.D.lanes.length,several=a.lanes.length>1&&a.lanes.length<n;
  $('laneBox').innerHTML=a.D.lanes.map((l,i)=>`<div class="l ${a.lanes.includes(i)?'rec':l.ok?'ok':''}"><svg viewBox="0 0 48 48">${laneIcon(l.ind,laneUse(l,a.D,a.M))}</svg></div>`).join('');
  $('laneT').textContent=laneText(a,several,a.d>farD);
  {const nx=R.next>0?R.next:R.steps.length-1,cs=R.steps[nx],same=cs&&Math.abs(cs.s-a.M.s)<2;$('laneS').textContent=same?'':`für ${lf(a.M.text)} in ${fmt(Math.max(0,a.M.s-R.s))}`}laneMove(true);
- const trig=town?200:Math.max(350,v*22);if(!a.D.said&&a.d<=trig){a.D.said=1;announce('lane',laneText(a,several,a.d>farD),a.side==='left'?-0.8:a.side==='right'?0.8:0)}}
+ const trig=town?290:Math.max(350,v*22);if(!a.D.said&&a.d<=trig){a.D.said=1;announce('lane',laneText(a,several,a.d>farD),a.side==='left'?-0.8:a.side==='right'?0.8:0)}}
 // Blitzerwarnung während der Navigation in die Navi-Karte holen, danach zurück an ihren Platz
 function blitzHome(inNav){const b=$('blitz'),main=document.querySelector('#nav .main');if(inNav){if(b.parentNode!==main)main.appendChild(b)}else if(b.parentNode===main)$('simBar').before(b);requestAnimationFrame(setNavh)}
 new MutationObserver(()=>{if(NAV)requestAnimationFrame(setNavh)}).observe($('blitz'),{attributes:true,attributeFilter:['class']});
