@@ -83,11 +83,18 @@ html{background:var(--card)}body{background:var(--bg)}
 #nav .then{font-size:12px;font-weight:600;background:color-mix(in srgb,var(--blue) 22%,transparent);color:var(--ink);border-radius:10px;padding:3px 8px;white-space:nowrap;display:none;align-items:center;gap:4px;flex:none}
 #nav .then svg{width:16px;height:16px}#nav .then.on{display:inline-flex}
 #nav .chev{width:20px;height:20px;flex:none;color:var(--mute);transition:transform .25s}#nav.open .chev{transform:rotate(180deg)}
-#nav .main::before{content:'';position:absolute;left:0;top:0;bottom:0;width:var(--np,0%);z-index:-1;pointer-events:none;
- background:linear-gradient(90deg,color-mix(in srgb,var(--blue) 18%,transparent),color-mix(in srgb,var(--blue) 34%,transparent));
- border-right:3px solid color-mix(in srgb,var(--blue) 70%,transparent);transition:width 1s linear,background .4s}
-#nav[data-np="0"] .main::before{border-right-width:0}#nav.npj .main::before{transition:none}
-#nav.near .main::before{background:linear-gradient(90deg,color-mix(in srgb,var(--blue) 30%,transparent),color-mix(in srgb,var(--blue) 50%,transparent))}
+/* Annäherung: füllt sich in Abbiegerichtung (rechts abbiegen: von links nach rechts, links: von rechts nach links), vorne ein leuchtender Pfeil */
+#nav .main::before{content:'';position:absolute;left:0;top:0;bottom:0;width:var(--np,0%);z-index:-1;pointer-events:none;background:linear-gradient(90deg,color-mix(in srgb,var(--blue) 4%,transparent),color-mix(in srgb,var(--blue) 30%,transparent));transition:width 1s linear}
+#nav[data-dir=l] .main::before{left:auto;right:0;background:linear-gradient(270deg,color-mix(in srgb,var(--blue) 4%,transparent),color-mix(in srgb,var(--blue) 30%,transparent))}
+#nav.near .main::before{background:linear-gradient(90deg,color-mix(in srgb,var(--blue) 12%,transparent),color-mix(in srgb,var(--blue) 46%,transparent))}#nav.near[data-dir=l] .main::before{background:linear-gradient(270deg,color-mix(in srgb,var(--blue) 12%,transparent),color-mix(in srgb,var(--blue) 46%,transparent))}
+#nav .main::after{content:'';position:absolute;top:50%;width:16px;height:20px;margin-top:-10px;left:calc(var(--np,0%) - 13px);z-index:-1;pointer-events:none;
+ background:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2232%22%20height%3D%2240%22%20viewBox%3D%220%200%2032%2040%22%3E%3Cpath%20d%3D%22M8%208l12%2012-12%2012%22%20fill%3D%22none%22%20stroke%3D%22%230b1a26%22%20stroke-opacity%3D%22.35%22%20stroke-width%3D%229%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3Cpath%20d%3D%22M8%208l12%2012-12%2012%22%20fill%3D%22none%22%20stroke%3D%22%2333ccff%22%20stroke-width%3D%225.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E") center/contain no-repeat;filter:drop-shadow(0 0 5px color-mix(in srgb,var(--blue) 70%,transparent));transition:left 1s linear,right 1s linear,opacity .3s}
+#nav[data-dir=l] .main::after{left:auto;right:calc(var(--np,0%) - 13px);background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2232%22%20height%3D%2240%22%20viewBox%3D%220%200%2032%2040%22%3E%3Cpath%20d%3D%22M24%208L12%2020l12%2012%22%20fill%3D%22none%22%20stroke%3D%22%230b1a26%22%20stroke-opacity%3D%22.35%22%20stroke-width%3D%229%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3Cpath%20d%3D%22M24%208L12%2020l12%2012%22%20fill%3D%22none%22%20stroke%3D%22%2333ccff%22%20stroke-width%3D%225.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E")}
+#nav[data-np="0"] .main::after{opacity:0}#nav.npj .main::before,#nav.npj .main::after{transition:none}
+#nav.near .main::after{animation:npEdge .7s ease-in-out infinite alternate}@keyframes npEdge{to{filter:drop-shadow(0 0 9px var(--blue))}}
+@media (prefers-reduced-motion:reduce){#nav.near .main::after{animation:none}}
+#nav .ni{box-shadow:0 4px 12px -4px color-mix(in srgb,var(--blue) 70%,transparent),inset 0 -3px 0 color-mix(in srgb,#000 14%,transparent)}
+#nav .lanes .ln{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 8%,transparent)}
 #nav .more{display:none;padding:4px 12px 12px;border-top:1px solid color-mix(in srgb,var(--ink) 8%,transparent)}#nav.open .more{display:block}
 #nav .stp{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid color-mix(in srgb,var(--ink) 6%,transparent);font-size:14px}
 #nav .stp svg{width:22px;height:22px;flex:none;color:var(--blue)}#nav .stp em{font-style:normal;margin-left:auto;color:var(--mute);white-space:nowrap;padding-left:8px}
@@ -345,7 +352,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='27.11.2026 · 11';
+const APP_VERSION='27.11.2026 · 12';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -1140,6 +1147,8 @@ const ARR={
 function arrowSvg(kind,left){const[d,x,y,a]=ARR[kind];
  const g=`<path d="${d}" fill="none" stroke="currentColor" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M0 0L-10 -8.5L-10 8.5Z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round" transform="translate(${x} ${y}) rotate(${a})"/>`;
  return left?`<g transform="translate(48 0) scale(-1 1)">${g}</g>`:g}
+// Richtung der Annäherungsanzeige: links abbiegen/wenden → läuft nach links, sonst nach rechts (auch Kreisverkehr, geradeaus)
+function navDir(st){const m=st&&st.maneuver||{},mod=m.modifier||'';return /left|uturn/.test(mod)&&!/roundabout|rotary/.test(m.type||'')?'l':'r'}
 function navIcon(st){const m=st.maneuver||{},mod=m.modifier||'straight',left=/left/.test(mod);
  if(m.type=='arrive')return '<path d="M24 44s-12-12.5-12-22a12 12 0 0 1 24 0c0 9.5-12 22-12 22z" fill="currentColor"/><circle cx="24" cy="22" r="5" fill="var(--blue,#33ccff)"/>';
  if(/roundabout|rotary/.test(m.type)){const ex=Math.min(6,m.exit||1);return `<circle cx="24" cy="27" r="9" fill="none" stroke="currentColor" stroke-width="4.5"/><path d="M24 44V36" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>`+
@@ -1506,7 +1515,7 @@ function renderNav(){const R=NAV;if(!R)return;const el=$('nav');blitzHome(true);
  updateLanes(R);
  const nx=R.next>0?R.next:R.steps.length-1,st=R.steps[nx];
  if(st){const d=Math.max(0,st.s-R.s);$('navIco').innerHTML=navIcon(st.st);$('navD').textContent=fmt(d);$('navT').textContent=R.offN>0?'Abseits der Route':st.text;
-  const span=Math.min(500,st.s-(nx>0?R.steps[nx-1].s:0));{const pr=Math.max(0,Math.min(100,(1-d/Math.max(span,1))*100)),nv=$('nav');if(pr<(nv._np||0)-20){nv.classList.add('npj');void nv.offsetWidth}nv.style.setProperty('--np',pr.toFixed(1)+'%');nv._np=pr;if(nv.classList.contains('npj'))requestAnimationFrame(()=>requestAnimationFrame(()=>nv.classList.remove('npj')));nv.dataset.np=pr<0.5?'0':'1';nv.classList.toggle('near',d<60)}
+  const span=Math.min(500,st.s-(nx>0?R.steps[nx-1].s:0));{const pr=Math.max(0,Math.min(100,(1-d/Math.max(span,1))*100)),nv=$('nav'),dir=navDir(st.st);if(pr<(nv._np||0)-20||dir!==nv.dataset.dir){nv.classList.add('npj');nv.dataset.dir=dir;void nv.offsetWidth}nv.style.setProperty('--np',pr.toFixed(1)+'%');nv._np=pr;if(nv.classList.contains('npj'))requestAnimationFrame(()=>requestAnimationFrame(()=>nv.classList.remove('npj')));nv.dataset.np=pr<0.5?'0':'1';nv.classList.toggle('near',d<60)}
   const n2=R.steps[nx+1],th=$('navThen');
   if(n2&&n2.st.maneuver.type!=='arrive'&&n2.s-st.s<150){th.innerHTML='dann <svg viewBox="0 0 48 48">'+navIcon(n2.st)+'</svg>';th.classList.add('on')}else th.classList.remove('on');
   if(el.classList.contains('open')){$('navSteps').innerHTML=R.steps.slice(nx,nx+5).map(x=>`<div class="stp"><svg viewBox="0 0 48 48">${navIcon(x.st)}</svg><div>${esc(x.text)}</div><em>${fmt(Math.max(0,x.s-R.s))}</em></div>`).join('')}}
