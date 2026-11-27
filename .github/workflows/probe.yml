@@ -1,0 +1,23 @@
+name: probe
+on: {push: {paths: ['.github/workflows/probe.yml']}, workflow_dispatch: {}}
+jobs:
+  p:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          python3 - <<'P'
+          import json,urllib.request,math
+          P=(51.3958,12.4378)
+          def d(a,b):return math.hypot((a[1]-b[1])*69600,(a[0]-b[0])*111000)
+          for kind in ['closure','roadworks','warning','entry_exit']:
+              try:j=json.load(urllib.request.urlopen(f'https://verkehr.autobahn.de/o/autobahn/A14/services/{kind}',timeout=60))
+              except Exception as e:print(kind,'FEHLER',e);continue
+              items=j.get(kind) or j.get('roadworks') or j.get('closure') or j.get('warning') or j.get(list(j.keys())[0]) or []
+              print('==',kind,len(items),list(j.keys()))
+              for it in items:
+                  c=it.get('coordinate') or {};
+                  try:pt=(float(c['lat']),float(c['long']))
+                  except Exception:continue
+                  dd=d(pt,P)
+                  if dd<4000:print(round(dd),'m |',it.get('title'),'|',it.get('subtitle'),'| blocked',it.get('isBlocked'),'| future',it.get('future'),'|',' / '.join(it.get('description',[]))[:400])
+          P
