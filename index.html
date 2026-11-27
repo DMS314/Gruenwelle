@@ -344,7 +344,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='27.11.2026 · 1';
+const APP_VERSION='27.11.2026 · 2';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -842,10 +842,10 @@ function render(){
  if(!tgt||!tgt.s){sig.className='sig';lamps.forEach(e=>e.classList.remove('on'));$('cd').textContent='Keine Ampel voraus';$('hint').textContent=NAV?'Bis 500 m keine Ampel auf der Route':heading==null?'Richtung wird ermittelt, bitte losfahren':'Gute Fahrt';$('src').textContent='';$('band').style.width='0';lastTgt=null;return}
  const d=(tgt.rs!=null&&NAV)?Math.max(0,tgt.rs-NAV.s):dist(cur,tgt.s),m=fit(tgt.key,now);lastTgt=tgt.s.id;if(tgtId!==tgt.s.id){tgtId=tgt.s.id;updateSigs()}
  const waiting=appr&&appr.id===tgt.s.id&&appr.stopT&&!appr.departT&&d<60;
- if(!m.ok){const o=OBS[tgt.key]||{g:[],p:[]},gn=o.g.length,pn=o.p.length,qn=(o.q||[]).length;
+ if(!m.ok){const o=merged(tgt.key)||{g:[],p:[]},gn=o.g.length,pn=o.p.length,qn=(o.q||[]).length,ow=OBS[tgt.key],oth=Math.max(0,gn+pn+qn-(ow?ow.g.length+ow.p.length+(ow.q||[]).length:0));
   if(waiting){sig.className='sig';lamps.forEach(e=>e.classList.toggle('on',e.classList.contains('r')));$('cd').textContent='Rot · du wartest';$('hint').textContent='Die App merkt sich, wann es grün wird'}
   else{sig.className='sig unk';lamps.forEach(e=>e.classList.remove('on'));$('cd').textContent='Ampel in '+fmt(d);$('hint').textContent='Noch keine Schaltzeiten · vorausschauend fahren'}
-  $('src').textContent=gn||pn?`Lernt: ${gn} Halt${gn==1?'':'e'}${qn?` · ${qn}× angerollt`:''} · ${pn} Durchfahrt${pn==1?'':'en'}`:'Erste Fahrt hier, App lernt mit';$('band').style.width='0';return}
+  $('src').textContent=gn||pn?`Lernt: ${gn} Halt${gn==1?'':'e'}${qn?` · ${qn}× angerollt`:''} · ${pn} Durchfahrt${pn==1?'':'en'}${oth?` (${oth} von anderen)`:''}`:'Erste Fahrt hier, App lernt mit';$('band').style.width='0';return}
  const ph=phaseOf(m,now),lf=Math.max(1,Math.round(ph.left));sig.className='sig est';lamps.forEach(e=>e.classList.toggle('on',e.classList.contains(ph.st)));
  $('cd').textContent='ca. '+(ph.st=='g'?`Grün noch ${lf} s`:`Grün in ${lf} s`);
  const ca=canAdvise(m),a=ca?advice(m,d,now):null;
