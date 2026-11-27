@@ -28,7 +28,7 @@ with urllib.request.urlopen(req, timeout=120) as r:
 
 FOOT = re.compile(r'Gehweg|Fu(ß|ss)weg|Fu(ß|ss)g(ä|ae)nger|Radweg|Radverkehr|Gehbahn', re.I)
 CAR = re.compile(r'Fahrbahn|Fahrstreifen|Fahrspur|halbseitig|Einbahn|Ampel|LSA|Abbiege|Umleitung|gesperrt|Sperrung', re.I)
-items, n_block = [], 0
+items, n_block, stat = [], 0, {}
 for f in data.get('features', []):
     p = f.get('properties') or {}
     g = f.get('geometry') or {}
@@ -42,7 +42,12 @@ for f in data.get('features', []):
     if art in ('Sperrung Fußgängerverkehr', 'Sperrung Radverkehr'):
         continue
     full = art == 'Vollsperrung' or (re.search(r'Vollsperr|voll ?gesperrt', msg, re.I) and not FOOT.search(msg))
-    if not full and art not in ('Einschränkungen', 'halbseitige Sperrung') and not (msg and CAR.search(msg) and not FOOT.search(msg)):
+    # Nur was die Fahrbahn betrifft: Vollsperrung, halbseitige Sperrung oder eine Meldung, die Fahrbahn/Fahrstreifen/Ampel nennt.
+    # „Einschränkungen“ ohne Meldung sind meist Arbeiten am Gehweg oder Seitenstreifen (z. B. Telekommunikation an der Paunsdorfer Straße) → weglassen.
+    road = msg and CAR.search(msg) and not FOOT.search(msg)
+    stat[art or '(leer)', 'mit Meldung' if msg else 'ohne Meldung', 'Fahrbahn' if (full or art == 'halbseitige Sperrung' or road) else 'weg'] = \
+        stat.get((art or '(leer)', 'mit Meldung' if msg else 'ohne Meldung', 'Fahrbahn' if (full or art == 'halbseitige Sperrung' or road) else 'weg'), 0) + 1
+    if not full and art != 'halbseitige Sperrung' and not road:
         continue
     polys = g.get('coordinates') or []
     if g.get('type') == 'Polygon':
@@ -124,4 +129,6 @@ out = {'updated': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%
        'items': items}
 with open(dst, 'w', encoding='utf-8') as f:
     json.dump(out, f, ensure_ascii=False, separators=(',', ':'))
+for k in sorted(stat):
+    print('  ', k, stat[k])
 print(f'{len(items)} Einschränkungen geschrieben, davon {n_block} Vollsperrungen (von {len(data.get("features", []))})')
