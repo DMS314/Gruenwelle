@@ -295,7 +295,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
  <p class="small">Amtliche Warnungen des Deutschen Wetterdienstes (z. B. Glätte, Sturm, Gewitter, Nebel) für deinen Standort. Neue Warnungen ab Stufe orange werden angesagt.</p>
  <h3>Blitzer</h3><div class="row"><button class="chip" data-blitz="0">Aus</button><button class="chip" data-blitz="1">An</button></div>
  <p class="small">Zeigt feste Blitzer aus OpenStreetMap von Nutzern gemeldete mobile Blitzer (3 Stunden sichtbar, länger wenn bestätigt) sowie amtlich angekündigte Kontrollen des Tages als rot gestrichelte Straße (bisher nur Stadt Bonn, für Sachsen gibt es keine freie Quelle) und warnt beim Annähern: immer auf dem Bildschirm, mit Ton nur, wenn du schneller als erlaubt fährst. <b>In Deutschland ist die Nutzung während der Fahrt für Fahrer verboten (§ 23 Abs. 1c StVO, Bußgeld und Punkt), auch über das Handy des Beifahrers.</b> Einschalten auf eigene Verantwortung, z. B. zur Planung vor der Fahrt.</p>
- <h3>Farben</h3><div class="row"><button class="chip" data-theme="auto">Automatisch</button><button class="chip" data-theme="day">Tag</button><button class="chip" data-theme="night">Nacht</button></div>
+ <h3>Farben</h3><div class="row"><button class="chip" data-theme="auto">Automatisch</button><button class="chip" data-theme="day">Tag</button><button class="chip" data-theme="night">Nacht</button></div><p class="small" id="sunHint"></p>
  <h3>Fahrzeug</h3><div class="row"><button class="chip" data-mode="auto">Auto</button><button class="chip" data-mode="rad">Rad</button></div>
  <h3>Routenwahl</h3><div class="row" id="rcritSet" style="flex-wrap:wrap"></div>
  <p class="small">Welche Route bei der Zielwahl vorausgewählt ist und nach welchem Merkmal bei Abweichung neu geplant wird. Die anderen Vorschläge kannst du vor dem Losfahren antippen.</p>
@@ -345,7 +345,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='27.11.2026 · 10';
+const APP_VERSION='27.11.2026 · 11';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -418,7 +418,17 @@ map.on('load',()=>{
 const THEMES={
  day:{bg:'#e9ecef',land:'#e4e7ea',park:'#cdeac3',water:'#a9d8f3',bld:'#dadde1',bld3:'#d3d7dc',road:'#ffffff',major:'#ffe28a',motor:'#f9c04f',casing:'#c4cad0',text:'#3c4852',halo:'#ffffff',rcase:'#127fb0'},
  night:{bg:'#17212b',land:'#1c2732',park:'#1d3a2d',water:'#0d2d43',bld:'#26323e',bld3:'#2c3a47',road:'#3a4a58',major:'#6f5c2b',motor:'#8d6b20',casing:'#10171e',text:'#d6e0e8',halo:'#17212b',rcase:'#0a5576'}};
-const isNight=()=>set.theme==='night'||(set.theme==='auto'&&matchMedia('(prefers-color-scheme: dark)').matches);
+// Tag/Nacht automatisch nach Sonnenstand am eigenen Standort (wie im Navi), nicht nach dem iPhone-Design:
+// Nacht, wenn die Sonne tiefer als 2° unter dem Horizont steht (etwa 15 Min nach Sonnenuntergang), Tag ab 1° darunter (Hysterese)
+function sunAlt(lat,lon,t){const R=Math.PI/180,n=(t-946728000000)/864e5,L=(280.46+.9856474*n)%360,g=((357.528+.9856003*n)%360)*R,lam=(L+1.915*Math.sin(g)+.02*Math.sin(2*g))*R,eps=(23.439-4e-7*n)*R,
+ ra=Math.atan2(Math.cos(eps)*Math.sin(lam),Math.cos(lam)),dec=Math.asin(Math.sin(eps)*Math.sin(lam)),gmst=(18.697374558+24.06570982441908*n)%24,H=(gmst*15+lon)*R-ra;
+ return Math.asin(Math.sin(lat*R)*Math.sin(dec)+Math.cos(lat*R)*Math.cos(dec)*Math.cos(H))/R}
+let sunNight=null;
+const sunPos=()=>cur||LS.get('gw_lastpos',null)||{lat:51.34,lon:12.37};
+function sunIsNight(t=Date.now()){const p=sunPos(),a=sunAlt(p.lat,p.lon,t);sunNight=sunNight==null?a<-1.5:(sunNight?a<-1:a<-2);return sunNight}
+// nächster Wechsel (für die Einstellungen): in 5-Minuten-Schritten bis 24 h voraus
+function sunNext(){const p=sunPos(),now=Date.now(),n0=sunAlt(p.lat,p.lon,now)<-1.5;for(let t=now+3e5;t<now+864e5;t+=3e5){if((sunAlt(p.lat,p.lon,t)<-1.5)!==n0)return{night:!n0,t}}return null}
+const isNight=()=>set.theme==='night'||(set.theme==='auto'&&!!sunNight);
 function styleMap(){if(!map.getStyle())return;const T=THEMES[isNight()?'night':'day'],P=(id,k,v)=>{try{map.setPaintProperty(id,k,v)}catch(e){}};
  for(const l of map.getStyle().layers){const id=l.id,sl=l['source-layer']||'',f=id+' '+JSON.stringify(l.filter||'');
   if(id.startsWith('route')||['sigs','reps','dest'].includes(id))continue;
@@ -433,9 +443,14 @@ function styleMap(){if(!map.getStyle())return;const T=THEMES[isNight()?'night':'
  P('route-case','line-color',T.rcase);$('map').style.background=T.bg;document.documentElement.style.setProperty('--sky',T.bg);
  try{map.setSky({'sky-color':T.bg,'horizon-color':T.bg,'fog-color':T.bg,'sky-horizon-blend':1,'horizon-fog-blend':1,'fog-ground-blend':0.85,'atmosphere-blend':0})}catch(e){}
  for(const l of map.getStyle().layers){if(l.type==='symbol'&&(l['source-layer']==='poi'||/poi/.test(l.id))&&!/transit|station|bus|rail/.test(l.id)){try{map.setLayoutProperty(l.id,'visibility','none')}catch(e){}}}}
-function applyTheme(){const n=isNight();document.documentElement.dataset.ui=set.theme==='auto'?'':(n?'night':'day');
+function applyTheme(){if(set.theme==='auto')sunIsNight();const n=isNight();document.documentElement.dataset.ui=n?'night':'day';
  const tc=n?'#1d2935':'#ffffff';$('themeColor').setAttribute('content',tc);document.documentElement.style.backgroundColor=tc;if(mapReady||map.isStyleLoaded())styleMap()}
-try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',applyTheme)}catch(e){}
+// jede Minute prüfen, ob die Sonne den Wechsel ausgelöst hat; Position einmal je 10 Min merken (für den Start ohne GPS)
+let sunPosT=0;setInterval(()=>{if(cur&&Date.now()-sunPosT>6e5){sunPosT=Date.now();LS.set('gw_lastpos',{lat:+cur.lat.toFixed(3),lon:+cur.lon.toFixed(3)})}
+ if(set.theme!=='auto')return;const was=sunNight;sunIsNight();if(sunNight!==was){applyTheme();renderSunHint()}},60000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&set.theme==='auto'){const was=sunNight;sunIsNight();if(sunNight!==was)applyTheme();renderSunHint()}});
+function renderSunHint(){const el=$('sunHint');if(!el)return;if(set.theme!=='auto'){el.textContent='';return}const x=sunNext(),d=x&&new Date(x.t);
+ el.textContent='Automatisch nach Sonnenstand: jetzt '+(sunNight?'Nacht':'Tag')+(x?` · ${x.night?'Nacht':'Tag'} ab ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} Uhr`:'')}
 // ---------- Kartensymbole (SVG, doppelte Auflösung) ----------
 // Ampel im Comic-Stil (wie die Baustellen-Bake): dicke Kontur, kräftige Farben, Glanzpunkte.
 // lit=false: noch nicht gelernt (graues Gehäuse, matte Lichter); ring: nächste Ampel auf deinem Weg (blauer Schein)
@@ -1700,10 +1715,10 @@ document.addEventListener('click',e=>{const rc=e.target.closest('[data-rcrit]');
  const vw=e.target.closest('[data-vwd]');if(vw){set.vwd=+vw.dataset.vwd;saveSet();renderSet();if(set.vwd)loadVwd(true);else{drawVwd();$('alert').classList.remove('info')}}
  const vq=e.target.closest('[data-vlim]');if(vq){set.vlim=+vq.dataset.vlim;saveSet();renderSet();renderVL()}
  const bz=e.target.closest('[data-blitz]');if(bz){set.blitz=+bz.dataset.blitz;saveSet();renderSet();setBlitz()}
- const th=e.target.closest('[data-theme]');if(th){set.theme=th.dataset.theme;saveSet();renderSet();applyTheme()}
+ const th=e.target.closest('[data-theme]');if(th){set.theme=th.dataset.theme;saveSet();renderSet();applyTheme();renderSunHint()}
  const or=e.target.closest('[data-ori]');if(or){set.ori=or.dataset.ori;saveSet();renderSet();applyView(true)}
  const l=e.target.closest('[data-lim]');if(l){set.limit=+l.dataset.lim;saveSet();renderSet();render()}});
-renderSet();applyTheme();renderVol();
+renderSet();applyTheme();renderSunHint();renderVol();
 $('voiceSel').onchange=e=>{set.voice=e.target.value||'';voices=null;saveSet();unlockSpeech();say('Hallo, so klinge ich bei den Ansagen. In 300 Metern rechts abbiegen.')};
 $('voiceTry').onclick=()=>{voices=null;unlockSpeech();say('In 300 Metern rechts abbiegen in die Karl-Liebknecht-Straße. Danach links halten.')};
 {const top=document.querySelector('.top'),inNav=()=>document.getElementById('app').classList.contains('app-nav');
