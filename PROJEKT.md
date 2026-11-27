@@ -11,6 +11,9 @@ und Waze (Navigation, Meldungen der Nutzer). Teststadt Leipzig. Für viele Nutze
 - Repo: DMS314/Gruenwelle
 - Nutzer: kein Mac. Spricht Deutsch, testet auf dem iPhone im Auto.
 
+## Fokus: Leipzig (Vorgabe des Nutzers, 27.11.2026)
+Alle Planung und Begründungen auf Leipzig ausrichten. Andere Städte (z. B. Bonn) nicht als Argument oder Ziel anführen.
+
 ## Ziel: native iOS-App (Vorgabe des Nutzers, 26.11.2026)
 Die Web-App ist die Testphase, am Ende soll eine native App entstehen (geplant: Capacitor-Hülle um diese Web-App, Build ohne Mac über GitHub Actions/Cloud, Verteilung per TestFlight; später CarPlay, Hintergrund-GPS, alle Stimmen, iCloud-Sicherung). Jede Änderung so bauen, dass dieser Wechsel leicht bleibt:
 - Gerätezugriffe nur über wenige eigene Funktionen bündeln, damit sie später gegen native Plugins tauschbar sind: Speicher (`LS`), Position (`onFix`/watchPosition), Sprache/Ton (`say`, `beep`, `announce`), Teilen/Dateien (`tripShare`, Export), Wachhalten/Vollbild. Keine neuen direkten Aufrufe von `localStorage`, `speechSynthesis`, `navigator.geolocation` quer im Code.
