@@ -345,7 +345,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='27.11.2026 · 9';
+const APP_VERSION='27.11.2026 · 10';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -446,28 +446,81 @@ const AMPEL=(lit,ring)=>{const K='#1f1f1f',L=(cy,on,off)=>`<circle cx="16" cy="$
  `<rect x="5.5" y="3" width="21" height="36" rx="6" fill="${lit?'#ffd43b':'#ced4da'}" stroke="${K}" stroke-width="2.4"/><path d="M21.5 5.2h1.8a3.4 3.4 0 0 1 1.4 2.8v24a3.4 3.4 0 0 1-1.4 2.8h-1.8z" fill="${lit?'#fab005':'#adb5bd'}"/>`+
  L(11.5,'#ff5252','#8c4b4b')+L(21,'#ffd43b','#8c7d3c')+L(30.5,'#40c057','#4b7a57')+
  `<path d="M8 6.5Q8.5 5 10.5 4.8" stroke="#fff" stroke-width="1.4" fill="none" opacity=".8"/></svg>`};
-const BADGE=(bg,inner)=>`<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 40 40"><circle cx="20" cy="20" r="17" fill="${bg}" stroke="#fff" stroke-width="3"/><g fill="#fff" transform="translate(8 8)">${inner}</g></svg>`;
 const BAKE=(L,R)=>{const on='#ff922b',off='#8a4300',ray=(x,lit)=>lit?`<g stroke="#ff922b" stroke-width="2.6" stroke-linecap="round"><path d="M${x-9} 8l2.5 2.5M${x} 1.5v3M${x+9} 8l-2.5 2.5"/></g>`:'';
  return `<svg xmlns="http://www.w3.org/2000/svg" width="88" height="88" viewBox="0 0 64 64" stroke-linejoin="round" stroke-linecap="round"><defs><clipPath id="k"><rect x="5" y="22" width="54" height="15" rx="4"/></clipPath></defs>`+
  `<ellipse cx="32" cy="59" rx="25" ry="3" fill="#000" opacity=".25"/><rect x="14" y="33" width="6" height="24" rx="2" fill="#ced4da" stroke="#1f1f1f" stroke-width="3"/><rect x="44" y="33" width="6" height="24" rx="2" fill="#ced4da" stroke="#1f1f1f" stroke-width="3"/>`+
  `<rect x="5" y="22" width="54" height="15" rx="4" fill="#ffd43b"/><g clip-path="url(#k)" fill="#1f1f1f"><path d="M12 22h7l-8 15h-7zM26 22h7l-8 15h-7zM40 22h7l-8 15h-7zM54 22h7l-8 15h-7z"/></g><rect x="5" y="22" width="54" height="15" rx="4" fill="none" stroke="#1f1f1f" stroke-width="3"/>`+
  `<circle cx="17" cy="14" r="5.5" fill="${L?on:off}" stroke="#1f1f1f" stroke-width="3"/><circle cx="47" cy="14" r="5.5" fill="${R?on:off}" stroke="#1f1f1f" stroke-width="3"/>`+
  (L?'<circle cx="15.3" cy="12.3" r="1.6" fill="#fff"/>':'')+(R?'<circle cx="45.3" cy="12.3" r="1.6" fill="#fff"/>':'')+ray(17,L)+ray(47,R)+'</svg>'};
+const COMIC=(()=>{
+// Comic-Symbole: dicke dunkle Kontur, kräftige Farben, Glanzpunkte, Bodenschatten (wie Bake und Ampel)
+const K='#1f1f1f',SH=(cx=20,cy=37.6,rx=12)=>`<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="1.9" fill="#000" opacity=".25"/>`,
+ SVG=(w,h,vb,body)=>`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="${vb}" stroke-linejoin="round" stroke-linecap="round">${body}</svg>`,
+ GL=(x,y,r=1.1)=>`<circle cx="${x}" cy="${y}" r="${r}" fill="#fff" opacity=".9"/>`,
+ RAYS=(c,d)=>`<path d="${d}" stroke="${c}" stroke-width="2" fill="none"/>`;
+const C_BLITZ=SVG(84,84,'0 0 40 40',SH(20,37.6,9)+
+ `<rect x="18" y="22" width="4" height="15" rx="1.2" fill="#ced4da" stroke="${K}" stroke-width="1.8"/>`+
+ `<rect x="5" y="9" width="27" height="15" rx="3.5" fill="#ff5252" stroke="${K}" stroke-width="2.2"/><path d="M28 10.8h1a2 2 0 0 1 1.6 2v7.4a2 2 0 0 1-1.6 2h-1z" fill="#c92a2a"/>`+
+ `<circle cx="13.5" cy="16.5" r="5" fill="${K}"/><circle cx="13.5" cy="16.5" r="3" fill="#4dabf7"/>${GL(12.3,15.3)}`+
+ `<rect x="21" y="12.5" width="6" height="5" rx="1.4" fill="#fff3bf" stroke="${K}" stroke-width="1.6"/>`+
+ `<path d="M7.5 11.6h6" stroke="#fff" stroke-width="1.4" opacity=".75"/>`+RAYS('#fcc419','M29 7.5l2.6-2.8M31.5 12h3.6M27 5.6l.6-3.4'));
+const C_MOB=SVG(80,80,'0 0 40 40',SH(20,37.6,11)+
+ `<path d="M19.5 20L11 36M19.5 20L28 36M19.5 20v15" stroke="${K}" stroke-width="3"/><path d="M19.5 20L11 36M19.5 20L28 36M19.5 20v15" stroke="#ced4da" stroke-width="1.6"/>`+
+ `<rect x="7" y="8" width="22" height="13" rx="3.2" fill="#ff5252" stroke="${K}" stroke-width="2.2"/>`+
+ `<circle cx="14" cy="14.5" r="4.2" fill="${K}"/><circle cx="14" cy="14.5" r="2.4" fill="#4dabf7"/>${GL(13,13.5,.9)}`+
+ `<rect x="20.5" y="11" width="5.5" height="4.5" rx="1.2" fill="#fff3bf" stroke="${K}" stroke-width="1.5"/>`+RAYS('#fcc419','M28.5 6.3l2.6-2.8M31 10.6h3.6M26.6 4.4l.6-3.2'));
+const C_POL=SVG(80,80,'0 0 40 40',SH(20,37.6,14)+
+ `<rect x="8.5" y="29" width="5.5" height="6" rx="1.6" fill="${K}"/><rect x="26" y="29" width="5.5" height="6" rx="1.6" fill="${K}"/>`+
+ `<path d="M10.5 18l3-7.5h13l3 7.5z" fill="#a5d8ff" stroke="${K}" stroke-width="2.1"/><path d="M14.6 12.4l-1.4 3.8" stroke="#fff" stroke-width="1.3" opacity=".9"/>`+
+ `<rect x="5.5" y="17.5" width="29" height="13" rx="4.2" fill="#fff" stroke="${K}" stroke-width="2.2"/><path d="M6.6 22.2h26.8v3.6H6.6z" fill="#1c7ed6"/><rect x="5.5" y="17.5" width="29" height="13" rx="4.2" fill="none" stroke="${K}" stroke-width="2.2"/>`+
+ `<circle cx="10.6" cy="27" r="1.9" fill="#ffe066" stroke="${K}" stroke-width="1.3"/><circle cx="29.4" cy="27" r="1.9" fill="#ffe066" stroke="${K}" stroke-width="1.3"/>`+
+ `<rect x="16" y="5.6" width="8" height="5" rx="2.2" fill="#339af0" stroke="${K}" stroke-width="1.8"/>${GL(18,7.2,.9)}`+RAYS('#339af0','M13.2 5.2l-2.6-2.4M26.8 5.2l2.6-2.4M20 3.4V.9'));
+const STAR=(cx,cy,ro,ri,n)=>{let d='';for(let i=0;i<n*2;i++){const r=i%2?ri:ro,a=Math.PI*i/n-Math.PI/2;d+=(i?'L':'M')+(cx+r*Math.cos(a)).toFixed(2)+' '+(cy+r*Math.sin(a)).toFixed(2)}return d+'Z'};
+const C_UNF=SVG(80,80,'0 0 40 40',SH(20,37.6,13)+
+ `<path d="${STAR(20,15,14.5,8.2,9)}" fill="#ffd43b" stroke="${K}" stroke-width="2"/><path d="${STAR(20,15,8,4.6,9)}" fill="#ff922b"/>`+
+ `<g transform="rotate(-14 20 29)"><circle cx="13" cy="33.2" r="2.8" fill="${K}"/><circle cx="27" cy="33.2" r="2.8" fill="${K}"/>`+
+ `<path d="M12.5 24.5l3-4.8h8l3.6 4.8z" fill="#a5d8ff" stroke="${K}" stroke-width="1.8"/><rect x="7" y="24" width="26" height="8" rx="2.8" fill="#e5484d" stroke="${K}" stroke-width="2.1"/>`+
+ `<path d="M9.5 26.4h6" stroke="#fff" stroke-width="1.3" opacity=".8"/><circle cx="31" cy="27.2" r="1.3" fill="#ffe066" stroke="${K}" stroke-width="1"/></g>`);
+const CARR=(x,y,s,body,dark)=>`<g transform="translate(${x} ${y}) scale(${s})"><rect x="2.5" y="17" width="5" height="5.5" rx="1.5" fill="${K}"/><rect x="18.5" y="17" width="5" height="5.5" rx="1.5" fill="${K}"/>`+
+ `<path d="M4.5 8l2.6-6.4h11.8L21.5 8z" fill="#a5d8ff" stroke="${K}" stroke-width="2"/><rect x="1" y="7.5" width="24" height="11.5" rx="3.6" fill="${body}" stroke="${K}" stroke-width="2.1"/>`+
+ `<rect x="3" y="10.4" width="5" height="3" rx="1" fill="#ff5252" stroke="${K}" stroke-width="1.1"/><rect x="18" y="10.4" width="5" height="3" rx="1" fill="#ff5252" stroke="${K}" stroke-width="1.1"/>`+
+ `<rect x="9.8" y="13.8" width="6.4" height="2.8" rx=".6" fill="#fff" stroke="${K}" stroke-width=".9"/>`+(dark?'':`<path d="M8.4 3.6l-1.2 3" stroke="#fff" stroke-width="1.2" opacity=".9"/><circle cx="5.5" cy="11.9" r="3.6" fill="#ff5252" opacity=".35"/><circle cx="20.5" cy="11.9" r="3.6" fill="#ff5252" opacity=".35"/>`)+`</g>`;
+const C_STAU=SVG(80,80,'0 0 40 40',SH(18,37.6,13)+CARR(14,4,.78,'#ced4da',1)+CARR(3,13,1,'#ff922b',0));
+const C_GEF=SVG(80,80,'0 0 40 40',SH(20,37.6,13)+
+ `<path d="M14 32l-3.2 4.6M26 32l3.2 4.6" stroke="${K}" stroke-width="2.4"/>`+
+ `<path d="M20 3.5L36.5 32.5H3.5Z" fill="#f03e3e" stroke="${K}" stroke-width="2.3"/><path d="M20 11.5L29.6 28.4H10.4Z" fill="#fff"/>`+
+ `<rect x="18.6" y="15.4" width="2.8" height="7.6" rx="1.4" fill="${K}"/><circle cx="20" cy="25.6" r="1.6" fill="${K}"/><path d="M17.5 8.4l-2.6 4.6" stroke="#fff" stroke-width="1.3" opacity=".85"/>`);
+const C_TRAM=SVG(72,72,'0 0 40 40',SH(20,37.8,13)+
+ `<path d="M6 37.4h28" stroke="${K}" stroke-width="1.6"/><path d="M13.5 2.4h13M16.5 2.4l3.5 5 3.5-5" stroke="${K}" stroke-width="1.8" fill="none"/>`+
+ `<rect x="8" y="7.5" width="24" height="27" rx="6.5" fill="#1c7ed6" stroke="${K}" stroke-width="2.2"/><path d="M10.2 27.8h19.6v2.6a2.6 2.6 0 0 1-2.6 2.6H12.8a2.6 2.6 0 0 1-2.6-2.6z" fill="#fff" opacity=".9"/>`+
+ `<rect x="14" y="9.6" width="12" height="3" rx="1" fill="#ffd43b" stroke="${K}" stroke-width="1.2"/>`+
+ `<rect x="11" y="14.2" width="18" height="10" rx="2.6" fill="#a5d8ff" stroke="${K}" stroke-width="1.8"/><path d="M13.2 22l4.4-5.8M16.8 22l2.4-3.2" stroke="#fff" stroke-width="1.3" opacity=".9"/>`+
+ `<circle cx="13.4" cy="29.6" r="1.9" fill="#ffe066" stroke="${K}" stroke-width="1.3"/><circle cx="26.6" cy="29.6" r="1.9" fill="#ffe066" stroke="${K}" stroke-width="1.3"/>`+
+ `<path d="M10.6 10.8a3.6 3.6 0 0 1 2.6-1.4" stroke="#fff" stroke-width="1.2" opacity=".8" fill="none"/>`);
+const C_FAV=SVG(64,64,'0 0 40 40',SH(20,37.2,11)+
+ `<path d="${STAR(20,19,17,7.8,5)}" fill="#ffd43b" stroke="${K}" stroke-width="2.3"/><path d="M20 26.4L12.6 30.7l1.6-8.4" fill="#fab005"/><path d="${STAR(20,19,17,7.8,5)}" fill="none" stroke="${K}" stroke-width="2.3"/>`+
+ `<path d="M15.2 14.6l2.4-1.3" stroke="#fff" stroke-width="1.5" opacity=".9"/>`);
+const C_ZIEL=SVG(72,88,'0 0 36 44',`<ellipse cx="6" cy="42.2" rx="5" ry="1.4" fill="#000" opacity=".25"/>`+
+ `<rect x="4.2" y="4" width="3.6" height="38" rx="1.4" fill="#ced4da" stroke="${K}" stroke-width="1.8"/><circle cx="6" cy="3.6" r="2.6" fill="#ffd43b" stroke="${K}" stroke-width="1.6"/>`+
+ `<defs><clipPath id="f"><path d="M8 6q6-2.5 12 0t12 0v13q-6 2.5-12 0t-12 0z"/></clipPath></defs>`+
+ `<path d="M8 6q6-2.5 12 0t12 0v13q-6 2.5-12 0t-12 0z" fill="#fff"/><g clip-path="url(#f)" fill="${K}"><path d="M8 3h4v4.4H8zM16 3h4v4.4h-4zM24 3h4v4.4h-4zM12 7.4h4v4.4h-4zM20 7.4h4v4.4h-4zM28 7.4h4v4.4h-4zM8 11.8h4v4.4H8zM16 11.8h4v4.4h-4zM24 11.8h4v4.4h-4zM12 16.2h4v4.4h-4zM20 16.2h4v4.4h-4zM28 16.2h4v4.4h-4z"/></g>`+
+ `<path d="M8 6q6-2.5 12 0t12 0v13q-6 2.5-12 0t-12 0z" fill="none" stroke="${K}" stroke-width="2"/>`);
+// Vollsperrung: rot-weiße Absperrschranke mit roten Leuchten, gleiche Form wie die Bake
+const SPERR=()=>{const K='#1f1f1f';return `<svg xmlns="http://www.w3.org/2000/svg" width="88" height="88" viewBox="0 0 64 64" stroke-linejoin="round" stroke-linecap="round"><defs><clipPath id="s"><rect x="5" y="22" width="54" height="15" rx="4"/></clipPath></defs>`+
+ `<ellipse cx="32" cy="59" rx="25" ry="3" fill="#000" opacity=".25"/><rect x="14" y="33" width="6" height="24" rx="2" fill="#ced4da" stroke="${K}" stroke-width="3"/><rect x="44" y="33" width="6" height="24" rx="2" fill="#ced4da" stroke="${K}" stroke-width="3"/>`+
+ `<rect x="5" y="22" width="54" height="15" rx="4" fill="#fff"/><g clip-path="url(#s)" fill="#e5484d"><path d="M12 22h7l-8 15h-7zM26 22h7l-8 15h-7zM40 22h7l-8 15h-7zM54 22h7l-8 15h-7z"/></g><rect x="5" y="22" width="54" height="15" rx="4" fill="none" stroke="${K}" stroke-width="3"/>`+
+ `<circle cx="17" cy="14" r="5.5" fill="#ff5252" stroke="${K}" stroke-width="3"/><circle cx="47" cy="14" r="5.5" fill="#ff5252" stroke="${K}" stroke-width="3"/><circle cx="15.3" cy="12.3" r="1.6" fill="#fff"/><circle cx="45.3" cy="12.3" r="1.6" fill="#fff"/>`+
+ `<g stroke="#ff5252" stroke-width="2.6" stroke-linecap="round"><path d="M8 8l2.5 2.5M17 1.5v3M26 8l-2.5 2.5M38 8l2.5 2.5M47 1.5v3M56 8l-2.5 2.5"/></g></svg>`};
+return{C_BLITZ,C_MOB,C_POL,C_UNF,C_STAU,C_GEF,C_TRAM,C_FAV,C_ZIEL,SPERR}})();
 const ICONS={
  'ico-ampel-u':AMPEL(false,false),'ico-ampel-l':AMPEL(true,false),'ico-ampel-t':AMPEL(true,true),
- 'ico-blitz':`<svg xmlns="http://www.w3.org/2000/svg" width="84" height="84" viewBox="0 0 42 42"><rect x="2" y="2" width="38" height="38" rx="10" fill="#e53935" stroke="#fff" stroke-width="3"/><path d="M15 12h12l2 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V18a2 2 0 0 1 2-2h4z" fill="#fff"/><circle cx="21" cy="24" r="5.5" fill="#e53935"/><circle cx="21" cy="24" r="3" fill="#fff"/><path d="M29 9l3-4M33 12l4-2" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>`,
- 'ico-mob':BADGE('#e53935','<rect x="2" y="3" width="15" height="9" rx="2"/><circle cx="8.5" cy="7.5" r="2.4" fill="#e53935"/><path d="M17 5.5l4.5-2v8l-4.5-2z"/><path d="M9.5 12v4M9.5 16l-5 6M9.5 16l5 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round" fill="none"/>'),
- 'ico-pol':BADGE('#2f6fe0','<path d="M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5z"/>'),
- 'ico-unf':BADGE('#e5484d','<path d="M12 2l2.4 5.6 6-1.6-3.6 4.8 4.6 3.6-6 .6L14 21l-2-4.6L10 21l-1.4-6-6-.6 4.6-3.6L3.6 6l6 1.6z"/>'),
- 'ico-stau':BADGE('#d9480f','<rect x="3" y="4" width="18" height="4" rx="2"/><rect x="3" y="10" width="13" height="4" rx="2"/><rect x="3" y="16" width="8" height="4" rx="2"/>'),
- 'ico-gef':BADGE('#f08c00','<path d="M12 2L1.5 21h21zM11 9h2v6h-2zm0 8h2v2h-2z"/>'),
- // Baustelle: Comic-Bake mit zwei Warnleuchten (Wunsch Nutzer 27.11.). -l/-r: abwechselnd blinkend, ohne Zusatz: beide an
+ // Alle Kartensymbole im Comic-Stil (Wunsch Nutzer 27.11.): Blitzer fest/mobil, Polizei, Unfall, Stau, Gefahr, ÖPNV, Favorit, Ziel
+ 'ico-blitz':COMIC.C_BLITZ,'ico-mob':COMIC.C_MOB,'ico-pol':COMIC.C_POL,'ico-unf':COMIC.C_UNF,'ico-stau':COMIC.C_STAU,'ico-gef':COMIC.C_GEF,
+ // Baustelle: Comic-Bake mit zwei Warnleuchten. -l/-r: abwechselnd blinkend, ohne Zusatz: beide an
  'ico-bau':BAKE(1,1),'ico-bau-l':BAKE(1,0),'ico-bau-r':BAKE(0,1),
- // Vollsperrung: bis zur Auswahl eines eigenen Comic-Symbols das bisherige Baustellenzeichen in Rot
- 'ico-sperr':BADGE('#e5484d','<path d="M10 2h4l1.2 4H8.8zM8.2 8h7.6l1.3 4.5H6.9zM6.3 14.5h11.4L19 19H5zM3 20h18v2H3z"/>'),
- 'ico-tram':`<svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 36 36"><rect x="2" y="2" width="32" height="32" rx="9" fill="#0b74c4" stroke="#fff" stroke-width="3"/><path d="M12.5 7h11M18 7v3.5" stroke="#fff" stroke-width="2" stroke-linecap="round" fill="none"/><rect x="11" y="10.5" width="14" height="15" rx="3.5" fill="#fff"/><rect x="13.2" y="12.8" width="9.6" height="5.4" rx="1.3" fill="#0b74c4"/><circle cx="14.6" cy="21.6" r="1.4" fill="#0b74c4"/><circle cx="21.4" cy="21.6" r="1.4" fill="#0b74c4"/><path d="M13.5 25.5l-2.3 3.5M22.5 25.5l2.3 3.5" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>`,
- 'ico-fav':`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 32 32"><circle cx="16" cy="16" r="14" fill="#ffc83d" stroke="#fff" stroke-width="2.5"/><path d="M16 7.5l2.6 5.3 5.8.8-4.2 4.1 1 5.8L16 20.8l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z" fill="#fff" stroke="#b07d00" stroke-width="1.1" stroke-linejoin="round"/></svg>`,
- 'ico-ziel':`<svg xmlns="http://www.w3.org/2000/svg" width="72" height="88" viewBox="0 0 36 44"><path d="M5 42V4" stroke="#1d2329" stroke-width="3.5" stroke-linecap="round"/><path d="M6 4h26l-6 8 6 8H6z" fill="#fff" stroke="#1d2329" stroke-width="2"/><path d="M6 4h6.5v4H6zm13 0h6.5v4H19zM12.5 8H19v4h-6.5zm13 0H32l-3 4h-3.5zM6 12h6.5v4H6zm13 0h6.5v4H19zM12.5 16H19v4h-6.5zm13 0H29l3 4h-6.5z" fill="#1d2329"/></svg>`};
+ // Vollsperrung: rot-weiße Absperrschranke (gleiche Form wie die Bake)
+ 'ico-sperr':COMIC.SPERR(),
+ 'ico-tram':COMIC.C_TRAM,'ico-fav':COMIC.C_FAV,'ico-ziel':COMIC.C_ZIEL};
 function loadIcons(){for(const[name,svg]of Object.entries(ICONS)){if(map.hasImage(name))continue;const img=new Image();
  img.onload=()=>{try{if(!map.hasImage(name))map.addImage(name,img,{pixelRatio:2})}catch(e){}};img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg)}}
 const carEl=document.createElement('div');carEl.className='car';
