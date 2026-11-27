@@ -344,7 +344,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='27.11.2026 · 4';
+const APP_VERSION='27.11.2026 · 5';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -429,7 +429,15 @@ function applyTheme(){const n=isNight();document.documentElement.dataset.ui=set.
  const tc=n?'#1d2935':'#ffffff';$('themeColor').setAttribute('content',tc);document.documentElement.style.backgroundColor=tc;if(mapReady||map.isStyleLoaded())styleMap()}
 try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',applyTheme)}catch(e){}
 // ---------- Kartensymbole (SVG, doppelte Auflösung) ----------
-const AMPEL=(dim,ring)=>`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="104" viewBox="0 0 32 52">${ring?'<rect x="1" y="1" width="30" height="42" rx="9" fill="#33ccff"/>':''}<rect x="5" y="4" width="22" height="36" rx="6" fill="#1d2329" stroke="#fff" stroke-width="2"/><circle cx="16" cy="12" r="4.2" fill="#ff4d4f" opacity="${dim}"/><circle cx="16" cy="22" r="4.2" fill="#ffc72c" opacity="${dim}"/><circle cx="16" cy="32" r="4.2" fill="#1fbf5f" opacity="${dim}"/><path d="M16 40v11" stroke="#1d2329" stroke-width="3"/><path d="M16 40v11" stroke="#fff" stroke-width="1" opacity=".6"/></svg>`;
+// Ampel im Comic-Stil (wie die Baustellen-Bake): dicke Kontur, kräftige Farben, Glanzpunkte.
+// lit=false: noch nicht gelernt (graues Gehäuse, matte Lichter); ring: nächste Ampel auf deinem Weg (blauer Schein)
+const AMPEL=(lit,ring)=>{const K='#1f1f1f',L=(cy,on,off)=>`<circle cx="16" cy="${cy}" r="5.2" fill="${K}"/><circle cx="16" cy="${cy}" r="3.9" fill="${lit?on:off}"/>`+(lit?`<circle cx="14.6" cy="${cy-1.4}" r="1.1" fill="#fff" opacity=".9"/>`:'');
+ return `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="104" viewBox="0 0 32 52" stroke-linejoin="round" stroke-linecap="round">`+
+ (ring?'<rect x="1" y="0.5" width="30" height="42" rx="10" fill="#33ccff" opacity=".9"/>':'')+
+ `<ellipse cx="16" cy="50.5" rx="6" ry="1.4" fill="#000" opacity=".25"/><rect x="14" y="38" width="4" height="12" rx="1.2" fill="#adb5bd" stroke="${K}" stroke-width="1.6"/>`+
+ `<rect x="5.5" y="3" width="21" height="36" rx="6" fill="${lit?'#ffd43b':'#ced4da'}" stroke="${K}" stroke-width="2.4"/><path d="M21.5 5.2h1.8a3.4 3.4 0 0 1 1.4 2.8v24a3.4 3.4 0 0 1-1.4 2.8h-1.8z" fill="${lit?'#fab005':'#adb5bd'}"/>`+
+ L(11.5,'#ff5252','#8c4b4b')+L(21,'#ffd43b','#8c7d3c')+L(30.5,'#40c057','#4b7a57')+
+ `<path d="M8 6.5Q8.5 5 10.5 4.8" stroke="#fff" stroke-width="1.4" fill="none" opacity=".8"/></svg>`};
 const BADGE=(bg,inner)=>`<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 40 40"><circle cx="20" cy="20" r="17" fill="${bg}" stroke="#fff" stroke-width="3"/><g fill="#fff" transform="translate(8 8)">${inner}</g></svg>`;
 const BAKE=(L,R)=>{const on='#ff922b',off='#8a4300',ray=(x,lit)=>lit?`<g stroke="#ff922b" stroke-width="2.6" stroke-linecap="round"><path d="M${x-9} 8l2.5 2.5M${x} 1.5v3M${x+9} 8l-2.5 2.5"/></g>`:'';
  return `<svg xmlns="http://www.w3.org/2000/svg" width="88" height="88" viewBox="0 0 64 64" stroke-linejoin="round" stroke-linecap="round"><defs><clipPath id="k"><rect x="5" y="22" width="54" height="15" rx="4"/></clipPath></defs>`+
@@ -438,7 +446,7 @@ const BAKE=(L,R)=>{const on='#ff922b',off='#8a4300',ray=(x,lit)=>lit?`<g stroke=
  `<circle cx="17" cy="14" r="5.5" fill="${L?on:off}" stroke="#1f1f1f" stroke-width="3"/><circle cx="47" cy="14" r="5.5" fill="${R?on:off}" stroke="#1f1f1f" stroke-width="3"/>`+
  (L?'<circle cx="15.3" cy="12.3" r="1.6" fill="#fff"/>':'')+(R?'<circle cx="45.3" cy="12.3" r="1.6" fill="#fff"/>':'')+ray(17,L)+ray(47,R)+'</svg>'};
 const ICONS={
- 'ico-ampel-u':AMPEL(.35,false),'ico-ampel-l':AMPEL(1,false),'ico-ampel-t':AMPEL(1,true),
+ 'ico-ampel-u':AMPEL(false,false),'ico-ampel-l':AMPEL(true,false),'ico-ampel-t':AMPEL(true,true),
  'ico-blitz':`<svg xmlns="http://www.w3.org/2000/svg" width="84" height="84" viewBox="0 0 42 42"><rect x="2" y="2" width="38" height="38" rx="10" fill="#e53935" stroke="#fff" stroke-width="3"/><path d="M15 12h12l2 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V18a2 2 0 0 1 2-2h4z" fill="#fff"/><circle cx="21" cy="24" r="5.5" fill="#e53935"/><circle cx="21" cy="24" r="3" fill="#fff"/><path d="M29 9l3-4M33 12l4-2" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>`,
  'ico-mob':BADGE('#e53935','<rect x="2" y="3" width="15" height="9" rx="2"/><circle cx="8.5" cy="7.5" r="2.4" fill="#e53935"/><path d="M17 5.5l4.5-2v8l-4.5-2z"/><path d="M9.5 12v4M9.5 16l-5 6M9.5 16l5 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round" fill="none"/>'),
  'ico-pol':BADGE('#2f6fe0','<path d="M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5z"/>'),
@@ -505,8 +513,21 @@ window.addEventListener('resize',()=>{setTimeout(()=>{map.resize();applyView(tru
 const PREVIEW_ACTIVE=()=>typeof PREVIEW!=='undefined'&&!!PREVIEW;
 // Ampeln als GeoJSON (grau = unbekannt, gelb = gelernt, blau = nächste)
 let LEARNED=new Set(),tgtId=null,sigQueued=false;
-function updateSigs(){if(sigQueued)return;sigQueued=true;requestAnimationFrame(()=>{sigQueued=false;
- src('sigs',{type:'FeatureCollection',features:[...SIG.values()].map(x=>({type:'Feature',geometry:{type:'Point',coordinates:[x.lon,x.lat]},properties:{k:x.id===tgtId?'t':LEARNED.has(x.id)?'l':'u'}}))})})}
+// Eine Ampel je Kreuzung: Ampeln, die weniger als 40 m auseinander stehen, bilden eine Gruppe. Gezeigt wird die für deine
+// Fahrtrichtung zuständige: die nächste Ampel (Ziel), sonst die erste auf der Route, sonst die erste, die du in Fahrtrichtung erreichst.
+let sigCl=null,sigClN=-1,sigDrawT=0,sigDrawAt=null,sigDrawH=null;
+function sigClusters(){if(sigCl&&sigClN===SIG.size)return sigCl;const L=[...SIG.values()],cell=new Map(),par=L.map((_,i)=>i),f=i=>{while(par[i]!==i)i=par[i]=par[par[i]];return i};
+ const key=(a,b)=>a+','+b,cx=x=>Math.floor(x.lon/.0006),cy=x=>Math.floor(x.lat/.0004);
+ L.forEach((x,i)=>{const k=key(cx(x),cy(x));(cell.get(k)||cell.set(k,[]).get(k)).push(i)});
+ L.forEach((x,i)=>{for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)for(const j of cell.get(key(cx(x)+dx,cy(x)+dy))||[])if(j>i&&dist(x,L[j])<40)par[f(i)]=f(j)});
+ const G=new Map();L.forEach((x,i)=>{const r=f(i);(G.get(r)||G.set(r,[]).get(r)).push(x)});sigCl=[...G.values()];sigClN=SIG.size;return sigCl}
+function sigRep(g){if(g.length===1)return g[0];const t=g.find(x=>x.id===tgtId);if(t)return t;
+ if(NAV&&NAV.onRoute){let b=null;for(const o of NAV.onRoute)if(g.includes(o.sig)&&o.rs>=NAV.s-20&&(!b||o.rs<b.rs))b=o;if(b)return b.sig}
+ if(cur&&heading!=null){const c={lat:g.reduce((a,x)=>a+x.lat,0)/g.length,lon:g.reduce((a,x)=>a+x.lon,0)/g.length},dc=dist(cur,c);
+  if(dc<2000&&Math.abs(adiff(bearing(cur,c),heading))<70){let b=null,bd=1e9;for(const x of g){const d=dist(cur,x)*Math.cos(adiff(bearing(cur,x),heading)*RAD);if(d<bd){bd=d;b=x}}if(b)return b}}
+ const c={lat:g.reduce((a,x)=>a+x.lat,0)/g.length,lon:g.reduce((a,x)=>a+x.lon,0)/g.length};return g.reduce((b,x)=>dist(x,c)<dist(b,c)?x:b,g[0])}
+function updateSigs(){if(sigQueued)return;sigQueued=true;requestAnimationFrame(()=>{sigQueued=false;sigDrawT=Date.now();sigDrawAt=cur?{lat:cur.lat,lon:cur.lon}:null;sigDrawH=heading;
+ src('sigs',{type:'FeatureCollection',features:sigClusters().map(g=>{const x=sigRep(g);return{type:'Feature',geometry:{type:'Point',coordinates:[x.lon,x.lat]},properties:{k:x.id===tgtId?'t':g.some(y=>LEARNED.has(y.id))?'l':'u',n:g.length}}})})})}
 const drawSignals=()=>{updateSigs();
  $('sigs').textContent=SIG.size.toLocaleString('de-DE');if(typeof onSignalsChanged=='function')onSignalsChanged()};
 const TYPES={pol:{n:'Polizei',c:'#2f6fe0',h:2},unf:{n:'Unfall',c:'#e5484d',h:3},stau:{n:'Stau',c:'#d9480f',h:1},gef:{n:'Gefahr',c:'#f08c00',h:3},bau:{n:'Baustelle',c:'#e8590c',h:24*14},mob:{n:'Mobiler Blitzer',c:'#e53935',h:3}};
@@ -831,6 +852,7 @@ function onFix(pos){
  prev=p;cur=p;SM.fixT=performance.now();DIAG.fixes++;DIAG.acc=c.accuracy;
  $('gps').textContent='±'+Math.round(c.accuracy)+' m';$('gps').classList.toggle('warn',c.accuracy>30);
  applyView();
+ if(Date.now()-sigDrawT>3000&&(!sigDrawAt||dist(p,sigDrawAt)>80||(heading!=null&&sigDrawH!=null&&Math.abs(adiff(heading,sigDrawH))>30)))updateSigs();
  loadSignals(p);if(NAV){updateNav(p);if(NAV&&Date.now()-navMarkT>30000)navMark(true)}else if(!resumeTried)tryResume();updateVL(p);if(set.share){syncShared();fetchReports()}
  if(v<0.8&&!drive.halted){drive.halted=true;drive.stops++}if(v>3)drive.halted=false;
  // Annäherung an Ampel
@@ -1698,7 +1720,7 @@ async function checkUpdate(){try{const r=await fetch('./?v='+Date.now(),{cache:'
   let n=0;try{n=+sessionStorage.getItem('gw_upd')||0}catch(e){}if(n>2)return;try{sessionStorage.setItem('gw_upd',n+1)}catch(e){}
   location.replace(location.pathname+'?v='+encodeURIComponent(m[1]))}}catch(e){}}
 setTimeout(checkUpdate,1500);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});drawSignals();drawReps();renderLearn();loadFile();setBlitz();loadWorks();loadTrams();
-if(location.hostname=='gw.test')window.__gw={OPS,onFix:x=>onFix(x),addSig:(id,lat,lon)=>SIG.set(id,{id,lat,lon}),obs:()=>OBS,sig1:(la,lo)=>{let b=null;for(const x of SIG.values()){const d=dist({lat:la,lon:lo},x);if(!b||d<b.d)b={d,id:x.id,lat:x.lat,lon:x.lon}}return b},fitT:(o,ts)=>{OBS={'t_0':o};fitCache.clear();return ts.map(t=>{const m=fit('t_0',t);if(!m.ok)return null;return[phaseOf(m,t).st,m.C,typeof canAdvise==='function'?canAdvise(m):m.conf>0]})},works:()=>WORKS&&WORKS.length,workState:()=>workState,pvr:()=>PVR.map(R=>({km:R.total,t:R.duration,src:R.src,best:R.best,m:R.m&&{sig:R.m.sig,turns:R.m.turns,left:R.m.left,hw:R.m.hw,inc:R.m.inc.length,fuel:R.m.fuel},sel:R===PREVIEW})),navCrit:()=>NAV&&NAV.crit,navKm:()=>NAV&&NAV.total,reroute,preview,trips:()=>(tripSave(),TRIPS),renderTrips,cam:()=>({camState,n:CAMS?CAMS.length:0}),camReset:()=>{camTry=0},actx:()=>actx,audioState,WX:()=>WX,drawWx,VWD:()=>VWD,loadVwd,vwdAhead,VL,ANN:()=>ANN,annAt,condMs,wayLimit,OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr,map,SIM};
+if(location.hostname=='gw.test')window.__gw={OPS,sigDbg:(la,lo)=>sigClusters().filter(g=>g.some(x=>dist(x,{lat:la,lon:lo})<450)).map(g=>({rep:(r=>[r.id,+r.lat.toFixed(5),+r.lon.toFixed(5)])(sigRep(g)),m:g.map(x=>[+x.lat.toFixed(5),+x.lon.toFixed(5)])})),onFix:x=>onFix(x),addSig:(id,lat,lon)=>SIG.set(id,{id,lat,lon}),obs:()=>OBS,sig1:(la,lo)=>{let b=null;for(const x of SIG.values()){const d=dist({lat:la,lon:lo},x);if(!b||d<b.d)b={d,id:x.id,lat:x.lat,lon:x.lon}}return b},fitT:(o,ts)=>{OBS={'t_0':o};fitCache.clear();return ts.map(t=>{const m=fit('t_0',t);if(!m.ok)return null;return[phaseOf(m,t).st,m.C,typeof canAdvise==='function'?canAdvise(m):m.conf>0]})},works:()=>WORKS&&WORKS.length,workState:()=>workState,pvr:()=>PVR.map(R=>({km:R.total,t:R.duration,src:R.src,best:R.best,m:R.m&&{sig:R.m.sig,turns:R.m.turns,left:R.m.left,hw:R.m.hw,inc:R.m.inc.length,fuel:R.m.fuel},sel:R===PREVIEW})),navCrit:()=>NAV&&NAV.crit,navKm:()=>NAV&&NAV.total,reroute,preview,trips:()=>(tripSave(),TRIPS),renderTrips,cam:()=>({camState,n:CAMS?CAMS.length:0}),camReset:()=>{camTry=0},actx:()=>actx,audioState,WX:()=>WX,drawWx,VWD:()=>VWD,loadVwd,vwdAhead,VL,ANN:()=>ANN,annAt,condMs,wayLimit,OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr,map,SIM};
 $('startInfo').textContent=(Object.keys(OBS).length?`Bisher gelernt: ${Object.keys(OBS).length} Ampel-Richtungen. `:'')+'Version '+APP_VERSION;
 
 }
