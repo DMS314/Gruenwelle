@@ -124,8 +124,53 @@ if knots:
                 fixed += 1
     print(f'{len(knots)} Kreuzungs-Sperrungen geprüft, {fixed} Lage korrigiert')
 
+# ---- Autobahn GmbH: Sperrungen von Anschlussstellen (Liste „closure“; dort steht isBlocked oft auf false, obwohl die Rampe zu ist).
+# Nur Auf- und Abfahrten, keine Fahrstreifen-Einschränkungen auf der Hauptfahrbahn. Rampenlinie an beiden Enden kürzen,
+# damit die Sperrfläche nicht die durchgehende Autobahn oder die Stadtstraße berührt.
+n_ab = 0
+for road in ['A9', 'A14', 'A38', 'A72', 'A143']:
+    try:
+        req = urllib.request.Request(f'https://verkehr.autobahn.de/o/autobahn/{road}/services/closure', headers={'User-Agent': UA, 'Accept': 'application/json'})
+        with urllib.request.urlopen(req, timeout=60) as r:
+            cl = json.load(r).get('closure', [])
+    except Exception as e:
+        print(f'{road}: Sperrungen nicht abrufbar ({e})')
+        continue
+    for c in cl:
+        if str(c.get('future', '')).lower() == 'true':
+            continue
+        desc = [d.strip() for d in (c.get('description') or []) if isinstance(d, str) and d.strip()]
+        txt = ' '.join(desc)
+        ramp = re.search(r'\b(Auffahrt|Abfahrt)\b', txt)
+        if not ramp and 'Vollsperrung' not in (c.get('title') or '') + txt:
+            continue
+        g = (c.get('geometry') or {}).get('coordinates') or []
+        if g and isinstance(g[0], (int, float)):
+            g = [g]
+        if not g:
+            co = c.get('coordinate') or {}
+            try:
+                g = [[float(co['long']), float(co['lat'])]]
+            except Exception:
+                continue
+        if not (51.0 <= g[0][1] <= 51.75 and 11.8 <= g[0][0] <= 12.95):
+            continue
+        k = len(g) // 5 if len(g) >= 6 else 0          # je 20 % an den Enden weglassen
+        core = g[k:len(g) - k] if len(g) - 2 * k >= 2 else g
+        mid = core[len(core) // 2]
+        period = next((d for d in desc if d.startswith('Ende:')), '')
+        items.append({'id': 'abc-' + str(c.get('identifier', ''))[-40:], 'src': 'autobahn',
+                      'title': 'Sperrung: ' + (ramp.group(1) if ramp else 'Autobahn') + ' ' + re.sub(r'\s+-\s+.*$', '', (c.get('title') or road)).strip(),
+                      'sub': (('Rampe gesperrt' if ramp else 'Vollsperrung') + (' · ' + period.replace('Ende: ', 'bis ') if period else '')),
+                      'desc': desc[:8], 'lon': round(mid[0], 6), 'lat': round(mid[1], 6),
+                      'line': [[round(x, 6), round(y, 6)] for x, y in g], 'poly': [[round(x, 6), round(y, 6)] for x, y in core],
+                      'blocked': True})
+        n_ab += 1
+        n_block += 1
+print(f'{n_ab} gesperrte Autobahn-Auf-/Abfahrten')
+
 out = {'updated': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M UTC'),
-       'source': 'Stadt Leipzig, Verkehrs- und Tiefbauamt: Verkehrsraumeinschränkungen (opendata.leipzig.de)',
+       'source': 'Stadt Leipzig, Verkehrs- und Tiefbauamt: Verkehrsraumeinschränkungen (opendata.leipzig.de); Autobahn GmbH des Bundes (verkehr.autobahn.de)',
        'items': items}
 with open(dst, 'w', encoding='utf-8') as f:
     json.dump(out, f, ensure_ascii=False, separators=(',', ':'))
