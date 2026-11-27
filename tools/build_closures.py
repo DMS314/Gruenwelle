@@ -122,6 +122,20 @@ if knots:
                 it['desc'].append(f'Lage auf die Kreuzung laut OpenStreetMap gesetzt (Fläche der Stadt lag {dpoly:.0f} m daneben)')
                 it['fix'] = round(dpoly)
                 fixed += 1
+    if ways is None:
+        # Kartendienst nicht erreichbar: Korrekturen aus dem letzten Lauf übernehmen, damit sie nicht verloren gehen
+        try:
+            old = {i['id']: i for i in json.load(open(dst, encoding='utf-8')).get('items', []) if i.get('fix')}
+        except Exception:
+            old = {}
+        for it, nm in knots:
+            o = old.get(it['id'])
+            if o:
+                for k in ('poly', 'line', 'lat', 'lon', 'fix'):
+                    it[k] = o[k]
+                it['desc'].append(f"Lage auf die Kreuzung laut OpenStreetMap gesetzt (Fläche der Stadt lag {o['fix']} m daneben)")
+                fixed += 1
+        print(f'Kartendienst nicht erreichbar, {fixed} Korrekturen aus dem letzten Lauf übernommen')
     print(f'{len(knots)} Kreuzungs-Sperrungen geprüft, {fixed} Lage korrigiert')
 
 # ---- Autobahn GmbH: Sperrungen von Anschlussstellen (Liste „closure“; dort steht isBlocked oft auf false, obwohl die Rampe zu ist).
