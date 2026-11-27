@@ -344,7 +344,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='27.11.2026 · 5';
+const APP_VERSION='27.11.2026 · 6';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -515,12 +515,12 @@ const PREVIEW_ACTIVE=()=>typeof PREVIEW!=='undefined'&&!!PREVIEW;
 let LEARNED=new Set(),tgtId=null,sigQueued=false;
 // Eine Ampel je Kreuzung: Ampeln, die weniger als 40 m auseinander stehen, bilden eine Gruppe. Gezeigt wird die für deine
 // Fahrtrichtung zuständige: die nächste Ampel (Ziel), sonst die erste auf der Route, sonst die erste, die du in Fahrtrichtung erreichst.
-let sigCl=null,sigClN=-1,sigDrawT=0,sigDrawAt=null,sigDrawH=null;
+let sigCl=null,sigClIdx=new Map(),sigClN=-1,sigDrawT=0,sigDrawAt=null,sigDrawH=null;
 function sigClusters(){if(sigCl&&sigClN===SIG.size)return sigCl;const L=[...SIG.values()],cell=new Map(),par=L.map((_,i)=>i),f=i=>{while(par[i]!==i)i=par[i]=par[par[i]];return i};
  const key=(a,b)=>a+','+b,cx=x=>Math.floor(x.lon/.0006),cy=x=>Math.floor(x.lat/.0004);
  L.forEach((x,i)=>{const k=key(cx(x),cy(x));(cell.get(k)||cell.set(k,[]).get(k)).push(i)});
  L.forEach((x,i)=>{for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)for(const j of cell.get(key(cx(x)+dx,cy(x)+dy))||[])if(j>i&&dist(x,L[j])<40)par[f(i)]=f(j)});
- const G=new Map();L.forEach((x,i)=>{const r=f(i);(G.get(r)||G.set(r,[]).get(r)).push(x)});sigCl=[...G.values()];sigClN=SIG.size;return sigCl}
+ const G=new Map();L.forEach((x,i)=>{const r=f(i);(G.get(r)||G.set(r,[]).get(r)).push(x)});sigCl=[...G.values()];sigClN=SIG.size;sigClIdx=new Map();for(const g of sigCl)for(const x of g)sigClIdx.set(String(x.id),g);fitCache.clear();return sigCl}
 function sigRep(g){if(g.length===1)return g[0];const t=g.find(x=>x.id===tgtId);if(t)return t;
  if(NAV&&NAV.onRoute){let b=null;for(const o of NAV.onRoute)if(g.includes(o.sig)&&o.rs>=NAV.s-20&&(!b||o.rs<b.rs))b=o;if(b)return b.sig}
  if(cur&&heading!=null){const c={lat:g.reduce((a,x)=>a+x.lat,0)/g.length,lon:g.reduce((a,x)=>a+x.lon,0)/g.length},dc=dist(cur,c);
@@ -802,10 +802,25 @@ function fitCore(Gs,Ps,Rs){const W=Gs.reduce((s,x)=>s+x[1],0);if(W<1.4)return nu
  const rival=all.filter(c=>Math.abs(c.C-best.C)>1&&c.score>best.score*.9&&best.C%c.C!==0&&c.C%best.C!==0).map(c=>c.C);
  const nr=rival.filter((c,i)=>!rival.some((d,j)=>j<i&&Math.abs(d-c)<=1)).length,amb=nr>0;conf/=1+.35*nr;
  return{...best,conf:Math.max(0,Math.min(.97,conf)),amb,nr}}
+// Kreuzungsweit lernen: alle Ampeln einer Kreuzung (< 40 m, siehe sigClusters) hängen am selben Steuergerät.
+// Gleiche Richtung (andere Ampelknoten derselben Zufahrt) zählt fast voll, Gegenrichtung hat meist gleichzeitig Grün (0,6),
+// Querrichtung: deren Grünbeginn = unser Rot (Grün endet ca. 4 s vorher), deren Durchfahrt = unser Rot (0,4).
+// Die Fahrten hin (morgens) und zurück (abends) laufen über verschiedene OSM-Ampelknoten und zählen so trotzdem zusammen.
+function junctionObs(key){const i=key.lastIndexOf('_'),id=key.slice(0,i),sec=+key.slice(i+1);sigClusters();const g=sigClIdx.get(String(id));if(!g)return[];
+ const ids=new Set(g.map(x=>String(x.id))),h0=sec*45,out=[],ks=new Set([...Object.keys(OBS),...(set.share?Object.keys(SHOBS):[])]);
+ for(const k of ks){if(k===key)continue;const j=k.lastIndexOf('_');if(!ids.has(k.slice(0,j)))continue;const a=Math.abs(adiff(+k.slice(j+1)*45,h0));
+  const typ=a<35?'same':a>145?'opp':a>55&&a<125?'perp':null;if(typ){const o=merged(k);if(o)out.push([typ,o])}}
+ return out}
 function fit(key,now){
- const o=merged(key);if(!o)return{n:0};const Q=o.q||[];
- const n=o.g.length+o.p.length+Q.length,b=band(now),ck=key+':'+n+':'+b+':'+Math.floor(now/21600);if(fitCache.has(ck))return fitCache.get(ck);
- const mk=f=>({G:[...o.g.filter(f).map(t=>[t,ageW(t,now)]),...Q.filter(f).map(t=>[t,.5*ageW(t,now)])],P:o.p.filter(f).map(t=>[t,ageW(t,now)]),R:o.r.filter(x=>f(x[0])).map(([a,z])=>[a,z,ageW(a,now)])});
+ const o=merged(key)||{g:[],p:[],r:[]},J=junctionObs(key);if(!merged(key)&&!J.length)return{n:0};const Q=o.q||[];
+ const cnt=x=>x.g.length+x.p.length+(x.q||[]).length,nOwn=cnt(o),nJ=J.reduce((s,[,x])=>s+cnt(x),0),n=nOwn+nJ;
+ const b=band(now),ck=key+':'+n+':'+b+':'+Math.floor(now/21600);if(fitCache.has(ck))return fitCache.get(ck);
+ const WT={same:.85,opp:.6};
+ const mk=f=>{const G=[...o.g.filter(f).map(t=>[t,ageW(t,now)]),...Q.filter(f).map(t=>[t,.5*ageW(t,now)])],P=o.p.filter(f).map(t=>[t,ageW(t,now)]),R=o.r.filter(x=>f(x[0])).map(([a,z])=>[a,z,ageW(a,now)]);
+  for(const[typ,x]of J){if(WT[typ]){const w=WT[typ];for(const t of x.g)if(f(t))G.push([t,w*ageW(t,now)]);for(const t of x.q||[])if(f(t))G.push([t,.5*w*ageW(t,now)]);
+    for(const t of x.p)if(f(t))P.push([t,w*ageW(t,now)]);for(const[a,z]of x.r)if(f(a))R.push([a,z,w*ageW(a,now)])}
+   else{for(const t of x.g)if(f(t))R.push([t-4,t-.5,.5*ageW(t,now)]);for(const t of x.p)if(f(t))R.push([t-1,t+1,.4*ageW(t,now)])}}
+  return{G,P,R}};
  // Kandidaten: gleiche Tageszeit-Gruppe, gleiche Uhrzeit (±2 h) an beliebigen Tagen, alle Beobachtungen. Spezifischere werden leicht bevorzugt.
  const hr=ts=>{const d=new Date(ts*1000);return d.getHours()+d.getMinutes()/60},hn=hr(now),near=t=>{const x=Math.abs(hr(t)-hn);return Math.min(x,24-x)<=2};
  const wsum=X=>X.G.reduce((s,x)=>s+x[1],0),C=[];
@@ -815,8 +830,8 @@ function fit(key,now){
  let f=null,prog='',bs=-1;for(const[x,pn,k]of C)if(x&&x.conf*k>bs){bs=x.conf*k;f=x;prog=pn}
  // weicht die Umlaufzeit zur jetzigen Uhrzeit von der Gesamtschätzung ab, läuft vermutlich ein anderes Programm: Gesamtschätzung abwerten
  if(f===fa&&C.some(([x])=>x&&x!==fa&&Math.abs(x.C-fa.C)>1&&x.conf>.3))f={...fa,conf:fa.conf*.8};
- let res={n,ok:false};
- if(f){res={n,ok:f.conf>.35&&f.wi>=1.8,conf:f.conf,C:f.C,g0:f.g0,G:f.G,sd:f.sd,inl:f.inl,wi:f.wi,amb:f.amb,prog}}
+ let res={n,nOwn,nJ,ok:false};
+ if(f){res={n,nOwn,nJ,ok:f.conf>.35&&f.wi>=1.8,conf:f.conf,C:f.C,g0:f.g0,G:f.G,sd:f.sd,inl:f.inl,wi:f.wi,amb:f.amb,prog}}
  fitCache.set(ck,res);if(fitCache.size>400)fitCache.clear();return res}
 // Tempoempfehlung nur, wenn die Ampel regelmäßig schaltet und die Schätzung sicher genug ist
 const canAdvise=m=>!!(m&&m.ok&&m.conf>=.55&&m.sd<=3.5&&m.inl>=.7&&m.wi>=2.5&&!m.amb);
@@ -883,11 +898,11 @@ function render(){
  if(!m.ok){const o=merged(tgt.key)||{g:[],p:[]},gn=o.g.length,pn=o.p.length,qn=(o.q||[]).length,ow=OBS[tgt.key],oth=Math.max(0,gn+pn+qn-(ow?ow.g.length+ow.p.length+(ow.q||[]).length:0));
   if(waiting){sig.className='sig';lamps.forEach(e=>e.classList.toggle('on',e.classList.contains('r')));$('cd').textContent='Rot · du wartest';$('hint').textContent='Die App merkt sich, wann es grün wird'}
   else{sig.className='sig unk';lamps.forEach(e=>e.classList.remove('on'));$('cd').textContent='Ampel in '+fmt(d);$('hint').textContent='Noch keine Schaltzeiten · vorausschauend fahren'}
-  $('src').textContent=gn||pn?`Lernt: ${gn} Halt${gn==1?'':'e'}${qn?` · ${qn}× angerollt`:''} · ${pn} Durchfahrt${pn==1?'':'en'}${oth?` (${oth} von anderen)`:''}`:'Erste Fahrt hier, App lernt mit';$('band').style.width='0';return}
+  $('src').textContent=gn||pn?`Lernt: ${gn} Halt${gn==1?'':'e'}${qn?` · ${qn}× angerollt`:''} · ${pn} Durchfahrt${pn==1?'':'en'}${oth?` (${oth} von anderen)`:''}${m.nJ?` · Kreuzung: ${m.nJ} aus anderen Richtungen`:''}`:m.nJ?`Lernt über die Kreuzung: ${m.nJ} Beobachtungen aus anderen Richtungen`:'Erste Fahrt hier, App lernt mit';$('band').style.width='0';return}
  const ph=phaseOf(m,now),lf=Math.max(1,Math.round(ph.left));sig.className='sig est';lamps.forEach(e=>e.classList.toggle('on',e.classList.contains(ph.st)));
  $('cd').textContent='ca. '+(ph.st=='g'?`Grün noch ${lf} s`:`Grün in ${lf} s`);
  const ca=canAdvise(m),a=ca?advice(m,d,now):null;
- {const oo=OBS[tgt.key],own=oo?oo.g.length+oo.p.length+(oo.q||[]).length:0,oth=Math.max(0,m.n-own);$('src').textContent=`Geschätzt aus ${m.n} Beobachtungen${oth?` (${oth} von anderen)`:''} · ${relText(m)} · Umlauf ${m.C} s${m.prog&&m.prog!=='alle Zeiten'?' · '+(m.prog.startsWith('um')?'gelernt '+m.prog:'Programm '+m.prog):''}`}
+ {$('src').textContent=`Geschätzt aus ${m.n} Beobachtungen${m.nJ?` (${m.nJ} aus anderen Richtungen der Kreuzung)`:''} · ${relText(m)} · Umlauf ${m.C} s${m.prog&&m.prog!=='alle Zeiten'?' · '+(m.prog.startsWith('um')?'gelernt '+m.prog:'Programm '+m.prog):''}`}
  if(!ca){$('hint').textContent=`Ampel in ${fmt(d)} · ${m.sd>3.5||m.inl<.7?'schaltet unregelmäßig, keine Tempoempfehlung':'Schätzung noch unsicher, vorausschauend fahren'}`;$('band').style.width='0'}
  else if(a){const lo=Math.round(a.lo*3.6),hi=Math.round(a.hi*3.6);$('hint').textContent=`Ampel in ${fmt(d)} · ${lo==hi?lo:lo+'–'+hi} km/h für Grün`;
   $('band').style.left=lo/max*100+'%';$('band').style.width=Math.max(2,(hi-lo)/max*100)+'%'}
@@ -1720,7 +1735,7 @@ async function checkUpdate(){try{const r=await fetch('./?v='+Date.now(),{cache:'
   let n=0;try{n=+sessionStorage.getItem('gw_upd')||0}catch(e){}if(n>2)return;try{sessionStorage.setItem('gw_upd',n+1)}catch(e){}
   location.replace(location.pathname+'?v='+encodeURIComponent(m[1]))}}catch(e){}}
 setTimeout(checkUpdate,1500);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});drawSignals();drawReps();renderLearn();loadFile();setBlitz();loadWorks();loadTrams();
-if(location.hostname=='gw.test')window.__gw={OPS,sigDbg:(la,lo)=>sigClusters().filter(g=>g.some(x=>dist(x,{lat:la,lon:lo})<450)).map(g=>({rep:(r=>[r.id,+r.lat.toFixed(5),+r.lon.toFixed(5)])(sigRep(g)),m:g.map(x=>[+x.lat.toFixed(5),+x.lon.toFixed(5)])})),onFix:x=>onFix(x),addSig:(id,lat,lon)=>SIG.set(id,{id,lat,lon}),obs:()=>OBS,sig1:(la,lo)=>{let b=null;for(const x of SIG.values()){const d=dist({lat:la,lon:lo},x);if(!b||d<b.d)b={d,id:x.id,lat:x.lat,lon:x.lon}}return b},fitT:(o,ts)=>{OBS={'t_0':o};fitCache.clear();return ts.map(t=>{const m=fit('t_0',t);if(!m.ok)return null;return[phaseOf(m,t).st,m.C,typeof canAdvise==='function'?canAdvise(m):m.conf>0]})},works:()=>WORKS&&WORKS.length,workState:()=>workState,pvr:()=>PVR.map(R=>({km:R.total,t:R.duration,src:R.src,best:R.best,m:R.m&&{sig:R.m.sig,turns:R.m.turns,left:R.m.left,hw:R.m.hw,inc:R.m.inc.length,fuel:R.m.fuel},sel:R===PREVIEW})),navCrit:()=>NAV&&NAV.crit,navKm:()=>NAV&&NAV.total,reroute,preview,trips:()=>(tripSave(),TRIPS),renderTrips,cam:()=>({camState,n:CAMS?CAMS.length:0}),camReset:()=>{camTry=0},actx:()=>actx,audioState,WX:()=>WX,drawWx,VWD:()=>VWD,loadVwd,vwdAhead,VL,ANN:()=>ANN,annAt,condMs,wayLimit,OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr,map,SIM};
+if(location.hostname=='gw.test')window.__gw={OPS,fitJ:(om,key,ts)=>{OBS=om;fitCache.clear();return ts.map(t=>{const m=fit(key,t);if(!m.ok)return null;return[phaseOf(m,t).st,m.C,canAdvise(m)]})},sigDbg:(la,lo)=>sigClusters().filter(g=>g.some(x=>dist(x,{lat:la,lon:lo})<450)).map(g=>({rep:(r=>[r.id,+r.lat.toFixed(5),+r.lon.toFixed(5)])(sigRep(g)),m:g.map(x=>[+x.lat.toFixed(5),+x.lon.toFixed(5)])})),onFix:x=>onFix(x),addSig:(id,lat,lon)=>SIG.set(id,{id,lat,lon}),obs:()=>OBS,sig1:(la,lo)=>{let b=null;for(const x of SIG.values()){const d=dist({lat:la,lon:lo},x);if(!b||d<b.d)b={d,id:x.id,lat:x.lat,lon:x.lon}}return b},fitT:(o,ts)=>{OBS={'t_0':o};fitCache.clear();return ts.map(t=>{const m=fit('t_0',t);if(!m.ok)return null;return[phaseOf(m,t).st,m.C,typeof canAdvise==='function'?canAdvise(m):m.conf>0]})},works:()=>WORKS&&WORKS.length,workState:()=>workState,pvr:()=>PVR.map(R=>({km:R.total,t:R.duration,src:R.src,best:R.best,m:R.m&&{sig:R.m.sig,turns:R.m.turns,left:R.m.left,hw:R.m.hw,inc:R.m.inc.length,fuel:R.m.fuel},sel:R===PREVIEW})),navCrit:()=>NAV&&NAV.crit,navKm:()=>NAV&&NAV.total,reroute,preview,trips:()=>(tripSave(),TRIPS),renderTrips,cam:()=>({camState,n:CAMS?CAMS.length:0}),camReset:()=>{camTry=0},actx:()=>actx,audioState,WX:()=>WX,drawWx,VWD:()=>VWD,loadVwd,vwdAhead,VL,ANN:()=>ANN,annAt,condMs,wayLimit,OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr,map,SIM};
 $('startInfo').textContent=(Object.keys(OBS).length?`Bisher gelernt: ${Object.keys(OBS).length} Ampel-Richtungen. `:'')+'Version '+APP_VERSION;
 
 }
