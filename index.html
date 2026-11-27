@@ -345,7 +345,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='27.11.2026 · 8';
+const APP_VERSION='27.11.2026 · 9';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -376,15 +376,22 @@ map.on('load',()=>{
  map.on('click','alt-line',e=>{const f=e.features&&e.features[0];if(f&&PREVIEW)pickRoute(+f.properties.i)});
  map.addLayer({id:'route-case',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#127fb0','line-width':['interpolate',['linear'],['zoom'],12,6,18,22]}},before);
  map.addLayer({id:'route-line',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#33ccff','line-width':['interpolate',['linear'],['zoom'],12,4,18,15]}},before);
- for(const id of['works','worksPt'])map.addSource(id,{type:'geojson',data:EMPTY});
- map.addLayer({id:'works-case',type:'line',source:'works',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#ffffff','line-width':['interpolate',['linear'],['zoom'],12,3,18,10],'line-opacity':.9}});
- map.addLayer({id:'works-line',type:'line',source:'works',layout:{'line-cap':'butt','line-join':'round'},paint:{'line-color':['case',['==',['get','b'],1],'#e5484d','#ff8a00'],'line-width':['interpolate',['linear'],['zoom'],12,2,18,7],'line-dasharray':[1.2,1]}});
- map.addLayer({id:'works',type:'symbol',source:'worksPt',minzoom:11,layout:{'icon-image':worksIcon(''),'icon-size':['interpolate',['linear'],['zoom'],11,0.5,16,0.95,18,1.2],'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-pitch-alignment':'viewport','icon-rotation-alignment':'viewport'}});
+ // Baustellen-Symbole: nahe beieinander liegende zu einer Bake zusammenfassen (Cluster ~46 px), Sperrung gewinnt
+ map.addSource('works',{type:'geojson',data:EMPTY});
+ map.addSource('worksPt',{type:'geojson',data:EMPTY,cluster:true,clusterRadius:46,clusterMaxZoom:19,clusterProperties:{b:['max',['get','b']],a:['max',['get','a']]}});
+ map.addLayer({id:'works-case',type:'line',source:'works',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#ffffff','line-width':['interpolate',['linear'],['zoom'],12,2,16,4,18,7],'line-opacity':['interpolate',['linear'],['zoom'],12,.45,16,.7]}});
+ map.addLayer({id:'works-line',type:'line',source:'works',layout:{'line-cap':'butt','line-join':'round'},paint:{'line-color':['case',['==',['get','b'],1],'#e5484d','#ff8a00'],'line-width':['interpolate',['linear'],['zoom'],12,1.2,16,2.6,18,5],'line-opacity':['case',['==',['get','b'],1],.95,.75],'line-dasharray':[1.6,1.2]}});
+ map.addLayer({id:'works',type:'symbol',source:'worksPt',minzoom:11,layout:{'icon-image':worksIcon(''),'icon-size':['interpolate',['linear'],['zoom'],11,0.42,15,0.62,17,0.8,19,0.95],'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-pitch-alignment':'viewport','icon-rotation-alignment':'viewport',
+  'text-field':['case',['has','point_count'],['to-string',['get','point_count']],''],'text-font':['Noto Sans Bold'],'text-size':11,'text-offset':[1.35,-1.35],'text-allow-overlap':true,'text-ignore-placement':true},
+  paint:{'text-color':'#ffffff','text-halo-color':['case',['==',['get','b'],1],'#e5484d','#c25e00'],'text-halo-width':3}});
  map.addSource('vwd',{type:'geojson',data:EMPTY});map.addSource('vwdLine',{type:'geojson',data:EMPTY});
  map.addLayer({id:'vwd-line',type:'line',source:'vwdLine',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':['get','c'],'line-width':['interpolate',['linear'],['zoom'],8,3,12,5,18,12],'line-opacity':.8}},before);
  map.addLayer({id:'vwd',type:'symbol',source:'vwd',layout:{'icon-image':['get','icon'],'icon-size':['interpolate',['linear'],['zoom'],8,0.4,16,0.8],'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-pitch-alignment':'viewport','icon-rotation-alignment':'viewport'}});
  map.on('click','vwd',e=>{const f=e.features&&e.features[0];if(f)showVwd(f.properties.i)});
- map.on('click','works',e=>{const f=e.features&&e.features[0];if(f)showWork(f.properties.i)});
+ map.on('click','works',async e=>{const f=e.features&&e.features[0];if(!f)return;const P=f.properties;if(!P.cluster){showWork(P.i);return}
+  // Gruppe: hineinzoomen, bis sie zerfällt; geht das nicht mehr, die Sperrung (sonst die erste) zeigen
+  try{const S=map.getSource('worksPt'),z=await S.getClusterExpansionZoom(P.cluster_id);if(z>map.getZoom()+.3&&z<=19.5){follow=false;clearTimeout(freeT);map.easeTo({center:f.geometry.coordinates,zoom:z+.2,duration:500});freeT=setTimeout(()=>{follow=true;applyView(true)},10000);return}
+   const L=await S.getClusterLeaves(P.cluster_id,50,0),g=L.find(x=>x.properties.b)||L[0];if(g)showWork(g.properties.i)}catch(err){}});
  map.on('mouseenter','works',()=>map.getCanvas().style.cursor='pointer');map.on('mouseleave','works',()=>map.getCanvas().style.cursor='');
  map.addSource('trams',{type:'geojson',data:EMPTY});
  map.addLayer({id:'trams',type:'symbol',source:'trams',minzoom:14,layout:{'icon-image':'ico-tram','icon-size':['interpolate',['linear'],['zoom'],14,0.45,16,0.7,18,0.9],'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-pitch-alignment':'viewport','icon-rotation-alignment':'viewport',
@@ -569,9 +576,11 @@ async function loadWorks(){if(WORKS&&Date.now()-worksT<30*60000){drawWorks();ret
  const ab=WORKS.filter(w=>w.src==='autobahn').length,lz=WORKS.filter(w=>w.src==='leipzig').length,bl=WORKS.filter(w=>w.blocked&&w.src!=='osm').length;
  workState=`${WORKS.length} Baustellen (${lz} Stadt Leipzig, ${ab} Autobahn, ${WORKS.length-ab-lz} OSM), ${bl} Vollsperrungen${set.works?'':' · Anzeige aus, Sperrungen gelten trotzdem für Routen'}${b?' · Stadt Stand '+b.updated:' · Stadt-Datei fehlt'}`;drawWorks()}
 function drawWorks(){const on=set.works&&WORKS;
- src('works',{type:'FeatureCollection',features:on?WORKS.filter(w=>w.line&&w.line.length>1).map(w=>({type:'Feature',geometry:{type:'LineString',coordinates:w.line},properties:{b:w.blocked?1:0}})):[]});
+ src('works',{type:'FeatureCollection',features:on?WORKS.filter(w=>w.line&&w.line.length>1).map(w=>({type:'Feature',geometry:{type:'LineString',coordinates:w.line},properties:{b:w.blocked&&w.src!=='osm'?1:0}})):[]});
  worksAt=cur?{lat:cur.lat,lon:cur.lon}:null;
- src('worksPt',{type:'FeatureCollection',features:on?WORKS.map((w,i)=>({type:'Feature',geometry:{type:'Point',coordinates:[w.lon,w.lat]},properties:{i,b:w.blocked&&w.src!=='osm'?1:0,a:worksAt&&dist(worksAt,w)<1500?1:0}})):[]})}
+ src('worksPt',{type:'FeatureCollection',features:on?WORKS.map((w,i)=>({type:'Feature',geometry:{type:'Point',coordinates:lineMid(w.line)||[w.lon,w.lat]},properties:{i,b:w.blocked&&w.src!=='osm'?1:0,a:worksAt&&dist(worksAt,w)<1500?1:0}})):[]})}
+// Mitte einer Linie (nach Länge), damit die Bake auf der Strecke steht und nicht am Ende
+function lineMid(L){if(!L||L.length<2)return null;const d=(a,b)=>Math.hypot((b[0]-a[0])*Math.cos(a[1]*RAD),b[1]-a[1]);let T=0;for(let i=1;i<L.length;i++)T+=d(L[i-1],L[i]);let h=T/2;for(let i=1;i<L.length;i++){const s=d(L[i-1],L[i]);if(s>=h&&s>0){const f=h/s;return[L[i-1][0]+(L[i][0]-L[i-1][0])*f,L[i-1][1]+(L[i][1]-L[i-1][1])*f]}h-=s}return L[L.length-1]}
 // Blinken: nur Baustellen im Umkreis von 1,5 km, nur im Stand oder langsam (unter 30 km/h), nicht im Hintergrund
 let worksAt=null,bakePh='';
 const worksIcon=ph=>['case',['==',['get','b'],1],'ico-sperr',['==',['get','a'],1],ph?'ico-bau-'+ph:'ico-bau','ico-bau'];
