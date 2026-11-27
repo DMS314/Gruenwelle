@@ -14,6 +14,7 @@ jobs:
               except Exception as e:print(kind,'FEHLER',e);continue
               items=j.get(kind) or j.get('roadworks') or j.get('closure') or j.get('warning') or j.get(list(j.keys())[0]) or []
               print('==',kind,len(items),list(j.keys()))
+              if kind=='closure':json.dump(items,open('/tmp/cl.json','w'));print('GEOM',json.dumps([[it.get('title'),' / '.join(it.get('description',[]))[100:200],it.get('geometry',{}).get('coordinates')] for it in items]))
               for it in items:
                   c=it.get('coordinate') or {};
                   try:pt=(float(c['lat']),float(c['long']))
