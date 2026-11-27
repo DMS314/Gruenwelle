@@ -345,7 +345,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='27.11.2026 · 7';
+const APP_VERSION='27.11.2026 · 8';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -1086,8 +1086,9 @@ function buildRoute(route,dest){
    if(qi.d<30)R.lanes.push({s:qi.s,lanes:it.lanes.map(l=>({ind:(l.indications||['none']),ok:!!l.valid,vi:l.valid_indication||null})),said:0})}}
  R.lanes.sort((a,b)=>a.s-b.s);
  return R}
-async function fetchOsrm(a,b,alt=0,ms=20000){
- for(const base of ROUTERS[set.mode]){try{const r=await tfetch(`${base}${a.lon.toFixed(6)},${a.lat.toFixed(6)};${b.lon.toFixed(6)},${b.lat.toFixed(6)}?overview=full&geometries=geojson&steps=true&alternatives=${alt||'false'}`,{},ms);
+// hd: Fahrtrichtung beim Start. Ohne sie darf OSRM am Start kostenlos wenden und führt nach dem Verlassen der Route zurück auf die alte.
+async function fetchOsrm(a,b,alt=0,ms=20000,hd=null){const br=hd!=null?`&bearings=${Math.round((hd+360)%360)},60;`:'';
+ for(const base of ROUTERS[set.mode]){try{const r=await tfetch(`${base}${a.lon.toFixed(6)},${a.lat.toFixed(6)};${b.lon.toFixed(6)},${b.lat.toFixed(6)}?overview=full&geometries=geojson&steps=true&alternatives=${alt||'false'}${br}`,{},ms);
   if(!r.ok)throw new Error(r.status);const j=await r.json();if(j.code!=='Ok'||!j.routes||!j.routes.length)throw new Error(j.code);j.routes.forEach(x=>x._src='osrm');return j.routes}catch(e){}}
  return null}
 async function fetchRoute(a,b){const L=await fetchOsrm(a,b);return L&&L[0]}
@@ -1169,7 +1170,7 @@ async function routeCands(a,b,o={}){const crit=o.crit,ms=o.ms||15000,L=incidents
   if(set.mode!=='rad'&&want('nohw'))jobs.push(fetchValhalla(a,b,{noHw:1,alt:1,heading:hd,excl:E()},ms));
   if(want('avoid')&&ex.length)jobs.push(fetchValhalla(a,b,{excl:E(ex),alt:1,heading:hd},ms));
   else if(crit==='avoid')jobs.push(fetchValhalla(a,b,{alt:2,heading:hd,excl:E()},ms));
-  if(!osrm)jobs.push(fetchOsrm(a,b,2,ms));
+  if(!osrm)jobs.push(fetchOsrm(a,b,2,ms,hd));
   const res=await Promise.allSettled(jobs),nv=[];
   res.forEach((r,i)=>{if(r.status!=='fulfilled'||!r.value)return;if(!osrm&&i==res.length-1)osrm=build(r.value);else nv.push(...r.value)});
   if(!osrm)osrm=[];
@@ -1178,7 +1179,12 @@ async function routeCands(a,b,o={}){const crit=o.crit,ms=o.ms||15000,L=incidents
   if(hit.size===blocked.length||!val.length||Date.now()-t0>ms*1.5)break;blocked=[...hit];tripEv('sperre',blocked.map(x=>x.title||x.n))}
  // OSRM-Zeiten an Valhalla angleichen (Valhalla rechnet Stadtverkehr vorsichtiger), damit „schnellste“ fair verglichen wird
  if(val.length&&osrm.length){const f=Math.min(...val.map(r=>r.duration))/Math.min(...osrm.map(r=>r.duration));if(f>.6&&f<2.5)osrm.forEach(R=>R.duration*=f)}
- return{list:[...val,...osrm],L}}
+ let list=[...val,...osrm];
+ // Routen, die gleich zu Beginn wenden (Richtung am Start >110° gegen die Fahrtrichtung), nur nehmen, wenn es keine andere gibt
+ if(o.heading!=null&&list.length>1){const fw=list.filter(R=>{const b0=startBrg(R);return b0==null||Math.abs(adiff(b0,o.heading))<=110});if(fw.length&&fw.length<list.length){tripEv('wende',list.length-fw.length);list=fw}}
+ return{list,L}}
+// Richtung der ersten rund 30 m einer Route
+function startBrg(R){const ll=R&&R.ll;if(!ll||ll.length<2)return null;const a={lat:ll[0][0],lon:ll[0][1]};for(let i=1;i<ll.length;i++){const b={lat:ll[i][0],lon:ll[i][1]};if(dist(a,b)>=30||i==ll.length-1)return dist(a,b)<8?null:bearing(a,b)}return null}
 function rankRoutes(Rs0,L){Rs0.forEach(R=>routeMetrics(R,L));const free=Rs0.filter(R=>!R.m.block.length),Rs=free.length?free:Rs0;Rs0.forEach(R=>R.best=[]);const tMin=Math.min(...Rs.map(R=>R.m.t)),best={};
  for(const[k]of critsNow()){let b=null;for(const R of Rs){if(k!=='fast'&&R.m.t>tMin*1.6+120)continue;if(!b||critScore(k,R.m)<critScore(k,b.m))b=R}if(b)best[k]=b}
  Rs.forEach(R=>R.best=critsNow().map(c=>c[0]).filter(k=>best[k]===R));return best}
@@ -1258,8 +1264,9 @@ $('navOv').onclick=()=>{if(!NAV)return;$('nav').classList.remove('open');documen
 let rerouting=false;
 async function reroute(p){if(rerouting||!NAV)return;rerouting=true;NAV.last=p.t;announce('reroute','Route wird neu berechnet',0);$('navT').textContent='Route wird neu berechnet …';
  const crit=NAV.crit||'fast';let r=null;
- try{const{list,L}=await routeCands(p,NAV.dest,{crit,heading,ms:9000});if(list.length&&NAV){const Rs=list;Rs.forEach(computeOnRoute);const best=rankRoutes(Rs,L);r=best[crit]||Rs[0]}}catch(e){}
- rerouting=false;if(!r||!NAV)return;const d=NAV.dest;tripEv('reroute',crit,r.src,Math.round(r.total),Math.round(r.duration));r.crit=crit;NAV=r;NAV.dest=d;computeOnRoute(NAV);drawRoute(NAV);appr=null;loadRouteSignals(NAV);updateNav(p)}
+ const hd=v>3?heading:null;
+ try{const{list,L}=await routeCands(p,NAV.dest,{crit,heading:hd,ms:9000});if(list.length&&NAV){const Rs=list;Rs.forEach(computeOnRoute);const best=rankRoutes(Rs,L);r=best[crit]||Rs[0]}}catch(e){}
+ rerouting=false;if(!r||!NAV)return;const d=NAV.dest;tripEv('reroute',crit,r.src,Math.round(r.total),Math.round(r.duration),hd==null?null:Math.round(hd),startBrg(r)==null?null:Math.round(startBrg(r)));r.crit=crit;NAV=r;NAV.dest=d;computeOnRoute(NAV);drawRoute(NAV);appr=null;loadRouteSignals(NAV);updateNav(p)}
 const lf=t=>t?t[0].toLowerCase()+t.slice(1):'';
 const inDist=d=>'In '+(d>=1000?(Math.round(d/100)/10).toString().replace('.',',')+' Kilometern':(d>=100?Math.round(d/50)*50:Math.max(10,Math.round(d/10)*10))+' Metern');
 const farText=st=>st.st.maneuver.type=='arrive'?'erreichst du dein Ziel':lf(st.text);
@@ -1267,7 +1274,10 @@ let arrStill=0;
 function updateNav(p){const R=NAV;if(!R)return;
  let q=snap(R,p.lat,p.lon,Math.max(0,R.i-5),R.i+80);if(q.d>40){const g=snap(R,p.lat,p.lon);if(g.d<q.d)q=g}
  if(!R.lpBusy&&(R.lpEnd==null||(R.s>R.lpEnd-3000&&R.lpEnd<R.total))&&Date.now()-(R.lpTry||0)>60000)fetchLaneProfile(R);
- R.off=q.d;if(q.d>45&&(p.acc||0)<35)R.offN++;else{R.offN=0;R.i=q.i;R.s=Math.max(R.s-15,q.s)}
+ // abseits: >45 m, oder schon >22 m, wenn man in eine andere Richtung fährt als die Route (abgebogen)
+ const rb=(()=>{const a=R.ll[q.i],b=R.ll[Math.min(q.i+1,R.ll.length-1)];return a&&b&&a!==b?bearing({lat:a[0],lon:a[1]},{lat:b[0],lon:b[1]}):null})();
+ const wrongDir=v>4&&rb!=null&&Math.abs(adiff(heading,rb))>55;
+ R.off=q.d;if((q.d>45||(q.d>22&&wrongDir))&&(p.acc||0)<35)R.offN++;else{R.offN=0;R.i=q.i;R.s=Math.max(R.s-15,q.s)}
  // Am Ziel angekommen, auch wenn der Zielpunkt nicht genau erreicht wird (Parkplatz, Werkstor): abseits der Route nahe am Ziel
  // oder 60 s Stillstand in Zielnähe (länger als eine Rotphase) beendet die Navigation, statt immer wieder neu zu berechnen
  const dD=dist(p,R.dest);if(dD<200&&v<1){arrStill=arrStill||p.t;if(p.t-arrStill>60){arrStill=0;announce('arrive','Du bist am Ziel',0);toast('Ziel erreicht');endNav(true);return}}else arrStill=0;
@@ -1276,6 +1286,8 @@ function updateNav(p){const R=NAV;if(!R)return;
  if(R.offN>=3&&p.t-R.last>12){reroute(p);return}
  const rem=R.total-R.s;
  if(rem<30||dist(p,R.dest)<30){announce('arrive','Du hast dein Ziel erreicht',0);toast('Ziel erreicht');endNav(true);return}
+
+ if(R.offN>0){renderNav();return}   // abseits: keine Ansagen, die zurück auf die alte Route führen
  // Ansagen
  const nx=R.steps.findIndex((x,k)=>k>0&&x.s>R.s+3);R.next=nx;
  if(nx>0){const st=R.steps[nx],d=st.s-R.s,far=Math.max(180,v*14),near=Math.max(35,v*4);
