@@ -87,3 +87,12 @@ Publishable Key steht in `index.html` (`SB`). Supabase-Hinweis „anon kann SECU
 - Bestätigt: unterer Rand im Hochformat, kein Zittern mehr (ab 25.11.2026 · 8).
 - Behoben in 25.11.2026 · 11: Meldungsbox („… noch da?“) lag im Hochformat hinter dem Bedienfeld, jetzt darüber (`--panh`).
 - Unbestätigt: Tempolimit-Anzeige im Auto (ab 25.11.2026 · 10), mobile Blitzer (ab · 11), angekündigte Kontrollen (ab · 12, erst in Bonn sinnvoll testbar), Autobahn-Verkehrsmeldungen (ab · 13), Spurassistent an der Permoser Kreuzung (ab 26.11. · 1 behoben, siehe unten) (Theodor-Heuss-Straße, danach einspurig).
+
+## Konzept (noch nicht bauen): KI-Co-Pilot, Stand 27.11.2026
+Nutzer wünscht „etwas Innovatives, das beim Fahren unterstützt, mit hilfreichen Infos rund um das Gebiet“; ausdrücklich erst als Konzept behalten, nicht umsetzen.
+1. Lagebild der Umgebung: beim Losfahren und per Knopf „Was ist hier los?“ – Veranstaltungen (z. B. RB-Leipzig-Spiel), Sperrungen, Wetter, Verkehr; Agent nutzt Websuche + vorhandene Daten (Baustellen, Blitzer, Autobahn-VWD, DWD).
+2. Mitdenken während der Fahrt: Probleme vorausschauend erkennen und Lösung anbieten („Umplanen?“ → Ja), Parken am Ziel, günstigste Tankstelle auf dem Weg (offene Spritpreisdaten), ÖPNV-Alternative bei Stau.
+3. Stadtführer an der roten Ampel (abschaltbar): bei langer Rotphase 15-s-Häppchen zum Ort (Wikipedia mit Ortsangabe).
+4. Rückblick: nach der Fahrt und wöchentlich (verlorene Zeit an Ampeln, grüne Wellen, Engpässe, beste Abfahrtszeit) aus dem Fahrtprotokoll.
+Sicherheitsregeln: max. ein Hinweis alle paar Minuten, nie kurz vor Manövern, kurz und per Sprache, Längeres nur im Stand; Aktionen nur nach „Ja“.
+Technik: API-Schlüssel nie in der Web-App, sondern in einer Supabase-Edge-Function (mit Tageslimit); Modell Claude Haiku 5.5 für Routine, Sonnet 5.5 nur für Planung (Preise 27.11.: Haiku $0.10/$0.50, Sonnet $2/$10 je Mio. Tokens Ein/Aus) → ca. 1–3 €/Monat plus begrenzte Websuchen. Aufwand ca. 4–6 Sitzungen, Start-Vorschlag Teil 1 + 3 (ca. 2 Sitzungen). Nativ zusätzlich: Hinweise im Hintergrund, CarPlay, Weckwort, Kalender/Nachrichten. Nutzer müsste ein Konto auf der Claude-Plattform + API-Schlüssel anlegen.
