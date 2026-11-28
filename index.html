@@ -357,7 +357,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='28.11.2026 · 5';
+const APP_VERSION='28.11.2026 · 6';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -414,7 +414,7 @@ maplibregl.addProtocol('ttflow',async(p,ac)=>{
  const b=await r.arrayBuffer();FLOW.mem.set(id,{t:now,b});if(FLOW.mem.size>300)FLOW.mem.delete(FLOW.mem.keys().next().value);
  if(cache)cache.put('https://gw-flow/'+id,new Response(b.slice(0),{headers:{'content-type':'image/png','x-t':String(now)}})).catch(()=>{});
  FLOW.ok=now;FLOW.err='';return{data:b}});
-function flowUrl(st,z,x,y,k){return k?'https://api.tomtom.com/traffic/map/4/tile/flow/'+st+'/'+z+'/'+x+'/'+y+'.png?key='+encodeURIComponent(k)+'&tileSize=512&thickness=7':SB.url+'/functions/v1/flow?s='+st+'&z='+z+'&x='+x+'&y='+y}
+function flowUrl(st,z,x,y,k){return k?'https://api.tomtom.com/traffic/map/4/tile/flow/'+st+'/'+z+'/'+x+'/'+y+'.png?key='+encodeURIComponent(k)+'&tileSize=512':SB.url+'/functions/v1/flow?s='+st+'&z='+z+'&x='+x+'&y='+y}
 function flowTiles(){const so=map.getSource&&map.getSource('flow');if(!so)return;FLOW.st=flowStyle();FLOW.ref=Date.now();so.setTiles(['ttflow://{z}/{x}/{y}?s='+FLOW.st+'&b='+Math.floor(FLOW.ref/FLOW_TTL)])}
 function drawFlow(){const on=flowOn();const a=$('attrTT');if(a)a.style.display=on?'':'none';
  whenMap(()=>{if(!map.getLayer('flow'))return;map.setLayoutProperty('flow','visibility',on?'visible':'none');if(on&&(FLOW.st!==flowStyle()||Date.now()-FLOW.ref>FLOW_TTL))flowTiles()});renderFlowInfo()}

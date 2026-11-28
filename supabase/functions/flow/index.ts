@@ -38,8 +38,8 @@ Deno.serve(async (req) => {
   let n: number;
   try { n = await hit(); } catch (e) { return out(503, String(e)); }
   if (n < 0) return c ? png(c.b, 'alt') : out(429, 'Limit erreicht');
-  const r = await fetch(`https://api.tomtom.com/traffic/map/4/tile/flow/${s}/${z}/${x}/${y}.png?key=${encodeURIComponent(KEY)}&tileSize=512&thickness=7`);
-  if (!r.ok) return c ? png(c.b, 'alt') : out(r.status === 429 ? 429 : 502, 'TomTom ' + r.status + ' (Schlüssellänge ' + KEY.length + ', nur Buchstaben/Ziffern: ' + /^[A-Za-z0-9]+$/.test(KEY) + ') ' + (await r.text()).slice(0, 150));
+  const r = await fetch(`https://api.tomtom.com/traffic/map/4/tile/flow/${s}/${z}/${x}/${y}.png?key=${encodeURIComponent(KEY)}&tileSize=512`);
+  if (!r.ok) return c ? png(c.b, 'alt') : out(r.status === 429 ? 429 : 502, 'TomTom ' + r.status + ' (Schlüssellänge ' + KEY.length + ', nur Buchstaben/Ziffern: ' + /^[A-Za-z0-9]+$/.test(KEY) + ') ' + (await r.text()).slice(0, 300));
   const b = new Uint8Array(await r.arrayBuffer());
   mem.set(id, { t: now, b });
   if (mem.size > 500) mem.delete(mem.keys().next().value!);
