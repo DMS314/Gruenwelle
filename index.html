@@ -309,10 +309,10 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
  <h3>Verkehrsmeldungen</h3><div class="row"><button class="chip" data-vwd="1">An</button><button class="chip" data-vwd="0">Aus</button></div>
  <p class="small">Stau, Unfälle und Gefahren auf den Autobahnen rund um Leipzig und in Sachsen (A4, A9, A13, A14, A17, A38, A72, A143), live vom Verkehrswarndienst über die Autobahn GmbH: dieselben Meldungen wie im Radio-Verkehrsfunk. Liegt eine Meldung bis 3 km vor dir, erscheint ein Hinweis. Für Straßen in der Stadt gibt es keine offene Quelle.</p>
  <h3>Verkehrsfluss (TomTom)</h3><div class="row"><button class="chip" data-flow="1">An</button><button class="chip" data-flow="0">Aus</button></div>
- <div class="row" style="margin-top:8px"><input type="password" id="ttKey" placeholder="TomTom-API-Schlüssel einfügen" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" style="flex:1;min-width:0;font:inherit;font-size:16px;min-height:44px;border:1px solid var(--line);border-radius:12px;padding:0 12px;background:none;color:var(--ink)"><button class="btn" id="ttSave">Speichern</button></div>
- <div class="row" style="margin-top:8px"><button class="btn" id="ttTest">Schlüssel prüfen</button><button class="btn" id="ttDel">Schlüssel löschen</button></div>
+ <div class="row" style="margin-top:8px"><input type="password" id="ttKey" placeholder="Eigener TomTom-Schlüssel (optional)" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" style="flex:1;min-width:0;font:inherit;font-size:16px;min-height:44px;border:1px solid var(--line);border-radius:12px;padding:0 12px;background:none;color:var(--ink)"><button class="btn" id="ttSave">Speichern</button></div>
+ <div class="row" style="margin-top:8px"><button class="btn" id="ttTest">Verbindung prüfen</button><button class="btn" id="ttDel">Eigenen Schlüssel löschen</button></div>
  <p class="small" id="ttInfo"></p>
- <p class="small">Färbt die Straßen nach dem Verkehr gerade eben: grün frei, orange zäh, rot Stau, dunkelrot fast stehend. Daten von TomTom, alle 5 Minuten neu, ab Zoom 10 und nur in Mitteldeutschland. Der Schlüssel bleibt nur auf diesem Gerät (nicht im Export, nicht in den geteilten Daten). Schutz des kostenlosen Kontingents: höchstens 6.000 Kartenkacheln am Tag und 190.000 im Monat, danach bleibt die Ebene bis zum nächsten Tag leer.</p>
+ <p class="small">Färbt die Straßen nach dem Verkehr gerade eben: grün frei, orange zäh, rot Stau, dunkelrot fast stehend. Daten von TomTom, alle 5 Minuten neu, ab Zoom 10 und nur in Mitteldeutschland. Läuft ohne eigenes Zutun über den Grünwelle-Server (gemeinsames Limit für alle Nutzer, danach bleibt die Ebene bis zum nächsten Tag leer). Ein eigener TomTom-Schlüssel ist nur nötig, wenn du unabhängig davon sein willst; er bleibt nur auf diesem Gerät.</p>
  <h3>Tempolimit anzeigen</h3><div class="row"><button class="chip" data-vlim="1">An</button><button class="chip" data-vlim="0">Aus</button></div>
  <p class="small">Zeigt das erlaubte Tempo der Straße aus OpenStreetMap neben deiner Geschwindigkeit, auch zeitlich begrenzte Limits (z. B. 30 vor Schulen). Fährst du mehr als 3 km/h schneller, wird deine Geschwindigkeit rot. Die Daten können fehlen oder veraltet sein, es gelten immer die Schilder.</p>
  <h3>Tempolimit, wenn unbekannt</h3><div class="row" id="limits"></div>
@@ -357,7 +357,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='28.11.2026 · 4';
+const APP_VERSION='28.11.2026 · 5';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -367,7 +367,7 @@ const adiff=(a,b)=>((a-b+540)%360)-180;
 const mod=(a,b)=>((a%b)+b)%b;
 // ---------- Einstellungen & Speicher ----------
 const MODES={auto:{vmin:15,limits:[30,50,60,70],def:50},rad:{vmin:8,limits:[20,25,30],def:25}};
-const set=Object.assign({mode:'auto',limit:50,vlim:1,vwd:1,flow:0,audio:'ton',vol:'alle',ori:'3d',theme:'auto',blitz:0,works:1,share:1,tram:1,wx:1},LS.get('gw_set',{}));if(!set.v3d){set.ori='3d';set.v3d=1}
+const set=Object.assign({mode:'auto',limit:50,vlim:1,vwd:1,flow:0,audio:'ton',vol:'alle',ori:'3d',theme:'auto',blitz:0,works:1,share:1,tram:1,wx:1},LS.get('gw_set',{}));if(!set.v3d){set.ori='3d';set.v3d=1}if(!set.flow2){set.flow=1;set.flow2=1}
 let OBS=LS.get('gw_obs',{});            // key -> {g:[], p:[], r:[[a,b]]}  Zeiten in Sekunden
 // Einmalig: vier Halte an ausgeschalteten Ampeln vom 28.11.2026 05:04–05:26 Uhr entfernen (fälschlich als Rot gelernt)
 if(!LS.get('gw_fix1',0)){const inW=t=>t>=1795838600&&t<=1795840100;
@@ -384,15 +384,19 @@ const map=new maplibregl.Map({container:'map',style:'https://tiles.openfreemap.o
 let mapReady=false,mapErr='';const mapQ=[];const whenMap=f=>{if(mapReady)f();else mapQ.push(f)};
 // ---------- Verkehrsfluss: TomTom Traffic Flow (Rasterkacheln) ----------
 // Kostenlos 200.000 Kacheln/Monat (TomTom, Stand 11/2026, bei Überschreitung HTTP 429, keine Kosten ohne Bezahldaten).
+// Standard: über den Grünwelle-Zwischenserver (Supabase-Funktion `flow`, Schlüssel dort als Secret, gemeinsames Limit für alle).
+// Optional eigener Schlüssel → direkt bei TomTom.
 // Schutz: eigener Zähler je Tag/Monat, 5-Min-Zwischenspeicher (Speicher + Cache-API), Kacheln 512 px, nur Zoom 9–16, nur Mitteldeutschland, nur wenn an.
 var FLOW={state:'aus',err:'',stop:'',ref:0,mem:new Map(),limT:'',st:''};
 const FLOW_DAY=6000,FLOW_MON=190000,FLOW_TTL=300000,FLOW_BOX=[10.5,50.1,15.1,52.7];
-const flowKey=()=>LS.get('gw_ttkey',''),flowOn=()=>!!(set.flow&&flowKey()),flowStyle=()=>isNight()?'relative0-dark':'relative0';
+const flowKey=()=>LS.get('gw_ttkey',''),flowOn=()=>!!set.flow,flowStyle=()=>isNight()?'relative0-dark':'relative0';
 const flowDay=()=>{const d=new Date();return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate()};
 function flowUse(){const d=flowDay(),m=d.replace(/-\d+$/,''),u=LS.get('gw_flowuse',{});if(u.d!==d){u.d=d;u.n=0}if(u.m!==m){u.m=m;u.mn=0}return u}
 const FLOW_EMPTY=(()=>{const b=atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='),a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return()=>a.buffer.slice(0)})();
 async function flowCache(){try{if(!window.caches)return null;const n='gw-flow-'+flowDay();if(FLOW.cn!==n){FLOW.cn=n;for(const k of await caches.keys())if(k.startsWith('gw-flow-')&&k!==n)caches.delete(k)}return await caches.open(n)}catch(e){return null}}
-function flowFail(st){if(st===401||st===403){FLOW.stop='Schlüssel ungültig oder für diese Seite gesperrt (HTTP '+st+')';toast('TomTom: Schlüssel ungültig')}
+function flowFail(st,px){if(px){if(st===429){FLOW.stop='Tageslimit für alle Nutzer erreicht, morgen wieder da';FLOW.err='';toast('Verkehrsfluss: Tageslimit erreicht')}
+  else if(st===400)return;else{FLOW.pause=Date.now()+120000;FLOW.err=st===503?'Verkehrsdienst nicht bereit (HTTP 503)':'Verkehrsdienst HTTP '+st}renderFlowInfo();return}
+ if(st===401||st===403){FLOW.stop='Schlüssel ungültig oder für diese Seite gesperrt (HTTP '+st+')';toast('TomTom: Schlüssel ungültig')}
  else if(st===429){FLOW.stop='TomTom-Kontingent erschöpft (HTTP 429)';toast('TomTom-Kontingent erschöpft, Verkehrsfluss pausiert')}else FLOW.err='HTTP '+st;renderFlowInfo()}
 maplibregl.addProtocol('ttflow',async(p,ac)=>{
  const m=/^ttflow:\/\/(\d+)\/(\d+)\/(\d+)\?s=([\w-]+)/.exec(p.url);if(!m)return{data:FLOW_EMPTY()};
@@ -401,26 +405,27 @@ maplibregl.addProtocol('ttflow',async(p,ac)=>{
  const cache=await flowCache();
  if(cache)try{const r=await cache.match('https://gw-flow/'+id);const t=r&&+r.headers.get('x-t');if(r&&now-t<FLOW_TTL){const b=await r.arrayBuffer();FLOW.mem.set(id,{t,b});return{data:b.slice(0)}}}catch(e){}
  const old=()=>({data:c?c.b.slice(0):FLOW_EMPTY()}),k=flowKey();
- if(!flowOn()||FLOW.stop)return old();
+ if(!flowOn()||FLOW.stop||FLOW.pause>now)return old();
  const u=flowUse();if(u.n>=FLOW_DAY||u.mn>=FLOW_MON){if(FLOW.limT!==u.d){FLOW.limT=u.d;toast(u.mn>=FLOW_MON?'Monatslimit Verkehrsfluss erreicht':'Tageslimit Verkehrsfluss erreicht, morgen wieder da');renderFlowInfo()}return old()}
  u.n++;u.mn++;LS.set('gw_flowuse',u);
- let r;try{r=await fetch('https://api.tomtom.com/traffic/map/4/tile/flow/'+st+'/'+z+'/'+x+'/'+y+'.png?key='+encodeURIComponent(k)+'&tileSize=512&thickness=7',{signal:ac.signal})}
+ let r;try{r=await fetch(flowUrl(st,z,x,y,k),{signal:ac.signal})}
  catch(e){if(ac.signal.aborted)throw e;FLOW.err='nicht erreichbar';return old()}
- if(!r.ok){flowFail(r.status);return old()}
+ if(!r.ok){flowFail(r.status,!k);return old()}
  const b=await r.arrayBuffer();FLOW.mem.set(id,{t:now,b});if(FLOW.mem.size>300)FLOW.mem.delete(FLOW.mem.keys().next().value);
  if(cache)cache.put('https://gw-flow/'+id,new Response(b.slice(0),{headers:{'content-type':'image/png','x-t':String(now)}})).catch(()=>{});
  FLOW.ok=now;FLOW.err='';return{data:b}});
+function flowUrl(st,z,x,y,k){return k?'https://api.tomtom.com/traffic/map/4/tile/flow/'+st+'/'+z+'/'+x+'/'+y+'.png?key='+encodeURIComponent(k)+'&tileSize=512&thickness=7':SB.url+'/functions/v1/flow?s='+st+'&z='+z+'&x='+x+'&y='+y}
 function flowTiles(){const so=map.getSource&&map.getSource('flow');if(!so)return;FLOW.st=flowStyle();FLOW.ref=Date.now();so.setTiles(['ttflow://{z}/{x}/{y}?s='+FLOW.st+'&b='+Math.floor(FLOW.ref/FLOW_TTL)])}
 function drawFlow(){const on=flowOn();const a=$('attrTT');if(a)a.style.display=on?'':'none';
  whenMap(()=>{if(!map.getLayer('flow'))return;map.setLayoutProperty('flow','visibility',on?'visible':'none');if(on&&(FLOW.st!==flowStyle()||Date.now()-FLOW.ref>FLOW_TTL))flowTiles()});renderFlowInfo()}
 function flowTheme(){if(flowOn()&&FLOW.st&&FLOW.st!==flowStyle())flowTiles()}
 setInterval(()=>{if(mapReady&&flowOn()&&!document.hidden&&!FLOW.stop&&Date.now()-FLOW.ref>=FLOW_TTL)flowTiles()},30000);
-function flowState(){if(!set.flow)return'aus';if(!flowKey())return'an, aber kein Schlüssel eingetragen';const u=flowUse();
- return(FLOW.stop||(u.n>=FLOW_DAY?'Tageslimit erreicht':u.mn>=FLOW_MON?'Monatslimit erreicht':FLOW.ok?'zuletzt geladen '+new Date(FLOW.ok).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}):'an'))+(FLOW.err?' · Fehler: '+FLOW.err:'')+` · heute ${u.n} von ${FLOW_DAY} Kacheln, Monat ${u.mn} von ${FLOW_MON}`}
-function renderFlowInfo(){const el=$('ttInfo');if(!el)return;const k=flowKey();el.textContent=(k?'Schlüssel gespeichert (…'+k.slice(-4)+'). ':'Noch kein Schlüssel gespeichert. ')+'Stand: '+flowState()}
-async function flowTest(){const k=flowKey();if(!k){toast('Erst einen Schlüssel speichern');return}const u=flowUse();u.n++;u.mn++;LS.set('gw_flowuse',u);
- try{const r=await fetch('https://api.tomtom.com/traffic/map/4/tile/flow/relative0/12/2188/1364.png?key='+encodeURIComponent(k)+'&tileSize=512');
-  if(r.ok){FLOW.stop='';FLOW.err='';toast('Schlüssel funktioniert');drawFlow()}else flowFail(r.status)}catch(e){toast('TomTom nicht erreichbar');FLOW.err='nicht erreichbar'}renderFlowInfo()}
+function flowState(){if(!set.flow)return'aus';const u=flowUse();
+ return(FLOW.stop||(u.n>=FLOW_DAY?'Tageslimit erreicht':u.mn>=FLOW_MON?'Monatslimit erreicht':FLOW.ok?'zuletzt geladen '+new Date(FLOW.ok).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}):'an'))+(FLOW.err?' · Fehler: '+FLOW.err:'')+(flowKey()?' · eigener Schlüssel':' · über Grünwelle-Server')+` · dieses Gerät heute ${u.n} Kacheln, Monat ${u.mn}`}
+function renderFlowInfo(){const el=$('ttInfo');if(!el)return;const k=flowKey();el.textContent=(k?'Eigener Schlüssel gespeichert (…'+k.slice(-4)+'). ':'')+'Stand: '+flowState()}
+async function flowTest(){const k=flowKey(),u=flowUse();u.n++;u.mn++;LS.set('gw_flowuse',u);FLOW.stop='';FLOW.pause=0;
+ try{const r=await fetch(flowUrl('relative0',12,2188,1364,k));
+  if(r.ok){FLOW.err='';toast(k?'Eigener Schlüssel funktioniert':'Verkehrsdienst funktioniert');drawFlow()}else{flowFail(r.status,!k);toast('Verkehrsfluss: Fehler HTTP '+r.status)}}catch(e){toast('Verkehrsdienst nicht erreichbar');FLOW.err='nicht erreichbar'}renderFlowInfo()}
 const src=(id,data)=>whenMap(()=>{const so=map.getSource(id);if(so)so.setData(data)});
 map.on('error',e=>{mapErr=(e&&e.error&&e.error.message)||'Kartenfehler'});
 map.on('load',()=>{
@@ -1810,7 +1815,7 @@ document.addEventListener('click',e=>{const rc=e.target.closest('[data-rcrit]');
  const tr=e.target.closest('[data-tram]');if(tr){set.tram=+tr.dataset.tram;saveSet();renderSet();loadTrams();if(!set.tram)$('trH').classList.remove('on')}
  const wq=e.target.closest('[data-wx]');if(wq){set.wx=+wq.dataset.wx;saveSet();renderSet();fetchWx(cur,true);drawWx()}
  const vw=e.target.closest('[data-vwd]');if(vw){set.vwd=+vw.dataset.vwd;saveSet();renderSet();if(set.vwd)loadVwd(true);else{drawVwd();$('alert').classList.remove('info')}}
- const fl=e.target.closest('[data-flow]');if(fl){set.flow=+fl.dataset.flow;saveSet();renderSet();if(set.flow&&!flowKey())toast('Bitte unten den TomTom-Schlüssel eintragen');drawFlow()}
+ const fl=e.target.closest('[data-flow]');if(fl){set.flow=+fl.dataset.flow;saveSet();renderSet();drawFlow()}
  if(e.target.closest('#ttSave')){const v=$('ttKey').value.trim();if(!/^[A-Za-z0-9]{20,64}$/.test(v)){toast('Das sieht nicht wie ein TomTom-Schlüssel aus');return}LS.set('gw_ttkey',v);$('ttKey').value='';FLOW.stop='';FLOW.err='';set.flow=1;saveSet();renderSet();drawFlow();flowTest()}
  if(e.target.closest('#ttDel')){LS.set('gw_ttkey','');try{localStorage.removeItem('gw_ttkey')}catch(x){}FLOW.stop='';drawFlow();toast('Schlüssel gelöscht')}
  if(e.target.closest('#ttTest'))flowTest();
