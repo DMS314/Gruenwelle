@@ -352,7 +352,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='27.11.2026 · 12';
+const APP_VERSION='28.11.2026 · 1';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -933,17 +933,24 @@ function findTarget(p){
  for(const s of SIG.values()){const d=dist(p,s);if(d>450||d<2)continue;const df=Math.abs(adiff(bearing(p,s),heading));const lat=d*Math.sin(df*RAD);
   if(df>(d<40?60:35)||lat>25)continue;const along=d*Math.cos(df*RAD);if(!best||along<best.along)best={s,along,d}}
  return best}
+const HALT_KURZ=8;   // Sekunden
+// Steht man beim Halt schon hinter dem Ampelpunkt? Mit Route: mehr als 1,5 m dahinter; ohne Route nach Peilung ab 3 m Abstand (GPS-Ungenauigkeit)
+const pastSig=(a,p,s,d)=>(a.rs!=null&&NAV)?NAV.s>a.rs+1.5:(heading!=null&&d>=3&&Math.abs(adiff(bearing(p,s),heading))>100);
 function finishAppr(t){const a=appr;appr=null;if(!a)return;if(a.minD>40){logEv({t:Date.now(),id:a.id,miss:1,minD:Math.round(a.minD)});return}
  if(SIM.on){drive.pass++;if(!a.stopT)drive.green++;return}   // Simulation: nichts lernen
  const o=OBS[a.key]||(OBS[a.key]={g:[],p:[],r:[]});if(a.stopT&&!a.departT)a.departT=t-2;
  drive.pass++;
- if(a.stopT&&a.departT&&a.stopD<60){const gs=a.departT-1-Math.max(0,(a.stopD-12)/7)*2;o.g.push(+gs.toFixed(1));o.r.push([+a.stopT.toFixed(1),+(gs-0.5).toFixed(1)])}
- if(!a.stopT){drive.green++;o.p.push(+t.toFixed(1))}else if(a.departT)o.p.push(+t.toFixed(1));
+ // Halt hinter dem Ampelpunkt (z. B. Vorfahrt gewähren bei ausgeschalteter/gelb blinkender Ampel): kein Rot, nichts lernen.
+ // Kurzer Halt (< HALT_KURZ s): Losfahren zählt nur halb als Grünbeginn und ohne Rot-Intervall, voll erst, wenn es zum gelernten Takt passt.
+ if(a.stopT&&a.departT&&a.stopD<60&&!a.past){const gs=a.departT-1-Math.max(0,(a.stopD-12)/7)*2;let full=a.departT-a.stopT>=HALT_KURZ;
+  if(!full){const m=fit(a.key,t);if(m.ok){let dd=mod(gs-m.g0,m.C);if(dd>m.C/2)dd-=m.C;full=Math.abs(dd)<=3}}
+  if(full){o.g.push(+gs.toFixed(1));o.r.push([+a.stopT.toFixed(1),+(gs-0.5).toFixed(1)]);a.full=1}else{(o.q||(o.q=[])).push(+gs.toFixed(1));a.soft=gs;a.short=1}}
+ if(!a.stopT){drive.green++;o.p.push(+t.toFixed(1))}else if(a.departT&&!a.past)o.p.push(+t.toFixed(1));
  // Ohne Halt, aber vorher fast stehen geblieben und geradeaus weiter: die Ampel wurde vermutlich gerade grün (unsichere Beobachtung)
  if(!a.stopT&&a.vmin!=null&&a.vmin<2.2&&(a.v0||0)>6&&a.dmin<45&&a.h0!=null&&heading!=null&&Math.abs(adiff(heading,a.h0))<30){
   const q=a.tmin-1-Math.max(0,(a.dmin-12)/7)*2;/* langsamster Moment = Grün + ca. 1 s Reaktion */(o.q||(o.q=[])).push(+q.toFixed(1));a.soft=q}
  for(const k of['g','p','r','q'])if(o[k]&&o[k].length>200)o[k]=o[k].slice(-200);
- saveObs();queueObs(a,t);renderLearn();const o2=OBS[a.key];logEv({t:Date.now(),id:a.id,key:a.key,stop:!!a.stopT,soft:!!a.soft,g:o2.g.length,p:o2.p.length,ok:fit(a.key,Date.now()/1000).ok});tripEv('ampel',a.id,a.key,a.stopT?'halt':a.soft?'rollend':'durch')}
+ saveObs();queueObs(a,t);renderLearn();const o2=OBS[a.key];logEv({t:Date.now(),id:a.id,key:a.key,stop:!!a.stopT,soft:!!a.soft,g:o2.g.length,p:o2.p.length,ok:fit(a.key,Date.now()/1000).ok});tripEv('ampel',a.id,a.key,a.past?'halt hinter Ampel':a.short?'halt kurz':a.stopT?'halt':a.soft?'rollend':'durch')}
 function onFix(pos){
  const c=pos.coords,t=pos.timestamp/1000,p={lat:c.latitude,lon:c.longitude,acc:c.accuracy,t};
  let gv=v;if(prev){const dt=t-prev.t;if(dt>0){const dd=dist(prev,p);gv=c.speed!=null&&c.speed>=0?c.speed:dd/dt;v=v*0.4+gv*0.6}}
@@ -963,9 +970,9 @@ function onFix(pos){
   else if(d>500||(f&&f.s.id!==appr.id&&appr.minD>40)){logEv({t:Date.now(),id:appr.id,miss:1,minD:Math.round(appr.minD)});appr=null}}
  if(f&&(!appr||appr.id!==f.s.id)&&!(appr&&appr.minD<40))appr={id:f.s.id,key:f.key||f.s.id+'_'+sector(heading),rs:f.rs,minD:f.d,stopT:0,stopD:0,departT:0,h0:heading,v0:0,vmin:null};
  if(appr){const s=SIG.get(appr.id),d=dist(p,s);
-  if(v<1&&d<80&&!appr.stopT){appr.stopT=t;appr.stopD=d;appr.sp=p}
+  if(v<1&&d<80&&!appr.stopT){appr.stopT=t;appr.stopD=d;appr.sp=p;appr.past=pastSig(appr,p,s,d)}
   if(appr.stopT&&!appr.departT&&(gv>1.5||dist(appr.sp,p)>4))appr.departT=t;
-  if(appr.stopT&&appr.departT&&v<1&&d>15&&t-appr.departT>3){appr.stopT=t;appr.stopD=d;appr.sp=p;appr.departT=0}
+  if(appr.stopT&&appr.departT&&v<1&&d>15&&t-appr.departT>3){appr.stopT=t;appr.stopD=d;appr.sp=p;appr.departT=0;appr.past=pastSig(appr,p,s,d)}
   if(!appr.stopT){if(d>40&&d<250)appr.v0=Math.max(appr.v0,v);if(d<70){if(appr.vmin==null||v<appr.vmin-.15){appr.vmin=v;appr.tmin=t;appr.dmin=d}else if(v<=appr.vmin+.15){appr.vmin=Math.min(appr.vmin,v);appr.tmin=t;appr.dmin=d}}}}
  tgt=appr?{s:SIG.get(appr.id),key:appr.key,rs:appr.rs}:null;
  checkAlerts(p);checkCams(p);render();if(set.wx)fetchWx(p);tripRec(p,c)}
@@ -979,7 +986,7 @@ function render(){
  if(!cur){return}
  if(!tgt||!tgt.s){sig.className='sig';lamps.forEach(e=>e.classList.remove('on'));$('cd').textContent='Keine Ampel voraus';$('hint').textContent=NAV?'Bis 500 m keine Ampel auf der Route':heading==null?'Richtung wird ermittelt, bitte losfahren':'Gute Fahrt';$('src').textContent='';$('band').style.width='0';lastTgt=null;return}
  const d=(tgt.rs!=null&&NAV)?Math.max(0,tgt.rs-NAV.s):dist(cur,tgt.s),m=fit(tgt.key,now);lastTgt=tgt.s.id;if(tgtId!==tgt.s.id){tgtId=tgt.s.id;updateSigs()}
- const waiting=appr&&appr.id===tgt.s.id&&appr.stopT&&!appr.departT&&d<60;
+ const waiting=appr&&appr.id===tgt.s.id&&appr.stopT&&!appr.departT&&d<60&&!appr.past;
  if(!m.ok){const o=merged(tgt.key)||{g:[],p:[]},gn=o.g.length,pn=o.p.length,qn=(o.q||[]).length,ow=OBS[tgt.key],oth=Math.max(0,gn+pn+qn-(ow?ow.g.length+ow.p.length+(ow.q||[]).length:0));
   if(waiting){sig.className='sig';lamps.forEach(e=>e.classList.toggle('on',e.classList.contains('r')));$('cd').textContent='Rot · du wartest';$('hint').textContent='Die App merkt sich, wann es grün wird'}
   else{sig.className='sig unk';lamps.forEach(e=>e.classList.remove('on'));$('cd').textContent='Ampel in '+fmt(d);$('hint').textContent='Noch keine Schaltzeiten · vorausschauend fahren'}
@@ -1638,7 +1645,7 @@ async function rpc(fn,body){if(SIM.on&&/^(add_obs|add_report|vote_report)$/.test
 let SHOBS={},SHREPS=[],PEND=LS.get('gw_pend',[]);const SHARE={up:0,down:0,last:'',err:'',fetchedAt:0,center:null,repAt:0};
 function queueObs(a,t){if(!set.share)return;const[sig,sec]=a.key.split('_').map(Number);const o=OBS[a.key];if(!o)return;
  const add=(kind,t1,t2)=>PEND.push({sig,sec,kind,t:+t1.toFixed(1),...(t2!=null?{t2:+t2.toFixed(1)}:{})});
- if(a.stopT&&a.departT&&a.stopD<60){const g=o.g[o.g.length-1],r=o.r[o.r.length-1];if(g)add('g',g);if(r)add('r',r[0],r[1])}
+ if(a.full){const g=o.g[o.g.length-1],r=o.r[o.r.length-1];if(g)add('g',g);if(r)add('r',r[0],r[1])}
  if(a.soft)add('r',a.soft-2.5,a.soft-.5);   // unsicherer Grünbeginn: als kurzes Rot-Intervall teilen (Server kennt nur g, p, r)
  const p=o.p[o.p.length-1];if(p&&Math.abs(p-t)<1)add('p',p);
  PEND=PEND.slice(-500);LS.set('gw_pend',PEND);setTimeout(flushObs,3000)}
