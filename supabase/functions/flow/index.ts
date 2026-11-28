@@ -4,7 +4,7 @@
 // Schutz des kostenlosen Kontingents (200.000 Kacheln/Monat): gemeinsames Tages-/Monatslimit
 // in der Tabelle flow_use (Funktion flow_hit), nur Zoom 10–16, nur Mitteldeutschland,
 // 5-Minuten-Zwischenspeicher im Server und Cache-Control für Browser.
-const KEY = Deno.env.get('TOMTOM_KEY') ?? '';
+const KEY = (Deno.env.get('TOMTOM_KEY') ?? '').trim().replace(/^["']|["']$/g, '');
 const SB_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SB_SVC = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 const DAY_MAX = 6000, MON_MAX = 190000, TTL = 300_000;
@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
   try { n = await hit(); } catch (e) { return out(503, String(e)); }
   if (n < 0) return c ? png(c.b, 'alt') : out(429, 'Limit erreicht');
   const r = await fetch(`https://api.tomtom.com/traffic/map/4/tile/flow/${s}/${z}/${x}/${y}.png?key=${encodeURIComponent(KEY)}&tileSize=512&thickness=7`);
-  if (!r.ok) return c ? png(c.b, 'alt') : out(r.status === 429 ? 429 : 502, 'TomTom ' + r.status);
+  if (!r.ok) return c ? png(c.b, 'alt') : out(r.status === 429 ? 429 : 502, 'TomTom ' + r.status + ' (Schlüssellänge ' + KEY.length + ', nur Buchstaben/Ziffern: ' + /^[A-Za-z0-9]+$/.test(KEY) + ') ' + (await r.text()).slice(0, 150));
   const b = new Uint8Array(await r.arrayBuffer());
   mem.set(id, { t: now, b });
   if (mem.size > 500) mem.delete(mem.keys().next().value!);
