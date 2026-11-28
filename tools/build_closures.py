@@ -270,7 +270,7 @@ if parts:
                                 break
                             cw, j, step = nxt
                             used.add(cw)
-                        if len(seq) >= 2 and L > 25:
+                        if len(seq) >= 2 and L > 25 and not any(mdist(o[1], seq[1]) < 1 for o in out):
                             out.append(seq)
             return out
 
@@ -296,6 +296,11 @@ if parts:
                         # stadteinwärts: der Arm, von dem aus man zur Kreuzung hin näher an die Innenstadt kommt
                         sel = [s for s in A if (mdist(s[-1], CENTER) > mdist(s[0], CENTER)) == (pp['ein'] > 0)]
                         A = sel or A
+                    if len(A) > 1:
+                        # sonst: der Arm, an dem die Fläche der Stadt liegt (falls eindeutig)
+                        near = [s for s in A if min(mdist(at(s, d), tuple(q)) for d in (10, 28, 55) for q in it['poly'] + [[c[0], c[1]]]) < 20]
+                        if 0 < len(near) < len(A):
+                            A = near
                     for s in A:
                         p1, p2 = at(s, 28), at(s, 55)
                         if pp['k'] == 'aus':
