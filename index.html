@@ -352,7 +352,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='28.11.2026 · 1';
+const APP_VERSION='28.11.2026 · 2';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -364,6 +364,11 @@ const mod=(a,b)=>((a%b)+b)%b;
 const MODES={auto:{vmin:15,limits:[30,50,60,70],def:50},rad:{vmin:8,limits:[20,25,30],def:25}};
 const set=Object.assign({mode:'auto',limit:50,vlim:1,vwd:1,audio:'ton',vol:'alle',ori:'3d',theme:'auto',blitz:0,works:1,share:1,tram:1,wx:1},LS.get('gw_set',{}));if(!set.v3d){set.ori='3d';set.v3d=1}
 let OBS=LS.get('gw_obs',{});            // key -> {g:[], p:[], r:[[a,b]]}  Zeiten in Sekunden
+// Einmalig: vier Halte an ausgeschalteten Ampeln vom 28.11.2026 05:04–05:26 Uhr entfernen (fälschlich als Rot gelernt)
+if(!LS.get('gw_fix1',0)){const inW=t=>t>=1795838600&&t<=1795840100;
+ for(const k of['13587066995_1','730672048_0','3997380927_7','2432412821_0']){const o=OBS[k];if(!o)continue;
+  o.g=(o.g||[]).filter(t=>!inW(t));o.p=(o.p||[]).filter(t=>!inW(t));o.r=(o.r||[]).filter(x=>!inW(x[0]));if(o.q)o.q=o.q.filter(t=>!inW(t))}
+ LS.set('gw_obs',OBS);LS.set('gw_fix1',1)}
 let REPS=LS.get('gw_reps',[]);
 const SIG=new Map((LS.get('gw_sig',[])).map(s=>[s.id,s]));
 let sigCenter=LS.get('gw_sigc',null);
@@ -859,6 +864,8 @@ const sector=h=>Math.round(mod(h,360)/45)%8;
 // Grünzeit aus Durchfahrten, Prüfung gegen Halte und Wartezeiten. Tageszeit-Programme getrennt, neuere Beobachtungen zählen mehr.
 const BANDS=['Nacht','Morgen','Tag','Nachmittag','Abend','Wochenende'];
 const band=ts=>{const d=new Date(ts*1000),h=d.getHours()+d.getMinutes()/60,we=d.getDay()==0||d.getDay()==6;if(h<6||h>=22)return 0;if(we)return 5;return h<9.5?1:h<15?2:h<19?3:4};
+// Nachtzeit: viele Ampeln (vor allem an kleineren Kreuzungen) sind dann aus oder blinken gelb. Nacht- und Tagesbeobachtungen werden getrennt gelernt.
+const sigNight=ts=>{const d=new Date(ts*1000),h=d.getHours()+d.getMinutes()/60,we=d.getDay()==0||d.getDay()==6;return h<6||h>=22||(we&&h<8)};
 const ageW=(ts,now)=>Math.pow(.5,Math.max(0,now-ts)/(45*86400));   // Halbwertszeit 45 Tage
 const fitCache=new Map();
 function merged(key){const a=OBS[key],b=set.share?SHOBS[key]:null;if(!b)return a;if(!a)return b;
@@ -899,13 +906,14 @@ function junctionObs(key){const i=key.lastIndexOf('_'),id=key.slice(0,i),sec=+ke
 function fit(key,now){
  const o=merged(key)||{g:[],p:[],r:[]},J=junctionObs(key);if(!merged(key)&&!J.length)return{n:0};const Q=o.q||[];
  const cnt=x=>x.g.length+x.p.length+(x.q||[]).length,nOwn=cnt(o),nJ=J.reduce((s,[,x])=>s+cnt(x),0),n=nOwn+nJ;
- const b=band(now),ck=key+':'+n+':'+b+':'+Math.floor(now/21600);if(fitCache.has(ck))return fitCache.get(ck);
+ const b=band(now),nN=sigNight(now),ck=key+':'+n+':'+b+':'+nN+':'+Math.floor(now/21600);if(fitCache.has(ck))return fitCache.get(ck);
  const WT={same:.85,opp:.6};
- const mk=f=>{const G=[...o.g.filter(f).map(t=>[t,ageW(t,now)]),...Q.filter(f).map(t=>[t,.5*ageW(t,now)])],P=o.p.filter(f).map(t=>[t,ageW(t,now)]),R=o.r.filter(x=>f(x[0])).map(([a,z])=>[a,z,ageW(a,now)]);
+ const mkAll=f=>{const G=[...o.g.filter(f).map(t=>[t,ageW(t,now)]),...Q.filter(f).map(t=>[t,.5*ageW(t,now)])],P=o.p.filter(f).map(t=>[t,ageW(t,now)]),R=o.r.filter(x=>f(x[0])).map(([a,z])=>[a,z,ageW(a,now)]);
   for(const[typ,x]of J){if(WT[typ]){const w=WT[typ];for(const t of x.g)if(f(t))G.push([t,w*ageW(t,now)]);for(const t of x.q||[])if(f(t))G.push([t,.5*w*ageW(t,now)]);
     for(const t of x.p)if(f(t))P.push([t,w*ageW(t,now)]);for(const[a,z]of x.r)if(f(a))R.push([a,z,w*ageW(a,now)])}
    else{for(const t of x.g)if(f(t))R.push([t-4,t-.5,.5*ageW(t,now)]);for(const t of x.p)if(f(t))R.push([t-1,t+1,.4*ageW(t,now)])}}
   return{G,P,R}};
+ const mk=f=>mkAll(t=>f(t)&&sigNight(t)===nN);   // nur Beobachtungen derselben Art (Nacht oder Tag)
  // Kandidaten: gleiche Tageszeit-Gruppe, gleiche Uhrzeit (±2 h) an beliebigen Tagen, alle Beobachtungen. Spezifischere werden leicht bevorzugt.
  const hr=ts=>{const d=new Date(ts*1000);return d.getHours()+d.getMinutes()/60},hn=hr(now),near=t=>{const x=Math.abs(hr(t)-hn);return Math.min(x,24-x)<=2};
  const wsum=X=>X.G.reduce((s,x)=>s+x[1],0),C=[];
@@ -917,6 +925,10 @@ function fit(key,now){
  if(f===fa&&C.some(([x])=>x&&x!==fa&&Math.abs(x.C-fa.C)>1&&x.conf>.3))f={...fa,conf:fa.conf*.8};
  let res={n,nOwn,nJ,ok:false};
  if(f){res={n,nOwn,nJ,ok:f.conf>.35&&f.wi>=1.8,conf:f.conf,C:f.C,g0:f.g0,G:f.G,sd:f.sd,inl:f.inl,wi:f.wi,amb:f.amb,prog}}
+ // Nachts: genug Nachtbeobachtungen, aber kein Takt → Ampel nachts vermutlich aus. Zu wenige → Tagesdaten, aber deutlich unsicherer.
+ if(nN&&res.ok&&!(res.conf>.5&&res.wi>=3))res.ok=false;   // nachts strenger: wenige zufällige Halte an einer ausgeschalteten Ampel passen sonst leicht zu irgendeinem Takt
+ if(nN&&!res.ok){const nw=wsum(all);if(nw>=3)res.offN=true;
+  else{const d=mkAll(()=>true),fd=fitCore(d.G,d.P,d.R);if(fd){const cf=fd.conf*.6;res={n,nOwn,nJ,ok:cf>.35&&fd.wi>=1.8,conf:cf,C:fd.C,g0:fd.g0,G:fd.G,sd:fd.sd,inl:fd.inl,wi:fd.wi,amb:fd.amb,prog:'Tagesdaten, nachts unsicher'}}}}
  fitCache.set(ck,res);if(fitCache.size>400)fitCache.clear();return res}
 // Tempoempfehlung nur, wenn die Ampel regelmäßig schaltet und die Schätzung sicher genug ist
 const canAdvise=m=>!!(m&&m.ok&&m.conf>=.55&&m.sd<=3.5&&m.inl>=.7&&m.wi>=2.5&&!m.amb);
@@ -988,7 +1000,8 @@ function render(){
  const d=(tgt.rs!=null&&NAV)?Math.max(0,tgt.rs-NAV.s):dist(cur,tgt.s),m=fit(tgt.key,now);lastTgt=tgt.s.id;if(tgtId!==tgt.s.id){tgtId=tgt.s.id;updateSigs()}
  const waiting=appr&&appr.id===tgt.s.id&&appr.stopT&&!appr.departT&&d<60&&!appr.past;
  if(!m.ok){const o=merged(tgt.key)||{g:[],p:[]},gn=o.g.length,pn=o.p.length,qn=(o.q||[]).length,ow=OBS[tgt.key],oth=Math.max(0,gn+pn+qn-(ow?ow.g.length+ow.p.length+(ow.q||[]).length:0));
-  if(waiting){sig.className='sig';lamps.forEach(e=>e.classList.toggle('on',e.classList.contains('r')));$('cd').textContent='Rot · du wartest';$('hint').textContent='Die App merkt sich, wann es grün wird'}
+  if(m.offN){sig.className='sig unk';lamps.forEach(e=>e.classList.remove('on'));$('cd').textContent='Ampel in '+fmt(d);$('hint').textContent='Nachts vermutlich aus · Vorfahrt beachten'}
+  else if(waiting){sig.className='sig';lamps.forEach(e=>e.classList.toggle('on',e.classList.contains('r')));$('cd').textContent='Rot · du wartest';$('hint').textContent='Die App merkt sich, wann es grün wird'}
   else{sig.className='sig unk';lamps.forEach(e=>e.classList.remove('on'));$('cd').textContent='Ampel in '+fmt(d);$('hint').textContent='Noch keine Schaltzeiten · vorausschauend fahren'}
   $('src').textContent=gn||pn?`Lernt: ${gn} Halt${gn==1?'':'e'}${qn?` · ${qn}× angerollt`:''} · ${pn} Durchfahrt${pn==1?'':'en'}${oth?` (${oth} von anderen)`:''}${m.nJ?` · Kreuzung: ${m.nJ} aus anderen Richtungen`:''}`:m.nJ?`Lernt über die Kreuzung: ${m.nJ} Beobachtungen aus anderen Richtungen`:'Erste Fahrt hier, App lernt mit';$('band').style.width='0';return}
  const ph=phaseOf(m,now),lf=Math.max(1,Math.round(ph.left));sig.className='sig est';lamps.forEach(e=>e.classList.toggle('on',e.classList.contains(ph.st)));
