@@ -239,16 +239,37 @@ if parts:
             return k if mdist(k[1], near) < 400 else None
 
         def arms(nm, kid, length=70):
-            # Linien der Straße nm, die am Knoten kid beginnen (je Richtung eine), bis length Meter lang
+            # Linien der Straße nm, die am Knoten kid beginnen (je Richtung eine), bis length Meter lang.
+            # OSM teilt Straßen an Kreuzungen oft in kurze Stücke → über anschließende Wege gleichen Namens weiterlaufen.
+            ways = W.get(nm, [])
             out = []
-            for ns, gs in W.get(nm, []):
+            for wi, (ns, gs) in enumerate(ways):
                 for i, n in enumerate(ns):
                     if n != kid:
                         continue
                     for step in (1, -1):
-                        seq, j, L = [gs[i]], i + step, 0.0
-                        while 0 <= j < len(gs) and L < length:
-                            L += mdist(seq[-1], gs[j]); seq.append(gs[j]); j += step
+                        seq, L, cw, j, used = [gs[i]], 0.0, wi, i + step, {wi}
+                        while L < length:
+                            cns, cgs = ways[cw]
+                            if 0 <= j < len(cgs):
+                                L += mdist(seq[-1], cgs[j]); seq.append(cgs[j]); j += step
+                                continue
+                            end = cns[j - step]          # letzter Knoten dieses Wegs → anschließenden Weg suchen
+                            nxt = None
+                            for wk, (ns2, gs2) in enumerate(ways):
+                                if wk in used or end not in ns2:
+                                    continue
+                                k = ns2.index(end)
+                                if k == 0 and len(ns2) > 1:
+                                    nxt = (wk, 1, 1)
+                                elif k == len(ns2) - 1 and len(ns2) > 1:
+                                    nxt = (wk, k - 1, -1)
+                                if nxt:
+                                    break
+                            if not nxt:
+                                break
+                            cw, j, step = nxt
+                            used.add(cw)
                         if len(seq) >= 2 and L > 25:
                             out.append(seq)
             return out
