@@ -357,7 +357,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='28.11.2026 · 6';
+const APP_VERSION='28.11.2026 · 7';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -433,12 +433,13 @@ map.on('load',()=>{
  map.addSource('route',{type:'geojson',data:EMPTY});
  map.addSource('alts',{type:'geojson',data:EMPTY});
  map.addSource('flow',{type:'raster',tiles:['ttflow://{z}/{x}/{y}?s='+flowStyle()+'&b=0'],tileSize:512,minzoom:9,maxzoom:16,bounds:FLOW_BOX});FLOW.st=flowStyle();FLOW.ref=Date.now();
- map.addLayer({id:'flow',type:'raster',source:'flow',minzoom:10,layout:{visibility:flowOn()?'visible':'none'},paint:{'raster-opacity':.85,'raster-fade-duration':0}},before);
  map.addLayer({id:'alt-case',type:'line',source:'alts',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#5f7486','line-width':['interpolate',['linear'],['zoom'],12,6,18,20],'line-opacity':.55}},before);
  map.addLayer({id:'alt-line',type:'line',source:'alts',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#a9bccb','line-width':['interpolate',['linear'],['zoom'],12,4,18,14],'line-opacity':.8}},before);
  map.on('click','alt-line',e=>{const f=e.features&&e.features[0];if(f&&PREVIEW)pickRoute(+f.properties.i)});
  map.addLayer({id:'route-case',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#127fb0','line-width':['interpolate',['linear'],['zoom'],12,6,18,22]}},before);
  map.addLayer({id:'route-line',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#33ccff','line-width':['interpolate',['linear'],['zoom'],12,4,18,15]}},before);
+ // Verkehrsfluss über der Route: Farbe als Streifen in der Mitte, blauer Rand bleibt sichtbar
+ map.addLayer({id:'flow',type:'raster',source:'flow',minzoom:10,layout:{visibility:flowOn()?'visible':'none'},paint:{'raster-opacity':.85,'raster-fade-duration':0}},before);
  // Baustellen-Symbole: nahe beieinander liegende zu einer Bake zusammenfassen (Cluster ~46 px), Sperrung gewinnt
  map.addSource('works',{type:'geojson',data:EMPTY});
  map.addSource('worksPt',{type:'geojson',data:EMPTY,cluster:true,clusterRadius:46,clusterMaxZoom:19,clusterProperties:{b:['max',['get','b']],a:['max',['get','a']]}});
