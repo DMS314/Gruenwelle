@@ -352,7 +352,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='28.11.2026 · 2';
+const APP_VERSION='28.11.2026 · 3';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -654,11 +654,11 @@ async function loadWorks(){if(WORKS&&Date.now()-worksT<30*60000){drawWorks();ret
  if(!a&&!b){if(!WORKS)workState='Baustellen-Datei nicht verfügbar';drawWorks();return}
  WORKS=[...(a&&a.items||[]),...(b&&b.items||[])];worksUpd=[a&&a.updated,b&&b.updated].filter(Boolean).sort().pop()||'';
  const ab=WORKS.filter(w=>w.src==='autobahn').length,lz=WORKS.filter(w=>w.src==='leipzig').length,bl=WORKS.filter(w=>w.blocked&&w.src!=='osm').length;
- workState=`${WORKS.length} Baustellen (${lz} Stadt Leipzig, ${ab} Autobahn, ${WORKS.length-ab-lz} OSM), ${bl} Vollsperrungen${set.works?'':' · Anzeige aus, Sperrungen gelten trotzdem für Routen'}${b?' · Stadt Stand '+b.updated:' · Stadt-Datei fehlt'}`;drawWorks()}
+ workState=`${WORKS.length} Baustellen (${lz} Stadt Leipzig, ${ab} Autobahn, ${WORKS.length-ab-lz} OSM), ${bl} Vollsperrungen, ${WORKS.filter(w=>w.dirs).length} einseitig${set.works?'':' · Anzeige aus, Sperrungen gelten trotzdem für Routen'}${b?' · Stadt Stand '+b.updated:' · Stadt-Datei fehlt'}`;drawWorks()}
 function drawWorks(){const on=set.works&&WORKS;
- src('works',{type:'FeatureCollection',features:on?WORKS.filter(w=>w.line&&w.line.length>1).map(w=>({type:'Feature',geometry:{type:'LineString',coordinates:w.line},properties:{b:w.blocked&&w.src!=='osm'?1:0}})):[]});
+ src('works',{type:'FeatureCollection',features:on?WORKS.filter(w=>w.line&&w.line.length>1).map(w=>({type:'Feature',geometry:{type:'LineString',coordinates:w.line},properties:{b:(w.blocked||w.dirs)&&w.src!=='osm'?1:0}})):[]});
  worksAt=cur?{lat:cur.lat,lon:cur.lon}:null;
- src('worksPt',{type:'FeatureCollection',features:on?WORKS.map((w,i)=>({type:'Feature',geometry:{type:'Point',coordinates:lineMid(w.line)||[w.lon,w.lat]},properties:{i,b:w.blocked&&w.src!=='osm'?1:0,a:worksAt&&dist(worksAt,w)<1500?1:0}})):[]})}
+ src('worksPt',{type:'FeatureCollection',features:on?WORKS.map((w,i)=>({type:'Feature',geometry:{type:'Point',coordinates:lineMid(w.line)||[w.lon,w.lat]},properties:{i,b:(w.blocked||w.dirs)&&w.src!=='osm'?1:0,a:worksAt&&dist(worksAt,w)<1500?1:0}})):[]})}
 // Mitte einer Linie (nach Länge), damit die Bake auf der Strecke steht und nicht am Ende
 function lineMid(L){if(!L||L.length<2)return null;const d=(a,b)=>Math.hypot((b[0]-a[0])*Math.cos(a[1]*RAD),b[1]-a[1]);let T=0;for(let i=1;i<L.length;i++)T+=d(L[i-1],L[i]);let h=T/2;for(let i=1;i<L.length;i++){const s=d(L[i-1],L[i]);if(s>=h&&s>0){const f=h/s;return[L[i-1][0]+(L[i][0]-L[i-1][0])*f,L[i-1][1]+(L[i][1]-L[i-1][1])*f]}h-=s}return L[L.length-1]}
 // Blinken: nur Baustellen im Umkreis von 1,5 km, nur im Stand oder langsam (unter 30 km/h), nicht im Hintergrund
@@ -704,6 +704,23 @@ function vwdAhead(p){if(!set.vwd||!VWD.length||heading==null)return null;let bes
     const da=dist(p,a);if(da>3000)continue;if(da>40&&Math.abs(adiff(bearing(p,a),heading))>25)continue;if(d==null||da<d)d=da}}
   if(d!=null&&d<3000&&(!best||d<best.d))best={w,d:Math.max(0,d)}}
  return best}
+// Sperrung vor uns: auf der Route (Route führt trotzdem durch, weil es keinen anderen Weg gab oder die Daten später kamen)
+// oder ohne Route bei einseitiger Sperrung in unserer Fahrtrichtung bis 400 m. Liefert {x,d}
+let sperrC=null;const sperrSaid=new Set();
+function sperrAhead(p){if(!WORKS||heading==null)return null;const onR=NAV&&!(NAV.offN>0);let best=null;
+ if(onR){if(!sperrC||sperrC.nav!==NAV||sperrC.w!==WORKS){sperrC={nav:NAV,w:WORKS,l:[]};
+   for(const x of incidents().filter(x=>x.block)){if(dist(x,routeAt(NAV,0))>NAV.total+3000)continue;const ss=[];
+    for(const[lo,la]of[...(x.pts||[]),[x.lon,x.lat]]){const q=snap(NAV,la,lo);if(q.d<14&&(x.dir==null||dirHit(NAV,q.s,x.dir)))ss.push(q.s)}
+    if(ss.length)sperrC.l.push({x,s:Math.min(...ss)})}}
+  for(const o of sperrC.l){const d=o.s-NAV.s;if(d>-15&&d<1500&&(!best||d<best.d))best={x:o.x,d:Math.max(0,d)}}
+  return best}
+ for(const x of incidents()){if(!x.block||x.dir==null||dist(p,x)>500||Math.abs(adiff(heading,x.dir))>50)continue;
+  for(const[lo,la]of x.pts||[]){const q={lat:la,lon:lo},d=dist(p,q);if(d<400&&(d<25||Math.abs(adiff(bearing(p,q),heading))<25)&&(!best||d<best.d))best={x,d}}}
+ return best}
+function showSperrAlert(o){const x=o.x,el=$('alert'),id=(x.title||'')+'|'+x.dir;el.classList.add('on','info');$('aDot').style.background='#e5484d';
+ const n=x.dir==null?'Sperrung':'Einseitige Sperrung';$('aT').textContent=o.d<40?n+' hier':`${n} in ${fmt(o.d)}`;
+ $('aD').textContent=x.txt||(x.title||'').replace(/^(Einseitige )?Sperrung: /,'');
+ if(!sperrSaid.has(id)&&o.d>60){sperrSaid.add(id);tripEv('sperrHinweis',x.title,Math.round(o.d),x.dir==null?'voll':x.dir);announce('vwd',`Achtung, ${n} in ${o.d<1000?Math.max(50,Math.round(o.d/50)*50)+' Metern':(o.d/1000).toFixed(1).replace('.',',')+' Kilometern'}`,0)}}
 function showVwdAlert(x){const w=x.w,el=$('alert'),n=vwdName(w);el.classList.add('on','info');$('aDot').style.background=TYPES[w.type].c;
  $('aT').textContent=x.d<60?(w.type==='stau'?'Du bist im '+(n==='Stau'?'Stau':'stockenden Verkehr'):n+' hier'):`${n} in ${fmt(x.d)}`;
  $('aD').textContent=[w.road+(w.sub?' '+w.sub.replace(/^\s+/,''):''),w.delay?`+${w.delay} Min`:'',w.stand?'Stillstand':w.speed?`ca. ${w.speed} km/h`:''].filter(Boolean).join(' · ');
@@ -1237,12 +1254,16 @@ function renderCritSet(){const el=$('rcritSet');if(el)el.innerHTML=critsNow().ma
 function incidents(){const L=[],now=Date.now();
  for(const r of allReps())if(visRep(r)&&/^(unf|stau|gef|bau)$/.test(r.type)&&now-r.t<TYPES[r.type].h*3600e3)L.push({lat:r.lat,lon:r.lon,k:r.type,w:{stau:300,unf:300,gef:60,bau:120}[r.type],n:TYPES[r.type].n,hard:r.type!=='gef'});
  // „Straße im Bau“ aus OSM ist kein befahrbarer Weg (Router kennen ihn nicht) → nur Anzeige, keine Sperre fürs Routing
- if(WORKS)for(const w of WORKS){const bl=!!w.blocked&&w.src!=='osm';if(bl||set.works)L.push({lat:w.lat,lon:w.lon,pts:w.poly||w.line,k:'bau',w:bl?900:90,n:bl?'Vollsperrung':'Baustelle',hard:bl,block:bl,title:w.title})}
+ // Einseitige Sperrung (closures.json dirs): gilt nur in der gesperrten Fahrtrichtung d (±60°), z. B. Sommerfelder → Zuckelhäuser Straße
+ if(WORKS)for(const w of WORKS){if(w.dirs&&w.src==='leipzig'){for(const x of w.dirs){const P=x.p&&x.p.length?x.p:[[w.lon,w.lat]];L.push({lat:P.reduce((a,q)=>a+q[1],0)/P.length,lon:P.reduce((a,q)=>a+q[0],0)/P.length,pts:P,k:'bau',w:900,n:'Einseitige Sperrung',hard:false,block:true,dir:x.d,txt:x.t,title:w.title,wk:w})}continue}
+  const bl=!!w.blocked&&w.src!=='osm';if(bl||set.works)L.push({lat:w.lat,lon:w.lon,pts:w.poly||w.line,k:'bau',w:bl?900:90,n:bl?'Vollsperrung':'Baustelle',hard:bl,block:bl,title:w.title,wk:w})}
  if(set.vwd)for(const x of VWD)L.push({lat:x.lat,lon:x.lon,pts:x.line,k:x.type,w:Math.max((x.delay||0)*60,x.type==='gef'?60:300),n:x.type==='stau'?'Stau':x.type==='unf'?'Unfall':'Gefahr',hard:x.type!=='gef'});
  return L.filter(x=>isFinite(x.lat)&&isFinite(x.lon))}
+// Fährt die Route an Stelle s in Richtung d (±60°)? Für einseitige Sperrungen
+function dirHit(R,s,d){const a=routeAt(R,s-12),b=routeAt(R,s+12);return dist(a,b)<3||Math.abs(adiff(bearing(a,b),d))<=60}
 function incOn(R,L){const la=R.ll.map(c=>c[0]),lo=R.ll.map(c=>c[1]),b=[Math.min(...la)-.004,Math.max(...la)+.004,Math.min(...lo)-.006,Math.max(...lo)+.006],out=[];
  for(const x of L){const pts=(x.pts&&x.pts.length?x.pts.filter((p,i,A)=>i%Math.max(1,Math.floor(A.length/8))==0||i==A.length-1).map(([o,a])=>({lat:a,lon:o})):[]);pts.push({lat:x.lat,lon:x.lon});
-  if(!pts.some(p=>p.lat>b[0]&&p.lat<b[1]&&p.lon>b[2]&&p.lon<b[3]))continue;const lim=x.block?14:35;if(pts.some(p=>snap(R,p.lat,p.lon).d<lim))out.push(x)}
+  if(!pts.some(p=>p.lat>b[0]&&p.lat<b[1]&&p.lon>b[2]&&p.lon<b[3]))continue;const lim=x.block?14:35;if(pts.some(p=>{const q=snap(R,p.lat,p.lon);return q.d<lim&&(x.dir==null||dirHit(R,q.s,x.dir))}))out.push(x)}
  return out}
 function exclPolys(a,b,L){const mid={lat:(a.lat+b.lat)/2,lon:(a.lon+b.lon)/2},R0=dist(a,b)/2+4000;
  return L.filter(x=>x.hard&&dist(x,mid)<R0&&dist(x,a)>150&&dist(x,b)>150).sort((p,q)=>dist(p,mid)-dist(q,mid)).slice(0,15)
@@ -1323,7 +1344,7 @@ function renderPreview(){const R=PREVIEW;if(!R)return;const L=incidents();const 
   const r2=[m.sigKnown||x.onRoute?`${m.sig} Ampel${m.sig==1?'':'n'}${m.learned?` (${m.learned} gelernt)`:''}`:'Ampeln …',`${m.turns} Abbiegung${m.turns==1?'':'en'}${m.left?` (${m.left} links)`:''}`,
    m.hw>500?`${(m.hw/1000).toFixed(m.hw<10000?1:0).replace('.',',')} km Autobahn`:'',m.fuel!=null?`≈ ${m.fuel.toFixed(1).replace('.',',')} l`:''].filter(Boolean).join(' · ');
   return `<button class="rcard" data-ri="${i}" aria-pressed="${x===R}"><div class="r1"><b>${fmtDur(m.t)}</b><span>${fmt(x.total)}</span>${x.best.map(k=>`<i class="bd">${esc(critN(k))}</i>`).join('')}</div>
-   <div class="r2">${esc(r2)}${m.block.length?`<span class="w" style="color:#e5484d;font-weight:600">Führt durch Vollsperrung: ${esc(m.block.map(y=>(y.title||'').replace(/^Sperrung: /,'')).join(', '))}</span>`:''}${inc?`<span class="w">${inc} Störung${inc==1?'':'en'}: ${esc([...new Set(m.inc.map(y=>y.n))].join(', '))}</span>`:''}</div></button>`}).join('');
+   <div class="r2">${esc(r2)}${m.block.length?`<span class="w" style="color:#e5484d;font-weight:600">Führt durch ${m.block.some(y=>y.dir==null)?'Vollsperrung':'einseitige Sperrung'}: ${esc(m.block.map(y=>(y.title||'').replace(/^(Einseitige )?Sperrung: /,'')).join(', '))}</span>`:''}${inc?`<span class="w">${inc} Störung${inc==1?'':'en'}: ${esc([...new Set(m.inc.map(y=>y.n))].join(', '))}</span>`:''}</div></button>`}).join('');
  const n=R.m?R.m.learned:0;
  $('pvLearn').textContent=loading?'Ampeln entlang der Routen werden geladen …':R.onRoute&&R.onRoute.length?`${n} von ${R.onRoute.length} Ampeln mit gelernten Schaltzeiten. Die übrigen lernt die App auf dieser Fahrt mit.`:'Keine Ampeln auf dieser Route gefunden.';
  drawAlts()}
@@ -1688,7 +1709,7 @@ function checkAlerts(p){loadVwd();
  mobAsk=null;if(heading==null)return;let best=null;
  for(const r of allReps()){if(answered.has(r.id)||r.type==='mob')continue;const d=dist(p,r);if(d>350)continue;const df=Math.abs(adiff(bearing(p,r),heading));if(df>40&&d>30)continue;if(!best||d<best.d)best={r,d}}
  if(best){curAlert=best.r;$('alert').classList.remove('info');const T=TYPES[best.r.type];$('aDot').style.background=T.c;$('aT').textContent=T.n+' gemeldet';$('aD').textContent=`in ${fmt(best.d)} · ${Math.round((Date.now()-best.r.t)/60000)} Min alt · noch da?`;$('alert').classList.add('on')}
- else{curAlert=null;const x=vwdAhead(p);if(x)showVwdAlert(x);else $('alert').classList.remove('on','info')}}
+ else{curAlert=null;const sp=sperrAhead(p);if(sp){showSperrAlert(sp);return}const x=vwdAhead(p);if(x)showVwdAlert(x);else $('alert').classList.remove('on','info')}}
 const repAge=r=>{const m=Math.round((Date.now()-r.t)/60000);return m<1?'gerade eben':m<60?`vor ${m} Min`:m<48*60?`vor ${Math.round(m/60)} Std`:`vor ${Math.round(m/1440)} Tagen`};
 function removeRep(r){if(!r)return;answered.add(r.id);const mine=isMine(r),own=mine?REPS.find(x=>x===r||(x.sid&&x.sid===r.sid)):null;
  if(r.sid&&set.share){if(own&&own.tok)rpc('delete_report',{p_id:r.sid,p_token:own.tok}).catch(()=>{});else rpc('vote_report',{p_id:r.sid,p_still:false}).catch(()=>{});
@@ -1876,7 +1897,7 @@ async function checkUpdate(){try{const r=await fetch('./?v='+Date.now(),{cache:'
   let n=0;try{n=+sessionStorage.getItem('gw_upd')||0}catch(e){}if(n>2)return;try{sessionStorage.setItem('gw_upd',n+1)}catch(e){}
   location.replace(location.pathname+'?v='+encodeURIComponent(m[1]))}}catch(e){}}
 setTimeout(checkUpdate,1500);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});drawSignals();drawReps();renderLearn();loadFile();setBlitz();loadWorks();loadTrams();
-if(location.hostname=='gw.test')window.__gw={OPS,fitJ:(om,key,ts)=>{OBS=om;fitCache.clear();return ts.map(t=>{const m=fit(key,t);if(!m.ok)return null;return[phaseOf(m,t).st,m.C,canAdvise(m)]})},sigDbg:(la,lo)=>sigClusters().filter(g=>g.some(x=>dist(x,{lat:la,lon:lo})<450)).map(g=>({rep:(r=>[r.id,+r.lat.toFixed(5),+r.lon.toFixed(5)])(sigRep(g)),m:g.map(x=>[+x.lat.toFixed(5),+x.lon.toFixed(5)])})),onFix:x=>onFix(x),addSig:(id,lat,lon)=>SIG.set(id,{id,lat,lon}),obs:()=>OBS,sig1:(la,lo)=>{let b=null;for(const x of SIG.values()){const d=dist({lat:la,lon:lo},x);if(!b||d<b.d)b={d,id:x.id,lat:x.lat,lon:x.lon}}return b},fitT:(o,ts)=>{OBS={'t_0':o};fitCache.clear();return ts.map(t=>{const m=fit('t_0',t);if(!m.ok)return null;return[phaseOf(m,t).st,m.C,typeof canAdvise==='function'?canAdvise(m):m.conf>0]})},works:()=>WORKS&&WORKS.length,workState:()=>workState,pvr:()=>PVR.map(R=>({km:R.total,t:R.duration,src:R.src,best:R.best,m:R.m&&{sig:R.m.sig,turns:R.m.turns,left:R.m.left,hw:R.m.hw,inc:R.m.inc.length,fuel:R.m.fuel},sel:R===PREVIEW})),navCrit:()=>NAV&&NAV.crit,navKm:()=>NAV&&NAV.total,reroute,preview,trips:()=>(tripSave(),TRIPS),renderTrips,cam:()=>({camState,n:CAMS?CAMS.length:0}),camReset:()=>{camTry=0},actx:()=>actx,audioState,WX:()=>WX,drawWx,VWD:()=>VWD,loadVwd,vwdAhead,VL,ANN:()=>ANN,annAt,condMs,wayLimit,OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr,map,SIM};
+if(location.hostname=='gw.test')window.__gw={OPS,sperrT:(R,s,h,p)=>{const o=NAV,oh=heading;NAV=R;if(R){R.s=s;R.offN=0}heading=h;sperrC=null;try{return sperrAhead(p||routeAt(R,s))}finally{NAV=o;heading=oh;sperrC=null}},fitJ:(om,key,ts)=>{OBS=om;fitCache.clear();return ts.map(t=>{const m=fit(key,t);if(!m.ok)return null;return[phaseOf(m,t).st,m.C,canAdvise(m)]})},sigDbg:(la,lo)=>sigClusters().filter(g=>g.some(x=>dist(x,{lat:la,lon:lo})<450)).map(g=>({rep:(r=>[r.id,+r.lat.toFixed(5),+r.lon.toFixed(5)])(sigRep(g)),m:g.map(x=>[+x.lat.toFixed(5),+x.lon.toFixed(5)])})),onFix:x=>onFix(x),addSig:(id,lat,lon)=>SIG.set(id,{id,lat,lon}),obs:()=>OBS,sig1:(la,lo)=>{let b=null;for(const x of SIG.values()){const d=dist({lat:la,lon:lo},x);if(!b||d<b.d)b={d,id:x.id,lat:x.lat,lon:x.lon}}return b},fitT:(o,ts)=>{OBS={'t_0':o};fitCache.clear();return ts.map(t=>{const m=fit('t_0',t);if(!m.ok)return null;return[phaseOf(m,t).st,m.C,typeof canAdvise==='function'?canAdvise(m):m.conf>0]})},works:()=>WORKS&&WORKS.length,workState:()=>workState,pvr:()=>PVR.map(R=>({km:R.total,t:R.duration,src:R.src,best:R.best,m:R.m&&{sig:R.m.sig,turns:R.m.turns,left:R.m.left,hw:R.m.hw,inc:R.m.inc.length,fuel:R.m.fuel},sel:R===PREVIEW})),navCrit:()=>NAV&&NAV.crit,navKm:()=>NAV&&NAV.total,reroute,preview,trips:()=>(tripSave(),TRIPS),renderTrips,cam:()=>({camState,n:CAMS?CAMS.length:0}),camReset:()=>{camTry=0},actx:()=>actx,audioState,WX:()=>WX,drawWx,VWD:()=>VWD,loadVwd,vwdAhead,VL,ANN:()=>ANN,annAt,condMs,wayLimit,OBS:()=>OBS,fit,drive,nav:()=>NAV,appr:()=>appr,map,SIM};
 $('startInfo').textContent=(Object.keys(OBS).length?`Bisher gelernt: ${Object.keys(OBS).length} Ampel-Richtungen. `:'')+'Version '+APP_VERSION;
 
 }

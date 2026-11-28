@@ -3,6 +3,7 @@ Nur heute gültige Einträge, die den Autoverkehr betreffen. Vollsperrungen: blo
 Aufruf: build_closures.py <ziel.json>"""
 import json, sys, re, datetime, urllib.request, urllib.parse, math
 
+SRC = None  # zum Testen: GRUENWELLE_WFS=<datei.json> statt Abruf bei der Stadt
 URL = ('https://geodienste.leipzig.de/l3/OpenData/wfs?VERSION=1.3.0&REQUEST=getFeature'
        '&typeName=OpenData%3Averkehrsraumeinschraenkungen&outputFormat=application/json&srsName=EPSG:4326')
 UA = 'Gruenwelle/1.0 (+https://github.com/DMS314/Gruenwelle)'
@@ -22,9 +23,13 @@ def de(d):
     except Exception:
         return ''
 
-req = urllib.request.Request(URL, headers={'User-Agent': UA, 'Accept': 'application/json'})
-with urllib.request.urlopen(req, timeout=120) as r:
-    data = json.load(r)
+import os
+if os.environ.get('GRUENWELLE_WFS'):
+    data = json.load(open(os.environ['GRUENWELLE_WFS'], encoding='utf-8'))
+else:
+    req = urllib.request.Request(URL, headers={'User-Agent': UA, 'Accept': 'application/json'})
+    with urllib.request.urlopen(req, timeout=120) as r:
+        data = json.load(r)
 
 FOOT = re.compile(r'Gehweg|Fu(ß|ss)weg|Fu(ß|ss)g(ä|ae)nger|Radweg|Radverkehr|Gehbahn', re.I)
 CAR = re.compile(r'Fahrbahn|Fahrstreifen|Fahrspur|halbseitig|Einbahn|Ampel|LSA|Abbiege|Umleitung|gesperrt|Sperrung', re.I)
@@ -65,7 +70,7 @@ for f in data.get('features', []):
                         b and f'Seit {de(b)}'] if x]
     items.append({'id': 'lz-' + str(p.get('objectid')), 'src': 'leipzig', 'title': ('Sperrung: ' if full else 'Baustelle: ') + addr,
                   'sub': sub, 'desc': desc, 'lon': round(lon, 6), 'lat': round(lat, 6),
-                  'line': thin(ring), 'poly': thin(ring), 'blocked': bool(full), 'end': e})
+                  'line': thin(ring), 'poly': thin(ring), 'blocked': bool(full), 'end': e, '_msg': msg})
     n_block += bool(full)
 
 # ---- Lage prüfen: „Knoten X/Y“ muss an der Kreuzung von X und Y liegen (Datensatz der Stadt hat teils versetzte Flächen,
@@ -138,6 +143,202 @@ if knots:
         print(f'Kartendienst nicht erreichbar, {fixed} Korrekturen aus dem letzten Lauf übernommen')
     print(f'{len(knots)} Kreuzungs-Sperrungen geprüft, {fixed} Lage korrigiert')
 
+
+# ---- Einseitige Sperrungen (nur eine Fahrtrichtung oder ein Abbiegen gesperrt). Die Stadt führt sie meist als „Einschränkungen“
+# mit einer kleinen Fläche irgendwo an der Stelle, z. B. „Zuckelhäuser Straße 5: … Sperrung der Ausfahrt Sommerfelder Straße auf die
+# Zuckelhäuser Straße stadteinwärts“ (Fläche mitten auf der Kreuzung, die Umleitung führt über dieselbe Kreuzung!).
+# Aus dem Text wird die gesperrte Fahrtrichtung bestimmt: dirs = [{d: Richtung in Grad (gesperrte Fahrtrichtung), p: Punkte, t: Text}].
+# Die App sperrt eine Route nur, wenn sie dort in dieser Richtung (±60°) fährt, und umfährt nur dann.
+CENTER = (12.3747, 51.3405)   # Markt Leipzig (für stadteinwärts/stadtauswärts)
+NM = r"[A-ZÄÖÜ][\wäöüß.\-]*(?:\s+(?:[A-ZÄÖÜ][\wäöüß.\-]*|am|an|der|zur|zum|im))*?\s*(?:[Ss]tra(?:ß|ss)e|[Ss]tr\.|[Ww]eg|[Pp]latz|[Aa]llee|[Rr]ing|[Gg]asse|[Dd]amm|[Uu]fer|[Mm]arkt|[Bb]rücke)"
+PLACE = r"[A-ZÄÖÜ][\wäöüß\-]+(?:\s+[A-ZÄÖÜ][\wäöüß\-]+)?"
+
+def norm(n):
+    return re.sub(r'\s+', ' ', re.sub(r'([Ss])tr\.$', r'\1traße', n.strip(' ,.'))).strip()
+
+def brg(a, b):  # a, b = (lon, lat) → Grad
+    return (math.degrees(math.atan2((b[0] - a[0]) * 69600, (b[1] - a[1]) * 111000)) + 360) % 360
+
+def addr_street(it):
+    a = it['title'].split(': ', 1)[1]
+    a = re.split(r'\s*/\s*|\s+Ecke\s+|\s+zu\s+|\s+zw\.\s+|\s+zwischen\s+|\s+-\s+|,', a)[0]
+    return norm(re.sub(r'\s+\d.*$', '', re.sub(r'\(.*?\)', '', a)))
+
+def parse_part(it):
+    m = it.get('_msg') or ''
+    if not m or it['blocked']:
+        return None
+    x = re.search(r'Sperrung der (?:Aus|Zu)fahrt (?:der |von der |aus der )?(' + NM + r')\s+(?:auf|in) (?:die |den |das )?(' + NM + r')([^.]{0,40})', m)
+    if x:
+        q = x.group(3)
+        return {'k': 'aus', 'x': norm(x.group(1)), 'y': norm(x.group(2)),
+                'ein': 1 if re.search(r'stadteinw', q) else -1 if re.search(r'stadtausw', q) else 0}
+    x = re.search(r'Keine (?:Einfahrt|Zufahrt) (?:aus|von) (?:Richtung |der )?(' + NM + r')', m)
+    if x:
+        return {'k': 'ein', 'x': addr_street(it), 'y': norm(x.group(1))}
+    x = re.search(r'Sperrung der Fahrtrichtung (' + NM + r'|' + PLACE + r')', m) or re.search(r'Fahrtrichtung (' + NM + r'|' + PLACE + r') (?:ist )?gesperrt', m)
+    if x:
+        return {'k': 'ri', 'x': addr_street(it), 'z': norm(x.group(1))}
+    x = re.search(r'Sperrung[^.]{0,140}?(stadteinw|stadtausw)', m)
+    if x and not re.search(r'Ampel|LSA|wechselseitig|beide(n)? Richtung', m[x.start():x.end() + 80]):
+        return {'k': 'stadt', 'ein': 1 if x.group(1) == 'stadteinw' else -1}
+    return None
+
+parts = [(it, pp) for it in items if it['src'] == 'leipzig' for pp in [parse_part(it)] if pp]
+print(f'{len(parts)} einseitige Sperrungen im Text erkannt')
+n_dir = 0
+DIRLOG = []   # Protokoll in closures.json (Job-Logs sind nicht lesbar)
+if parts:
+    snames = sorted({n for _, pp in parts for n in (pp.get('x'), pp.get('y'), pp.get('z')) if n})
+    rx = '|'.join(re.sub(r'([.$*+?(){}|])', r'[\1]', n) for n in snames if not re.search(r'[\\\[\]^"]', n))
+    q = (f'[out:json][timeout:120];(way["highway"]["name"~"^({rx})$"](51.20,12.15,51.48,12.62);'
+         f'node["place"]["name"~"^({rx})$"](51.15,12.10,51.55,12.70););out body geom;')
+    els = None
+    for url in OVERPASS:
+        try:
+            req = urllib.request.Request(url, data=urllib.parse.urlencode({'data': q}).encode(), headers={'User-Agent': UA})
+            with urllib.request.urlopen(req, timeout=150) as r:
+                els = json.load(r).get('elements', [])
+            break
+        except Exception as e:
+            print('Overpass', url, e)
+    if els is None:
+        try:
+            old = {i['id']: i for i in json.load(open(dst, encoding='utf-8')).get('items', []) if i.get('dirs')}
+        except Exception:
+            old = {}
+        for it, pp in parts:
+            o = old.get(it['id'])
+            if o:
+                for k in ('dirs', 'line', 'title', 'sub'):
+                    it[k] = o[k]
+                n_dir += 1
+        print(f'Kartendienst nicht erreichbar, {n_dir} Richtungssperrungen aus dem letzten Lauf übernommen')
+    else:
+        W = {}        # name -> [(nodes, geometry)]
+        places = {}
+        for el in els:
+            nm = el.get('tags', {}).get('name')
+            if el['type'] == 'way':
+                W.setdefault(nm, []).append((el.get('nodes', []), [(g['lon'], g['lat']) for g in el.get('geometry', [])]))
+            elif el['type'] == 'node':
+                places[nm] = (el['lon'], el['lat'])
+
+        def nodes_of(nm):
+            out = {}
+            for ns, gs in W.get(nm, []):
+                out.update(zip(ns, gs))
+            return out
+
+        def junction(a, b, near):
+            na, nb = nodes_of(a), nodes_of(b)
+            sh = [(k, na[k]) for k in na.keys() & nb.keys()]
+            if not sh:
+                return None
+            k = min(sh, key=lambda x: mdist(x[1], near))
+            return k if mdist(k[1], near) < 400 else None
+
+        def arms(nm, kid, length=70):
+            # Linien der Straße nm, die am Knoten kid beginnen (je Richtung eine), bis length Meter lang.
+            # OSM teilt Straßen an Kreuzungen oft in kurze Stücke → über anschließende Wege gleichen Namens weiterlaufen.
+            ways = W.get(nm, [])
+            out = []
+            for wi, (ns, gs) in enumerate(ways):
+                for i, n in enumerate(ns):
+                    if n != kid:
+                        continue
+                    for step in (1, -1):
+                        seq, L, cw, j, used = [gs[i]], 0.0, wi, i + step, {wi}
+                        while L < length:
+                            cns, cgs = ways[cw]
+                            if 0 <= j < len(cgs):
+                                L += mdist(seq[-1], cgs[j]); seq.append(cgs[j]); j += step
+                                continue
+                            end = cns[j - step]          # letzter Knoten dieses Wegs → anschließenden Weg suchen
+                            nxt = None
+                            for wk, (ns2, gs2) in enumerate(ways):
+                                if wk in used or end not in ns2:
+                                    continue
+                                k = ns2.index(end)
+                                if k == 0 and len(ns2) > 1:
+                                    nxt = (wk, 1, 1)
+                                elif k == len(ns2) - 1 and len(ns2) > 1:
+                                    nxt = (wk, k - 1, -1)
+                                if nxt:
+                                    break
+                            if not nxt:
+                                break
+                            cw, j, step = nxt
+                            used.add(cw)
+                        if len(seq) >= 2 and L > 25 and not any(mdist(o[1], seq[1]) < 1 for o in out):
+                            out.append(seq)
+            return out
+
+        def at(seq, m):  # Punkt m Meter entlang der Linie
+            L = 0.0
+            for a, b in zip(seq, seq[1:]):
+                d = mdist(a, b)
+                if L + d >= m and d > 0:
+                    f = (m - L) / d
+                    return (a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f)
+                L += d
+            return seq[-1]
+
+        R6 = lambda pt: [round(pt[0], 6), round(pt[1], 6)]
+        for it, pp in parts:
+            c = (it['lon'], it['lat'])
+            dirs = []
+            if pp['k'] in ('aus', 'ein'):
+                j = junction(pp['x'], pp['y'], c)
+                if j:
+                    A = arms(pp['x'], j[0])
+                    if pp['k'] == 'aus' and pp.get('ein') and len(A) > 1:
+                        # stadteinwärts: der Arm, von dem aus man zur Kreuzung hin näher an die Innenstadt kommt
+                        sel = [s for s in A if (mdist(s[-1], CENTER) > mdist(s[0], CENTER)) == (pp['ein'] > 0)]
+                        A = sel or A
+                    if len(A) > 1:
+                        # sonst: der Arm, an dem die Fläche der Stadt liegt (falls eindeutig)
+                        near = [s for s in A if min(mdist(at(s, d), tuple(q)) for d in (10, 28, 55) for q in it['poly'] + [[c[0], c[1]]]) < 20]
+                        if 0 < len(near) < len(A):
+                            A = near
+                    for s in A:
+                        p1, p2 = at(s, 28), at(s, 55)
+                        if pp['k'] == 'aus':
+                            dirs.append({'d': round(brg(p2, p1)), 'p': [R6(p2), R6(p1)], 't': f"{pp['x']} → {pp['y']} gesperrt"})
+                        else:
+                            dirs.append({'d': round(brg(p1, p2)), 'p': [R6(p1), R6(p2)], 't': f"Einfahrt von {pp['y']} in {pp['x']} gesperrt"})
+            elif pp['k'] == 'ri':
+                j = junction(pp['x'], pp['z'], c)
+                tgt = j[1] if j else places.get(pp['z'])
+                if tgt and mdist(tgt, c) > 15:
+                    dirs.append({'d': round(brg(c, tgt)), 'p': it['poly'], 't': f"{pp['x']}: Richtung {pp['z']} gesperrt"})
+            elif pp['k'] == 'stadt':
+                b0 = brg(c, CENTER) if pp['ein'] > 0 else brg(CENTER, c)
+                dirs.append({'d': round(b0), 'p': it['poly'], 't': 'stadteinwärts gesperrt' if pp['ein'] > 0 else 'stadtauswärts gesperrt'})
+            if not dirs:
+                why = ''
+                if pp['k'] in ('aus', 'ein', 'ri'):
+                    o = pp.get('y') or pp.get('z')
+                    why = f"Wege {pp['x']}: {len(W.get(pp['x'], []))}, {o}: {len(W.get(o, []))}, Ort: {o in places}"
+                    if pp['k'] in ('aus', 'ein'):
+                        j = junction(pp['x'], pp['y'], c)
+                        why += f", Kreuzung: {j}" + (f", Arme: {len(arms(pp['x'], j[0]))}" if j else '')
+                DIRLOG.append(f"nicht bestimmbar: {it['title']} {pp} – {why}")
+                print(DIRLOG[-1])
+                continue
+            it['dirs'] = dirs
+            it['title'] = 'Einseitige Sperrung: ' + it['title'].split(': ', 1)[1]
+            it['sub'] = 'Einseitig gesperrt' + (f" · bis {de(it['end'])}" if it.get('end') else '')
+            it['desc'].insert(0, 'Gesperrt: ' + '; '.join(dict.fromkeys(x['t'] for x in dirs)))
+            if pp['k'] in ('aus', 'ein') and len(dirs) == 1:
+                it['line'] = dirs[0]['p']
+            n_dir += 1
+            DIRLOG.append(f"Einseitig: {it['title']} – " + ', '.join(f"{x['t']} ({x['d']}°)" for x in dirs))
+            print(DIRLOG[-1])
+    print(f'{n_dir} einseitige Sperrungen mit Richtung')
+for it in items:
+    it.pop('_msg', None)
+
 # ---- Autobahn GmbH: Sperrungen von Anschlussstellen (Liste „closure“; dort steht isBlocked oft auf false, obwohl die Rampe zu ist).
 # Nur Auf- und Abfahrten, keine Fahrstreifen-Einschränkungen auf der Hauptfahrbahn. Rampenlinie an beiden Enden kürzen,
 # damit die Sperrfläche nicht die durchgehende Autobahn oder die Stadtstraße berührt.
@@ -185,9 +386,9 @@ print(f'{n_ab} gesperrte Autobahn-Auf-/Abfahrten')
 
 out = {'updated': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M UTC'),
        'source': 'Stadt Leipzig, Verkehrs- und Tiefbauamt: Verkehrsraumeinschränkungen (opendata.leipzig.de); Autobahn GmbH des Bundes (verkehr.autobahn.de)',
-       'items': items}
+       'dirlog': DIRLOG, 'items': items}
 with open(dst, 'w', encoding='utf-8') as f:
     json.dump(out, f, ensure_ascii=False, separators=(',', ':'))
 for k in sorted(stat):
     print('  ', k, stat[k])
-print(f'{len(items)} Einschränkungen geschrieben, davon {n_block} Vollsperrungen (von {len(data.get("features", []))})')
+print(f'{len(items)} Einschränkungen geschrieben, davon {n_block} Vollsperrungen, {n_dir} einseitig (von {len(data.get("features", []))})')
