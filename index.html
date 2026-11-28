@@ -222,7 +222,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 }
 </style></head><body>
 <div id="app">
- <div id="mapwrap"><div id="map"></div><div class="scrim"></div><div class="attr"><a href="https://openfreemap.org">OpenFreeMap</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a></div></div>
+ <div id="mapwrap"><div id="map"></div><div class="scrim"></div><div class="attr"><a href="https://openfreemap.org">OpenFreeMap</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a><span id="attrTT" style="display:none"> · Verkehr © <a href="https://www.tomtom.com">TomTom</a></span></div></div>
  <div id="nav"><div class="main"><div class="head" id="navHead" role="button" aria-expanded="false" aria-label="Weitere Abbiegungen anzeigen">
   <div class="ni"><svg viewBox="0 0 48 48" id="navIco"></svg></div>
   <div class="tx"><b id="navD">–</b><span id="navT">–</span></div>
@@ -308,6 +308,11 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
  <p class="small">Welche Route bei der Zielwahl vorausgewählt ist und nach welchem Merkmal bei Abweichung neu geplant wird. Die anderen Vorschläge kannst du vor dem Losfahren antippen.</p>
  <h3>Verkehrsmeldungen</h3><div class="row"><button class="chip" data-vwd="1">An</button><button class="chip" data-vwd="0">Aus</button></div>
  <p class="small">Stau, Unfälle und Gefahren auf den Autobahnen rund um Leipzig und in Sachsen (A4, A9, A13, A14, A17, A38, A72, A143), live vom Verkehrswarndienst über die Autobahn GmbH: dieselben Meldungen wie im Radio-Verkehrsfunk. Liegt eine Meldung bis 3 km vor dir, erscheint ein Hinweis. Für Straßen in der Stadt gibt es keine offene Quelle.</p>
+ <h3>Verkehrsfluss (TomTom)</h3><div class="row"><button class="chip" data-flow="1">An</button><button class="chip" data-flow="0">Aus</button></div>
+ <div class="row" style="margin-top:8px"><input type="password" id="ttKey" placeholder="TomTom-API-Schlüssel einfügen" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" style="flex:1;min-width:0;font:inherit;font-size:16px;min-height:44px;border:1px solid var(--line);border-radius:12px;padding:0 12px;background:none;color:var(--ink)"><button class="btn" id="ttSave">Speichern</button></div>
+ <div class="row" style="margin-top:8px"><button class="btn" id="ttTest">Schlüssel prüfen</button><button class="btn" id="ttDel">Schlüssel löschen</button></div>
+ <p class="small" id="ttInfo"></p>
+ <p class="small">Färbt die Straßen nach dem Verkehr gerade eben: grün frei, orange zäh, rot Stau, dunkelrot fast stehend. Daten von TomTom, alle 5 Minuten neu, ab Zoom 10 und nur in Mitteldeutschland. Der Schlüssel bleibt nur auf diesem Gerät (nicht im Export, nicht in den geteilten Daten). Schutz des kostenlosen Kontingents: höchstens 6.000 Kartenkacheln am Tag und 190.000 im Monat, danach bleibt die Ebene bis zum nächsten Tag leer.</p>
  <h3>Tempolimit anzeigen</h3><div class="row"><button class="chip" data-vlim="1">An</button><button class="chip" data-vlim="0">Aus</button></div>
  <p class="small">Zeigt das erlaubte Tempo der Straße aus OpenStreetMap neben deiner Geschwindigkeit, auch zeitlich begrenzte Limits (z. B. 30 vor Schulen). Fährst du mehr als 3 km/h schneller, wird deine Geschwindigkeit rot. Die Daten können fehlen oder veraltet sein, es gelten immer die Schilder.</p>
  <h3>Tempolimit, wenn unbekannt</h3><div class="row" id="limits"></div>
@@ -326,7 +331,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
  <h3>Fahrt</h3><div class="row"><button class="btn" id="stop">Fahrt beenden</button></div>
  <h3>Diagnose</h3><div id="diag" class="small" style="line-height:1.5"></div>
  <h3>Fahrtprotokoll</h3><p class="small">Zeichnet jede Fahrt auf (Position, Tempo, Anzeigen, Ansagen, Ladefehler). Bleibt nur auf diesem Gerät, bis du es teilst. Die letzten 3 Fahrten werden aufgehoben.</p><div id="trips" class="small" style="line-height:1.6"></div>
- <p class="small" style="margin-top:14px">Karte, Ampelstandorte und Routen: © OpenStreetMap-Mitwirkende. Suche: Photon (komoot). Routing: OSRM und Valhalla über FOSSGIS. Sperrungen und Baustellen in Leipzig: Stadt Leipzig, Verkehrs- und Tiefbauamt (opendata.leipzig.de). Straßenbahn-Fahrplan: DELFI e.V. über gtfs.de, CC BY 4.0. Wetterwarnungen: Deutscher Wetterdienst über Bright Sky. Angekündigte Kontrollen: Stadt Bonn, Open Data (CC0). Verkehrsmeldungen: Verkehrswarndienst über die Autobahn GmbH des Bundes. Gelernte Daten und Meldungen verlassen das Gerät nur, wenn „Daten mit allen teilen“ an ist.</p>
+ <p class="small" style="margin-top:14px">Karte, Ampelstandorte und Routen: © OpenStreetMap-Mitwirkende. Suche: Photon (komoot). Routing: OSRM und Valhalla über FOSSGIS. Sperrungen und Baustellen in Leipzig: Stadt Leipzig, Verkehrs- und Tiefbauamt (opendata.leipzig.de). Straßenbahn-Fahrplan: DELFI e.V. über gtfs.de, CC BY 4.0. Wetterwarnungen: Deutscher Wetterdienst über Bright Sky. Angekündigte Kontrollen: Stadt Bonn, Open Data (CC0). Verkehrsmeldungen: Verkehrswarndienst über die Autobahn GmbH des Bundes. Verkehrsfluss (wenn eingeschaltet): © TomTom. All rights reserved. Gelernte Daten und Meldungen verlassen das Gerät nur, wenn „Daten mit allen teilen“ an ist.</p>
  <button class="btn big" data-close style="margin-top:8px">Schließen</button></div>
 
 <div class="start" id="start"><div class="in">
@@ -352,7 +357,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='28.11.2026 · 3';
+const APP_VERSION='28.11.2026 · 4';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -362,7 +367,7 @@ const adiff=(a,b)=>((a-b+540)%360)-180;
 const mod=(a,b)=>((a%b)+b)%b;
 // ---------- Einstellungen & Speicher ----------
 const MODES={auto:{vmin:15,limits:[30,50,60,70],def:50},rad:{vmin:8,limits:[20,25,30],def:25}};
-const set=Object.assign({mode:'auto',limit:50,vlim:1,vwd:1,audio:'ton',vol:'alle',ori:'3d',theme:'auto',blitz:0,works:1,share:1,tram:1,wx:1},LS.get('gw_set',{}));if(!set.v3d){set.ori='3d';set.v3d=1}
+const set=Object.assign({mode:'auto',limit:50,vlim:1,vwd:1,flow:0,audio:'ton',vol:'alle',ori:'3d',theme:'auto',blitz:0,works:1,share:1,tram:1,wx:1},LS.get('gw_set',{}));if(!set.v3d){set.ori='3d';set.v3d=1}
 let OBS=LS.get('gw_obs',{});            // key -> {g:[], p:[], r:[[a,b]]}  Zeiten in Sekunden
 // Einmalig: vier Halte an ausgeschalteten Ampeln vom 28.11.2026 05:04–05:26 Uhr entfernen (fälschlich als Rot gelernt)
 if(!LS.get('gw_fix1',0)){const inW=t=>t>=1795838600&&t<=1795840100;
@@ -377,12 +382,53 @@ const saveObs=()=>LS.set('gw_obs',OBS),saveSet=()=>LS.set('gw_set',set),saveReps
 const EMPTY={type:'FeatureCollection',features:[]};
 const map=new maplibregl.Map({container:'map',style:'https://tiles.openfreemap.org/styles/liberty',center:[12.3731,51.3397],zoom:14,attributionControl:false,maxPitch:70,fadeDuration:0});
 let mapReady=false,mapErr='';const mapQ=[];const whenMap=f=>{if(mapReady)f();else mapQ.push(f)};
+// ---------- Verkehrsfluss: TomTom Traffic Flow (Rasterkacheln) ----------
+// Kostenlos 200.000 Kacheln/Monat (TomTom, Stand 11/2026, bei Überschreitung HTTP 429, keine Kosten ohne Bezahldaten).
+// Schutz: eigener Zähler je Tag/Monat, 5-Min-Zwischenspeicher (Speicher + Cache-API), Kacheln 512 px, nur Zoom 9–16, nur Mitteldeutschland, nur wenn an.
+var FLOW={state:'aus',err:'',stop:'',ref:0,mem:new Map(),limT:'',st:''};
+const FLOW_DAY=6000,FLOW_MON=190000,FLOW_TTL=300000,FLOW_BOX=[10.5,50.1,15.1,52.7];
+const flowKey=()=>LS.get('gw_ttkey',''),flowOn=()=>!!(set.flow&&flowKey()),flowStyle=()=>isNight()?'relative0-dark':'relative0';
+const flowDay=()=>{const d=new Date();return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate()};
+function flowUse(){const d=flowDay(),m=d.replace(/-\d+$/,''),u=LS.get('gw_flowuse',{});if(u.d!==d){u.d=d;u.n=0}if(u.m!==m){u.m=m;u.mn=0}return u}
+const FLOW_EMPTY=(()=>{const b=atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='),a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return()=>a.buffer.slice(0)})();
+async function flowCache(){try{if(!window.caches)return null;const n='gw-flow-'+flowDay();if(FLOW.cn!==n){FLOW.cn=n;for(const k of await caches.keys())if(k.startsWith('gw-flow-')&&k!==n)caches.delete(k)}return await caches.open(n)}catch(e){return null}}
+function flowFail(st){if(st===401||st===403){FLOW.stop='Schlüssel ungültig oder für diese Seite gesperrt (HTTP '+st+')';toast('TomTom: Schlüssel ungültig')}
+ else if(st===429){FLOW.stop='TomTom-Kontingent erschöpft (HTTP 429)';toast('TomTom-Kontingent erschöpft, Verkehrsfluss pausiert')}else FLOW.err='HTTP '+st;renderFlowInfo()}
+maplibregl.addProtocol('ttflow',async(p,ac)=>{
+ const m=/^ttflow:\/\/(\d+)\/(\d+)\/(\d+)\?s=([\w-]+)/.exec(p.url);if(!m)return{data:FLOW_EMPTY()};
+ const[,z,x,y,st]=m,id=st+'/'+z+'/'+x+'/'+y,now=Date.now(),c=FLOW.mem.get(id);
+ if(c&&now-c.t<FLOW_TTL)return{data:c.b.slice(0)};
+ const cache=await flowCache();
+ if(cache)try{const r=await cache.match('https://gw-flow/'+id);const t=r&&+r.headers.get('x-t');if(r&&now-t<FLOW_TTL){const b=await r.arrayBuffer();FLOW.mem.set(id,{t,b});return{data:b.slice(0)}}}catch(e){}
+ const old=()=>({data:c?c.b.slice(0):FLOW_EMPTY()}),k=flowKey();
+ if(!flowOn()||FLOW.stop)return old();
+ const u=flowUse();if(u.n>=FLOW_DAY||u.mn>=FLOW_MON){if(FLOW.limT!==u.d){FLOW.limT=u.d;toast(u.mn>=FLOW_MON?'Monatslimit Verkehrsfluss erreicht':'Tageslimit Verkehrsfluss erreicht, morgen wieder da');renderFlowInfo()}return old()}
+ u.n++;u.mn++;LS.set('gw_flowuse',u);
+ let r;try{r=await fetch('https://api.tomtom.com/traffic/map/4/tile/flow/'+st+'/'+z+'/'+x+'/'+y+'.png?key='+encodeURIComponent(k)+'&tileSize=512&thickness=7',{signal:ac.signal})}
+ catch(e){if(ac.signal.aborted)throw e;FLOW.err='nicht erreichbar';return old()}
+ if(!r.ok){flowFail(r.status);return old()}
+ const b=await r.arrayBuffer();FLOW.mem.set(id,{t:now,b});if(FLOW.mem.size>300)FLOW.mem.delete(FLOW.mem.keys().next().value);
+ if(cache)cache.put('https://gw-flow/'+id,new Response(b.slice(0),{headers:{'content-type':'image/png','x-t':String(now)}})).catch(()=>{});
+ FLOW.ok=now;FLOW.err='';return{data:b}});
+function flowTiles(){const so=map.getSource&&map.getSource('flow');if(!so)return;FLOW.st=flowStyle();FLOW.ref=Date.now();so.setTiles(['ttflow://{z}/{x}/{y}?s='+FLOW.st+'&b='+Math.floor(FLOW.ref/FLOW_TTL)])}
+function drawFlow(){const on=flowOn();const a=$('attrTT');if(a)a.style.display=on?'':'none';
+ whenMap(()=>{if(!map.getLayer('flow'))return;map.setLayoutProperty('flow','visibility',on?'visible':'none');if(on&&(FLOW.st!==flowStyle()||Date.now()-FLOW.ref>FLOW_TTL))flowTiles()});renderFlowInfo()}
+function flowTheme(){if(flowOn()&&FLOW.st&&FLOW.st!==flowStyle())flowTiles()}
+setInterval(()=>{if(mapReady&&flowOn()&&!document.hidden&&!FLOW.stop&&Date.now()-FLOW.ref>=FLOW_TTL)flowTiles()},30000);
+function flowState(){if(!set.flow)return'aus';if(!flowKey())return'an, aber kein Schlüssel eingetragen';const u=flowUse();
+ return(FLOW.stop||(u.n>=FLOW_DAY?'Tageslimit erreicht':u.mn>=FLOW_MON?'Monatslimit erreicht':FLOW.ok?'zuletzt geladen '+new Date(FLOW.ok).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}):'an'))+(FLOW.err?' · Fehler: '+FLOW.err:'')+` · heute ${u.n} von ${FLOW_DAY} Kacheln, Monat ${u.mn} von ${FLOW_MON}`}
+function renderFlowInfo(){const el=$('ttInfo');if(!el)return;const k=flowKey();el.textContent=(k?'Schlüssel gespeichert (…'+k.slice(-4)+'). ':'Noch kein Schlüssel gespeichert. ')+'Stand: '+flowState()}
+async function flowTest(){const k=flowKey();if(!k){toast('Erst einen Schlüssel speichern');return}const u=flowUse();u.n++;u.mn++;LS.set('gw_flowuse',u);
+ try{const r=await fetch('https://api.tomtom.com/traffic/map/4/tile/flow/relative0/12/2188/1364.png?key='+encodeURIComponent(k)+'&tileSize=512');
+  if(r.ok){FLOW.stop='';FLOW.err='';toast('Schlüssel funktioniert');drawFlow()}else flowFail(r.status)}catch(e){toast('TomTom nicht erreichbar');FLOW.err='nicht erreichbar'}renderFlowInfo()}
 const src=(id,data)=>whenMap(()=>{const so=map.getSource(id);if(so)so.setData(data)});
 map.on('error',e=>{mapErr=(e&&e.error&&e.error.message)||'Kartenfehler'});
 map.on('load',()=>{
  const before=map.getStyle().layers.find(l=>l.type==='symbol')?.id;
  map.addSource('route',{type:'geojson',data:EMPTY});
  map.addSource('alts',{type:'geojson',data:EMPTY});
+ map.addSource('flow',{type:'raster',tiles:['ttflow://{z}/{x}/{y}?s='+flowStyle()+'&b=0'],tileSize:512,minzoom:9,maxzoom:16,bounds:FLOW_BOX});FLOW.st=flowStyle();FLOW.ref=Date.now();
+ map.addLayer({id:'flow',type:'raster',source:'flow',minzoom:10,layout:{visibility:flowOn()?'visible':'none'},paint:{'raster-opacity':.85,'raster-fade-duration':0}},before);
  map.addLayer({id:'alt-case',type:'line',source:'alts',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#5f7486','line-width':['interpolate',['linear'],['zoom'],12,6,18,20],'line-opacity':.55}},before);
  map.addLayer({id:'alt-line',type:'line',source:'alts',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#a9bccb','line-width':['interpolate',['linear'],['zoom'],12,4,18,14],'line-opacity':.8}},before);
  map.on('click','alt-line',e=>{const f=e.features&&e.features[0];if(f&&PREVIEW)pickRoute(+f.properties.i)});
@@ -425,7 +471,7 @@ map.on('load',()=>{
  map.addLayer({id:'dest',type:'symbol',source:'dest',layout:{'icon-image':'ico-ziel','icon-size':['interpolate',['linear'],['zoom'],12,0.7,17,1],'icon-anchor':'bottom-left','icon-allow-overlap':true,'icon-ignore-placement':true,'icon-pitch-alignment':'viewport','icon-rotation-alignment':'viewport'}});
  loadIcons();
  styleMap();
- mapReady=true;setTimeout(()=>{try{drawCams();drawAnn();drawVwd();drawWorks();drawTrams();drawFavs()}catch(e){}},0);mapQ.splice(0).forEach(f=>{try{f()}catch(e){}});applyView(true)});
+ mapReady=true;setTimeout(()=>{try{drawFlow();drawCams();drawAnn();drawVwd();drawWorks();drawTrams();drawFavs()}catch(e){}},0);mapQ.splice(0).forEach(f=>{try{f()}catch(e){}});applyView(true)});
 // Waze-ähnliche Kartenfarben, Tag und Nacht
 const THEMES={
  day:{bg:'#e9ecef',land:'#e4e7ea',park:'#cdeac3',water:'#a9d8f3',bld:'#dadde1',bld3:'#d3d7dc',road:'#ffffff',major:'#ffe28a',motor:'#f9c04f',casing:'#c4cad0',text:'#3c4852',halo:'#ffffff',rcase:'#127fb0'},
@@ -456,7 +502,7 @@ function styleMap(){if(!map.getStyle())return;const T=THEMES[isNight()?'night':'
  try{map.setSky({'sky-color':T.bg,'horizon-color':T.bg,'fog-color':T.bg,'sky-horizon-blend':1,'horizon-fog-blend':1,'fog-ground-blend':0.85,'atmosphere-blend':0})}catch(e){}
  for(const l of map.getStyle().layers){if(l.type==='symbol'&&(l['source-layer']==='poi'||/poi/.test(l.id))&&!/transit|station|bus|rail/.test(l.id)){try{map.setLayoutProperty(l.id,'visibility','none')}catch(e){}}}}
 function applyTheme(){if(set.theme==='auto')sunIsNight();const n=isNight();document.documentElement.dataset.ui=n?'night':'day';
- const tc=n?'#1d2935':'#ffffff';$('themeColor').setAttribute('content',tc);document.documentElement.style.backgroundColor=tc;if(mapReady||map.isStyleLoaded())styleMap()}
+ const tc=n?'#1d2935':'#ffffff';$('themeColor').setAttribute('content',tc);document.documentElement.style.backgroundColor=tc;if(mapReady||map.isStyleLoaded()){styleMap();flowTheme()}}
 // jede Minute prüfen, ob die Sonne den Wechsel ausgelöst hat; Position einmal je 10 Min merken (für den Start ohne GPS)
 let sunPosT=0;setInterval(()=>{if(cur&&Date.now()-sunPosT>6e5){sunPosT=Date.now();LS.set('gw_lastpos',{lat:+cur.lat.toFixed(3),lon:+cur.lon.toFixed(3)})}
  if(set.theme!=='auto')return;const was=sunNight;sunIsNight();if(sunNight!==was){applyTheme();renderSunHint()}},60000);
@@ -1624,7 +1670,7 @@ $('res').onclick=e=>{const fr=e.target.closest('[data-fren]');if(fr){renameFav(f
 // ---------- Diagnose ----------
 function renderDiag(){const now=Date.now()/1000,R=NAV;
  const rows=[['App-Version',APP_VERSION+(SIM.on?' · SIMULATION aktiv':'')],['GPS',DIAG.acc==null?'noch kein Signal':`±${Math.round(DIAG.acc)} m, ${DIAG.fixes} Positionen in dieser Sitzung`],
-  ['Karte',mapReady?(mapErr?'geladen, Hinweis: '+mapErr:'3D-Karte geladen'):(mapErr||'lädt …')],['Ampel-Datei Leipzig',fileState],['Blitzer',set.blitz?`${camState} · ${mobCams().length} mobile gemeldet`:'aus'],['Ton',audioState()],['Verkehrsmeldungen Autobahn',set.vwd?vwdState:'aus'],['Angekündigte Kontrollen',set.blitz?annState:'aus'],['Gemeinsame Daten',set.share?`an · ${SHARE.up} hochgeladen, ${PEND.length} wartend · ${SHARE.down} Beobachtungen von allen geladen${SHARE.last?' um '+SHARE.last:''}${SHARE.err?' · Fehler: '+SHARE.err:''}`:'aus'],['Baustellen',workState],['Straßenbahn-Fahrplan',tramState],['Fahrstreifen der Route',NAV?(NAV.lpState||'lädt …'):'nur während der Navigation'],['Wetterwarnungen',WX.state],['Overpass',OPS.ok||OPS.err?`${OPS.ok} ok, ${OPS.err} fehlgeschlagen · zuletzt ${OPS.last||'–'} (${(OPS.ms/1000).toFixed(1)} s)`:'noch keine Abfrage'],['Tempolimits',set.vlim?VL.state+(VL.cur?` · jetzt ${VL.cur.v==='none'?'ohne Limit':VL.cur.v+' km/h'}${VL.cur.cond?' (zeitlich)':''}${VL.cur.imp===1?' (aus Zone)':VL.cur.imp===2?' (vermutet)':''}`:' · jetzt unbekannt')+(NAV?` · Route ${NAV.lp?'mit':'noch ohne'} Straßendaten`:''):'aus'],['Ampeln geladen',`${SIG.size} gesamt · Online-Abruf: ${DIAG.load}`],
+  ['Karte',mapReady?(mapErr?'geladen, Hinweis: '+mapErr:'3D-Karte geladen'):(mapErr||'lädt …')],['Ampel-Datei Leipzig',fileState],['Blitzer',set.blitz?`${camState} · ${mobCams().length} mobile gemeldet`:'aus'],['Ton',audioState()],['Verkehrsmeldungen Autobahn',set.vwd?vwdState:'aus'],['Verkehrsfluss (TomTom)',flowState()],['Angekündigte Kontrollen',set.blitz?annState:'aus'],['Gemeinsame Daten',set.share?`an · ${SHARE.up} hochgeladen, ${PEND.length} wartend · ${SHARE.down} Beobachtungen von allen geladen${SHARE.last?' um '+SHARE.last:''}${SHARE.err?' · Fehler: '+SHARE.err:''}`:'aus'],['Baustellen',workState],['Straßenbahn-Fahrplan',tramState],['Fahrstreifen der Route',NAV?(NAV.lpState||'lädt …'):'nur während der Navigation'],['Wetterwarnungen',WX.state],['Overpass',OPS.ok||OPS.err?`${OPS.ok} ok, ${OPS.err} fehlgeschlagen · zuletzt ${OPS.last||'–'} (${(OPS.ms/1000).toFixed(1)} s)`:'noch keine Abfrage'],['Tempolimits',set.vlim?VL.state+(VL.cur?` · jetzt ${VL.cur.v==='none'?'ohne Limit':VL.cur.v+' km/h'}${VL.cur.cond?' (zeitlich)':''}${VL.cur.imp===1?' (aus Zone)':VL.cur.imp===2?' (vermutet)':''}`:' · jetzt unbekannt')+(NAV?` · Route ${NAV.lp?'mit':'noch ohne'} Straßendaten`:''):'aus'],['Ampeln geladen',`${SIG.size} gesamt · Online-Abruf: ${DIAG.load}`],
   ['Nächste Ampel',(()=>{if(!cur||!SIG.size)return '–';let b=1e9;for(const x of SIG.values()){const d=dist(cur,x);if(d<b)b=d}return fmt(b)+' entfernt'})()],
   ['Fahrtrichtung',heading==null?'noch unbekannt (erst losfahren)':Math.round(heading)+'°'],
   ['Navigation',R?`aktiv, ${(R.onRoute||[]).length} Ampeln auf der Route`:'aus (Ampeln werden per Fahrtrichtung erkannt)'],
@@ -1751,6 +1797,7 @@ const renderSet=()=>{document.querySelectorAll('[data-mode]').forEach(b=>b.setAt
  document.querySelectorAll('[data-tram]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.tram==set.tram));
  document.querySelectorAll('[data-wx]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.wx==set.wx));
  document.querySelectorAll('[data-vwd]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.vwd==set.vwd));
+ document.querySelectorAll('[data-flow]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.flow==set.flow));renderFlowInfo();
  document.querySelectorAll('[data-vlim]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.vlim==set.vlim));
  renderVoices();renderCritSet();
  $('audioInfo').textContent={ton:'Kurze Töne über dem Radio, das Radio läuft weiter. Links abbiegen klingt von links, rechts von rechts.',sprache:'Gesprochene Hinweise. Achtung: iOS hält dabei das Radio oder die Musik an und startet sie danach nicht wieder.',aus:'Keine Ansagen, nur Anzeige.'}[set.audio];
@@ -1763,6 +1810,10 @@ document.addEventListener('click',e=>{const rc=e.target.closest('[data-rcrit]');
  const tr=e.target.closest('[data-tram]');if(tr){set.tram=+tr.dataset.tram;saveSet();renderSet();loadTrams();if(!set.tram)$('trH').classList.remove('on')}
  const wq=e.target.closest('[data-wx]');if(wq){set.wx=+wq.dataset.wx;saveSet();renderSet();fetchWx(cur,true);drawWx()}
  const vw=e.target.closest('[data-vwd]');if(vw){set.vwd=+vw.dataset.vwd;saveSet();renderSet();if(set.vwd)loadVwd(true);else{drawVwd();$('alert').classList.remove('info')}}
+ const fl=e.target.closest('[data-flow]');if(fl){set.flow=+fl.dataset.flow;saveSet();renderSet();if(set.flow&&!flowKey())toast('Bitte unten den TomTom-Schlüssel eintragen');drawFlow()}
+ if(e.target.closest('#ttSave')){const v=$('ttKey').value.trim();if(!/^[A-Za-z0-9]{20,64}$/.test(v)){toast('Das sieht nicht wie ein TomTom-Schlüssel aus');return}LS.set('gw_ttkey',v);$('ttKey').value='';FLOW.stop='';FLOW.err='';set.flow=1;saveSet();renderSet();drawFlow();flowTest()}
+ if(e.target.closest('#ttDel')){LS.set('gw_ttkey','');try{localStorage.removeItem('gw_ttkey')}catch(x){}FLOW.stop='';drawFlow();toast('Schlüssel gelöscht')}
+ if(e.target.closest('#ttTest'))flowTest();
  const vq=e.target.closest('[data-vlim]');if(vq){set.vlim=+vq.dataset.vlim;saveSet();renderSet();renderVL()}
  const bz=e.target.closest('[data-blitz]');if(bz){set.blitz=+bz.dataset.blitz;saveSet();renderSet();setBlitz()}
  const th=e.target.closest('[data-theme]');if(th){set.theme=th.dataset.theme;saveSet();renderSet();applyTheme();renderSunHint()}
