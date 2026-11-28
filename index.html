@@ -357,7 +357,7 @@ textarea{width:100%;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--
 <script>
 {
 const $=id=>document.getElementById(id);
-const APP_VERSION='28.11.2026 · 7';
+const APP_VERSION='28.11.2026 · 8';
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 // ---------- Geometrie ----------
 const RAD=Math.PI/180,ER=6371000;
@@ -389,10 +389,10 @@ let mapReady=false,mapErr='';const mapQ=[];const whenMap=f=>{if(mapReady)f();els
 // Schutz: eigener Zähler je Tag/Monat, 5-Min-Zwischenspeicher (Speicher + Cache-API), Kacheln 512 px, nur Zoom 9–16, nur Mitteldeutschland, nur wenn an.
 var FLOW={state:'aus',err:'',stop:'',ref:0,mem:new Map(),limT:'',st:''};
 const FLOW_DAY=6000,FLOW_MON=190000,FLOW_TTL=300000,FLOW_BOX=[10.5,50.1,15.1,52.7];
-const flowKey=()=>LS.get('gw_ttkey',''),flowOn=()=>!!set.flow,flowStyle=()=>isNight()?'relative0-dark':'relative0';
+const flowKey=()=>LS.get('gw_ttkey',''),flowOn=()=>!!set.flow,flowStyle=()=>'relative';   // Vektorkacheln (ab · 8): Farben zeichnet die App selbst
 const flowDay=()=>{const d=new Date();return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate()};
 function flowUse(){const d=flowDay(),m=d.replace(/-\d+$/,''),u=LS.get('gw_flowuse',{});if(u.d!==d){u.d=d;u.n=0}if(u.m!==m){u.m=m;u.mn=0}return u}
-const FLOW_EMPTY=(()=>{const b=atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='),a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return()=>a.buffer.slice(0)})();
+const FLOW_EMPTY=()=>new ArrayBuffer(0);   // leere Vektorkachel
 async function flowCache(){try{if(!window.caches)return null;const n='gw-flow-'+flowDay();if(FLOW.cn!==n){FLOW.cn=n;for(const k of await caches.keys())if(k.startsWith('gw-flow-')&&k!==n)caches.delete(k)}return await caches.open(n)}catch(e){return null}}
 function flowFail(st,px){if(px){if(st===429){FLOW.stop='Tageslimit für alle Nutzer erreicht, morgen wieder da';FLOW.err='';toast('Verkehrsfluss: Tageslimit erreicht')}
   else if(st===400)return;else{FLOW.pause=Date.now()+120000;FLOW.err=st===503?'Verkehrsdienst nicht bereit (HTTP 503)':'Verkehrsdienst HTTP '+st}renderFlowInfo();return}
@@ -412,9 +412,9 @@ maplibregl.addProtocol('ttflow',async(p,ac)=>{
  catch(e){if(ac.signal.aborted)throw e;FLOW.err='nicht erreichbar';return old()}
  if(!r.ok){flowFail(r.status,!k);return old()}
  const b=await r.arrayBuffer();FLOW.mem.set(id,{t:now,b});if(FLOW.mem.size>300)FLOW.mem.delete(FLOW.mem.keys().next().value);
- if(cache)cache.put('https://gw-flow/'+id,new Response(b.slice(0),{headers:{'content-type':'image/png','x-t':String(now)}})).catch(()=>{});
+ if(cache)cache.put('https://gw-flow/'+id,new Response(b.slice(0),{headers:{'content-type':'application/x-protobuf','x-t':String(now)}})).catch(()=>{});
  FLOW.ok=now;FLOW.err='';return{data:b}});
-function flowUrl(st,z,x,y,k){return k?'https://api.tomtom.com/traffic/map/4/tile/flow/'+st+'/'+z+'/'+x+'/'+y+'.png?key='+encodeURIComponent(k)+'&tileSize=512':SB.url+'/functions/v1/flow?s='+st+'&z='+z+'&x='+x+'&y='+y}
+function flowUrl(st,z,x,y,k){return k?'https://api.tomtom.com/traffic/map/4/tile/flow/'+st+'/'+z+'/'+x+'/'+y+'.pbf?key='+encodeURIComponent(k):SB.url+'/functions/v1/flow?s='+st+'&f=pbf&z='+z+'&x='+x+'&y='+y}
 function flowTiles(){const so=map.getSource&&map.getSource('flow');if(!so)return;FLOW.st=flowStyle();FLOW.ref=Date.now();so.setTiles(['ttflow://{z}/{x}/{y}?s='+FLOW.st+'&b='+Math.floor(FLOW.ref/FLOW_TTL)])}
 function drawFlow(){const on=flowOn();const a=$('attrTT');if(a)a.style.display=on?'':'none';
  whenMap(()=>{if(!map.getLayer('flow'))return;map.setLayoutProperty('flow','visibility',on?'visible':'none');if(on&&(FLOW.st!==flowStyle()||Date.now()-FLOW.ref>FLOW_TTL))flowTiles()});renderFlowInfo()}
@@ -424,7 +424,7 @@ function flowState(){if(!set.flow)return'aus';const u=flowUse();
  return(FLOW.stop||(u.n>=FLOW_DAY?'Tageslimit erreicht':u.mn>=FLOW_MON?'Monatslimit erreicht':FLOW.ok?'zuletzt geladen '+new Date(FLOW.ok).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}):'an'))+(FLOW.err?' · Fehler: '+FLOW.err:'')+(flowKey()?' · eigener Schlüssel':' · über Grünwelle-Server')+` · dieses Gerät heute ${u.n} Kacheln, Monat ${u.mn}`}
 function renderFlowInfo(){const el=$('ttInfo');if(!el)return;const k=flowKey();el.textContent=(k?'Eigener Schlüssel gespeichert (…'+k.slice(-4)+'). ':'')+'Stand: '+flowState()}
 async function flowTest(){const k=flowKey(),u=flowUse();u.n++;u.mn++;LS.set('gw_flowuse',u);FLOW.stop='';FLOW.pause=0;
- try{const r=await fetch(flowUrl('relative0',12,2188,1364,k));
+ try{const r=await fetch(flowUrl('relative',12,2188,1364,k));
   if(r.ok){FLOW.err='';toast(k?'Eigener Schlüssel funktioniert':'Verkehrsdienst funktioniert');drawFlow()}else{flowFail(r.status,!k);toast('Verkehrsfluss: Fehler HTTP '+r.status)}}catch(e){toast('Verkehrsdienst nicht erreichbar');FLOW.err='nicht erreichbar'}renderFlowInfo()}
 const src=(id,data)=>whenMap(()=>{const so=map.getSource(id);if(so)so.setData(data)});
 map.on('error',e=>{mapErr=(e&&e.error&&e.error.message)||'Kartenfehler'});
@@ -432,14 +432,18 @@ map.on('load',()=>{
  const before=map.getStyle().layers.find(l=>l.type==='symbol')?.id;
  map.addSource('route',{type:'geojson',data:EMPTY});
  map.addSource('alts',{type:'geojson',data:EMPTY});
- map.addSource('flow',{type:'raster',tiles:['ttflow://{z}/{x}/{y}?s='+flowStyle()+'&b=0'],tileSize:512,minzoom:9,maxzoom:16,bounds:FLOW_BOX});FLOW.st=flowStyle();FLOW.ref=Date.now();
+ map.addSource('flow',{type:'vector',tiles:['ttflow://{z}/{x}/{y}?s='+flowStyle()+'&b=0'],minzoom:9,maxzoom:14,bounds:FLOW_BOX});FLOW.st=flowStyle();FLOW.ref=Date.now();
  map.addLayer({id:'alt-case',type:'line',source:'alts',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#5f7486','line-width':['interpolate',['linear'],['zoom'],12,6,18,20],'line-opacity':.55}},before);
  map.addLayer({id:'alt-line',type:'line',source:'alts',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#a9bccb','line-width':['interpolate',['linear'],['zoom'],12,4,18,14],'line-opacity':.8}},before);
  map.on('click','alt-line',e=>{const f=e.features&&e.features[0];if(f&&PREVIEW)pickRoute(+f.properties.i)});
  map.addLayer({id:'route-case',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#127fb0','line-width':['interpolate',['linear'],['zoom'],12,6,18,22]}},before);
  map.addLayer({id:'route-line',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#33ccff','line-width':['interpolate',['linear'],['zoom'],12,4,18,15]}},before);
  // Verkehrsfluss über der Route: Farbe als Streifen in der Mitte, blauer Rand bleibt sichtbar
- map.addLayer({id:'flow',type:'raster',source:'flow',minzoom:10,layout:{visibility:flowOn()?'visible':'none'},paint:{'raster-opacity':.85,'raster-fade-duration':0}},before);
+ map.addLayer({id:'flow',type:'line',source:'flow','source-layer':'Traffic flow',minzoom:10,layout:{visibility:flowOn()?'visible':'none','line-cap':'round','line-join':'round'},
+  paint:{'line-color':['case',['has','road_closure'],'#6b6b6b',['<',['to-number',['get','traffic_level'],1],.25],'#8e1b1b',['<',['to-number',['get','traffic_level'],1],.5],'#e53935',['<',['to-number',['get','traffic_level'],1],.75],'#ff9800','#21b35b'],
+   'line-width':['interpolate',['linear'],['zoom'],10,1,14,1.6,18,3.2],'line-opacity':.95,
+   // zweispurige Straßen: jede Richtung auf ihrer Seite (Rechtsverkehr), liegt so innerhalb der blauen Route
+   'line-offset':['interpolate',['linear'],['zoom'],10,['case',['==',['get','traffic_road_coverage'],'one_side'],['case',['has','left_hand_traffic'],-.8,.8],0],14,['case',['==',['get','traffic_road_coverage'],'one_side'],['case',['has','left_hand_traffic'],-1.6,1.6],0],18,['case',['==',['get','traffic_road_coverage'],'one_side'],['case',['has','left_hand_traffic'],-3.6,3.6],0]]}},before);
  // Baustellen-Symbole: nahe beieinander liegende zu einer Bake zusammenfassen (Cluster ~46 px), Sperrung gewinnt
  map.addSource('works',{type:'geojson',data:EMPTY});
  map.addSource('worksPt',{type:'geojson',data:EMPTY,cluster:true,clusterRadius:46,clusterMaxZoom:19,clusterProperties:{b:['max',['get','b']],a:['max',['get','a']]}});
