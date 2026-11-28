@@ -187,6 +187,7 @@ def parse_part(it):
 parts = [(it, pp) for it in items if it['src'] == 'leipzig' for pp in [parse_part(it)] if pp]
 print(f'{len(parts)} einseitige Sperrungen im Text erkannt')
 n_dir = 0
+DIRLOG = []   # Protokoll in closures.json (Job-Logs sind nicht lesbar)
 if parts:
     snames = sorted({n for _, pp in parts for n in (pp.get('x'), pp.get('y'), pp.get('z')) if n})
     rx = '|'.join(re.sub(r'([.$*+?(){}|])', r'[\1]', n) for n in snames if not re.search(r'[\\\[\]^"]', n))
@@ -289,7 +290,15 @@ if parts:
                 b0 = brg(c, CENTER) if pp['ein'] > 0 else brg(CENTER, c)
                 dirs.append({'d': round(b0), 'p': it['poly'], 't': 'stadteinwärts gesperrt' if pp['ein'] > 0 else 'stadtauswärts gesperrt'})
             if not dirs:
-                print(f"Richtung nicht bestimmbar: {it['title']} {pp}")
+                why = ''
+                if pp['k'] in ('aus', 'ein', 'ri'):
+                    o = pp.get('y') or pp.get('z')
+                    why = f"Wege {pp['x']}: {len(W.get(pp['x'], []))}, {o}: {len(W.get(o, []))}, Ort: {o in places}"
+                    if pp['k'] in ('aus', 'ein'):
+                        j = junction(pp['x'], pp['y'], c)
+                        why += f", Kreuzung: {j}" + (f", Arme: {len(arms(pp['x'], j[0]))}" if j else '')
+                DIRLOG.append(f"nicht bestimmbar: {it['title']} {pp} – {why}")
+                print(DIRLOG[-1])
                 continue
             it['dirs'] = dirs
             it['title'] = 'Einseitige Sperrung: ' + it['title'].split(': ', 1)[1]
@@ -298,7 +307,8 @@ if parts:
             if pp['k'] in ('aus', 'ein') and len(dirs) == 1:
                 it['line'] = dirs[0]['p']
             n_dir += 1
-            print(f"Einseitig: {it['title']} – " + ', '.join(f"{x['t']} ({x['d']}°)" for x in dirs))
+            DIRLOG.append(f"Einseitig: {it['title']} – " + ', '.join(f"{x['t']} ({x['d']}°)" for x in dirs))
+            print(DIRLOG[-1])
     print(f'{n_dir} einseitige Sperrungen mit Richtung')
 for it in items:
     it.pop('_msg', None)
@@ -350,7 +360,7 @@ print(f'{n_ab} gesperrte Autobahn-Auf-/Abfahrten')
 
 out = {'updated': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M UTC'),
        'source': 'Stadt Leipzig, Verkehrs- und Tiefbauamt: Verkehrsraumeinschränkungen (opendata.leipzig.de); Autobahn GmbH des Bundes (verkehr.autobahn.de)',
-       'items': items}
+       'dirlog': DIRLOG, 'items': items}
 with open(dst, 'w', encoding='utf-8') as f:
     json.dump(out, f, ensure_ascii=False, separators=(',', ':'))
 for k in sorted(stat):
